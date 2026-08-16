@@ -15,10 +15,10 @@
  *
  * <h2>2. Architectural Layers</h2>
  * <ul>
- *   <li>{@link com.platform.app.ticket.domain}: The central domain core (Aggregate Roots, Entities, Value Objects, Domain Events, Repository Interfaces).</li>
- *   <li>{@link com.platform.app.ticket.application}: Use Cases and workflow orchestration (Application Services, Command/Query Handlers, DTOs).</li>
- *   <li>{@link com.platform.app.ticket.infrastructure}: Outbound Adapters (Spring Data JPA persistence, External Gateways, Message Publishers).</li>
- *   <li>{@link com.platform.app.ticket.api}: Inbound Adapters (REST Controllers, API Request/Response models, OpenAPI documentation).</li>
+ *   <li>{@link com.platform.app.module_template.domain}: The central domain core (Aggregate Roots, Entities, Value Objects, Domain Events, Repository Interfaces).</li>
+ *   <li>{@link com.platform.app.module_template.application}: Use Cases and workflow orchestration (Application Services, Command/Query Handlers, DTOs).</li>
+ *   <li>{@link com.platform.app.module_template.infrastructure}: Outbound Adapters (Spring Data JPA persistence, External Gateways, Message Publishers).</li>
+ *   <li>{@link com.platform.app.module_template.api}: Inbound Adapters (REST Controllers, API Request/Response models, OpenAPI documentation).</li>
  * </ul>
  *
  * <h2>3. Flow of Dependencies</h2>
@@ -28,4 +28,4 @@
  *   [ infrastructure ] ─► [ application ] ─► [ domain ] (Pure Core - Zero outer dependencies)
  * </pre>
  */
-package com.platform.app.ticket;
+package com.platform.app.module_template;

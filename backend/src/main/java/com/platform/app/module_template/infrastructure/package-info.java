@@ -18,12 +18,12 @@
  * <h2>3. Expected Components</h2>
  * <ul>
  *   <li>
- *     <b>Spring Data JPA Repositories (e.g., {@link com.platform.app.ticket.infrastructure.persistence.SpringDataJpaTicketRepository}):</b><br>
- *     Framework interface extending {@link org.springframework.data.jpa.repository.JpaRepository}.
+ *     <b>Spring Data JPA Repositories:</b><br>
+ *     Framework interfaces extending {@link org.springframework.data.jpa.repository.JpaRepository}.
  *   </li>
  *   <li>
- *     <b>Repository Implementations (e.g., {@link com.platform.app.ticket.infrastructure.persistence.TicketRepositoryImpl}):</b><br>
- *     Adapter class implementing {@link com.platform.app.ticket.domain.repository.TicketRepository} and delegating to Spring Data JPA.
+ *     <b>Repository Implementations:</b><br>
+ *     Adapter classes implementing domain repository interfaces and delegating to Spring Data JPA or custom query managers.
  *   </li>
  *   <li>
  *     <b>External Gateways & Data Mappers:</b><br>
@@ -31,4 +31,4 @@
  *   </li>
  * </ul>
  */
-package com.platform.app.ticket.infrastructure;
+package com.platform.app.module_template.infrastructure;

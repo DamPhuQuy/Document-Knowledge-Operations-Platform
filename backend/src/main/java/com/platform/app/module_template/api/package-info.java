@@ -26,7 +26,7 @@
  * <h2>3. Expected Components</h2>
  * <ul>
  *   <li>
- *     <b>REST Controllers (e.g., {@link com.platform.app.ticket.api.TicketController}):</b><br>
+ *     <b>REST Controllers:</b><br>
  *     Handles HTTP routing, parameter extraction, and use case invocation.
  *   </li>
  *   <li>
@@ -35,4 +35,4 @@
  *   </li>
  * </ul>
  */
-package com.platform.app.ticket.api;
+package com.platform.app.module_template.api;
