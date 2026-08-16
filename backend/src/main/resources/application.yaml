@@ -1,10 +1,5 @@
 server:
   port: ${SERVER_PORT:8080}
-  servlet:
-    context-path: ${SERVER_SERVLET_CONTEXT_PATH:/}
-  error:
-    include-message: always
-    include-binding-errors: always
 
 spring:
   application:
@@ -35,10 +30,8 @@ spring:
     hibernate:
       ddl-auto: ${JPA_HIBERNATE_DDL_AUTO:validate}
     properties:
-      hibernate:
-        format_sql: ${JPA_FORMAT_SQL:true}
-        jdbc:
-          time_zone: UTC
+      "[hibernate.format_sql]": ${JPA_FORMAT_SQL:true}
+      "[hibernate.jdbc.time_zone]": UTC
 
   # Liquibase Database Migrations
   liquibase:
@@ -48,9 +41,6 @@ spring:
 
   # Jackson JSON Serialization
   jackson:
-    serialization:
-      write-dates-as-timestamps: false
-      fail-on-empty-beans: false
     time-zone: UTC
     default-property-inclusion: non_null
 
@@ -84,8 +74,8 @@ springdoc:
 logging:
   level:
     root: INFO
-    com.platform.app: DEBUG
-    org.springframework.web: INFO
-    org.hibernate.SQL: ${JPA_SHOW_SQL:INFO}
+    "[com.platform.app]": DEBUG
+    "[org.springframework.web]": INFO
+    "[org.hibernate.SQL]": ${JPA_SHOW_SQL:INFO}
   pattern:
     console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"

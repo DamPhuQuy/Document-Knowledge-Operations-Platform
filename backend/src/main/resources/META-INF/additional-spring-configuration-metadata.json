@@ -1,0 +1,66 @@
+{
+  "groups": [
+    {
+      "name": "app",
+      "type": "com.platform.app.shared.config.properties.AppProperties",
+      "description": "Application custom configuration properties."
+    },
+    {
+      "name": "app.jwt",
+      "type": "com.platform.app.shared.config.properties.AppProperties$Jwt",
+      "description": "JWT authentication settings."
+    },
+    {
+      "name": "app.cors",
+      "type": "com.platform.app.shared.config.properties.AppProperties$Cors",
+      "description": "Cross-Origin Resource Sharing (CORS) settings."
+    },
+    {
+      "name": "app.swagger",
+      "type": "com.platform.app.shared.config.properties.AppProperties$Swagger",
+      "description": "Swagger / OpenAPI documentation settings."
+    }
+  ],
+  "properties": [
+    {
+      "name": "app.jwt.secret",
+      "type": "java.lang.String",
+      "description": "Secret key for HMAC-SHA signing JWT tokens."
+    },
+    {
+      "name": "app.jwt.expiration-ms",
+      "type": "java.lang.Long",
+      "description": "Access token expiration duration in milliseconds."
+    },
+    {
+      "name": "app.jwt.refresh-expiration-ms",
+      "type": "java.lang.Long",
+      "description": "Refresh token expiration duration in milliseconds."
+    },
+    {
+      "name": "app.cors.allowed-origins",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Allowed origins for CORS headers."
+    },
+    {
+      "name": "app.swagger.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether Swagger UI and OpenAPI documentation endpoints are enabled."
+    },
+    {
+      "name": "app.swagger.title",
+      "type": "java.lang.String",
+      "description": "OpenAPI documentation title."
+    },
+    {
+      "name": "app.swagger.description",
+      "type": "java.lang.String",
+      "description": "OpenAPI documentation description."
+    },
+    {
+      "name": "app.swagger.version",
+      "type": "java.lang.String",
+      "description": "OpenAPI documentation version."
+    }
+  ]
+}
