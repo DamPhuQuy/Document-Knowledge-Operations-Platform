@@ -74,11 +74,11 @@ com.platform.app.ai/
 │
 └── infrastructure/                           # [Outbound Adapter]
     ├── client/
-    │   ├── dto/                             # Wire DTOs đặc thù của OpenAI Chat Completions API
-    │   └── OpenAiClientAdapter.java         # Implementation của LlmClientPort sử dụng Spring RestClient
+    │   ├── dto/                             # Payload schema parsing (OpenAiStructuredOutputPayload)
+    │   └── OpenAiClientAdapter.java         # Implementation của LlmClientPort sử dụng Official OpenAI Java SDK (Responses API)
     └── config/
         ├── LlmProperties.java               # Type-safe Properties (prefix: app.ai.llm)
-        └── LlmConfig.java                   # Cấu hình Bean RestClient và Timeouts
+        └── LlmConfig.java                   # Cấu hình Bean OpenAIClient với Timeouts & Retries
 ```
 
 ---

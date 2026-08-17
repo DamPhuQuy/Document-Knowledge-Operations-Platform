@@ -8,14 +8,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.openai.client.OpenAIClient;
+import com.openai.errors.OpenAIIoException;
+import com.openai.errors.OpenAIException;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
+import com.openai.services.blocking.ResponseService;
 import com.platform.app.ai.domain.exception.LlmProviderException;
 import com.platform.app.ai.domain.exception.LlmSchemaValidationException;
 import com.platform.app.ai.domain.exception.LlmTimeoutException;
@@ -27,23 +28,16 @@ import com.platform.app.ai.infrastructure.config.LlmProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OpenAiClientAdapterTest {
 
     @Mock
-    private RestClient restClient;
+    private OpenAIClient openAIClient;
 
     @Mock
-    private RestClient.RequestBodyUriSpec requestBodyUriSpec;
-
-    @Mock
-    private RestClient.RequestBodySpec requestBodySpec;
-
-    @Mock
-    private RestClient.ResponseSpec responseSpec;
+    private ResponseService responseService;
 
     private LlmProperties properties;
     private ObjectMapper objectMapper;
@@ -57,110 +51,117 @@ class OpenAiClientAdapterTest {
             "gpt-4o-mini",
             0.2,
             Duration.ofSeconds(2),
-            1, // 1 retry attempt for fast tests
+            1,
             Duration.ofMillis(10)
         );
         objectMapper = new ObjectMapper();
-        adapter = new OpenAiClientAdapter(restClient, properties, objectMapper);
+        adapter = new OpenAiClientAdapter(openAIClient, properties, objectMapper);
     }
 
-    private void mockRestClientChain(String responseBody) {
-        when(restClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any(MediaType.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.body(String.class)).thenReturn(responseBody);
+    private void mockResponse(Response response) {
+        when(openAIClient.responses()).thenReturn(responseService);
+        when(responseService.create(any(ResponseCreateParams.class))).thenReturn(response);
+    }
+
+    private Response createMockResponse(String id, String content, long promptTokens, long completionTokens) {
+        try {
+            String json = """
+                {
+                  "id": "%s",
+                  "created_at": 1700000000,
+                  "model": "gpt-4o-mini",
+                  "status": "completed",
+                  "parallel_tool_calls": false,
+                  "output": [
+                    {
+                      "id": "msg-1",
+                      "type": "message",
+                      "role": "assistant",
+                      "status": "completed",
+                      "content": [
+                        {
+                          "type": "output_text",
+                          "text": %s,
+                          "annotations": []
+                        }
+                      ]
+                    }
+                  ],
+                  "usage": {
+                    "input_tokens": %d,
+                    "output_tokens": %d,
+                    "total_tokens": %d,
+                    "input_tokens_details": {"cached_tokens": 0},
+                    "output_tokens_details": {"reasoning_tokens": 0}
+                  }
+                }
+                """.formatted(
+                    id,
+                    objectMapper.writeValueAsString(content),
+                    promptTokens,
+                    completionTokens,
+                    promptTokens + completionTokens
+                );
+            return objectMapper.readValue(json, Response.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize mock Response JSON", e);
+        }
     }
 
     @Test
-    @DisplayName("Should successfully parse clean JSON structured response from OpenAI")
+    @DisplayName("Should successfully parse clean JSON structured response from OpenAI Responses API")
     void shouldParseCleanJsonResponse() {
-        String openaiResponse = """
-            {
-              "id": "chatcmpl-123",
-              "model": "gpt-4o-mini",
-              "choices": [
-                {
-                  "index": 0,
-                  "message": {
-                    "role": "assistant",
-                    "content": "{\\"answer\\": \\"Your balance is $50.\\", \\"confidence\\": \\"HIGH\\"}"
-                  },
-                  "finish_reason": "stop"
-                }
-              ],
-              "usage": {
-                "prompt_tokens": 15,
-                "completion_tokens": 10,
-                "total_tokens": 25
-              }
-            }
-            """;
+        Response response = createMockResponse(
+            "resp-123",
+            "{\"answer\": \"Your balance is $50.\", \"confidence\": \"HIGH\"}",
+            15,
+            10
+        );
 
-        mockRestClientChain(openaiResponse);
+        mockResponse(response);
 
-        AssistantResponse response = adapter.generateResponse(List.of(LlmMessage.user("What is my balance?")), 0.2);
+        AssistantResponse result = adapter.generateResponse(List.of(
+            LlmMessage.system("You are an AI assistant"),
+            LlmMessage.user("What is my balance?")
+        ), 0.2);
 
-        assertThat(response).isNotNull();
-        assertThat(response.answer()).isEqualTo("Your balance is $50.");
-        assertThat(response.confidence()).isEqualTo(Confidence.HIGH);
-        assertThat(response.promptTokens()).isEqualTo(15);
-        assertThat(response.completionTokens()).isEqualTo(10);
+        assertThat(result).isNotNull();
+        assertThat(result.answer()).isEqualTo("Your balance is $50.");
+        assertThat(result.confidence()).isEqualTo(Confidence.HIGH);
+        assertThat(result.promptTokens()).isEqualTo(15);
+        assertThat(result.completionTokens()).isEqualTo(10);
     }
 
     @Test
     @DisplayName("Should parse structured response when content is wrapped in markdown code fence")
     void shouldParseMarkdownWrappedJsonResponse() {
-        String openaiResponse = """
-            {
-              "id": "chatcmpl-456",
-              "model": "gpt-4o-mini",
-              "choices": [
-                {
-                  "index": 0,
-                  "message": {
-                    "role": "assistant",
-                    "content": "```json\\n{\\"answer\\": \\"Ticket #100 is resolved.\\", \\"confidence\\": \\"MEDIUM\\"}\\n```"
-                  }
-                }
-              ],
-              "usage": {
-                "prompt_tokens": 20,
-                "completion_tokens": 12,
-                "total_tokens": 32
-              }
-            }
-            """;
+        Response response = createMockResponse(
+            "resp-456",
+            "```json\n{\"answer\": \"Ticket #100 is resolved.\", \"confidence\": \"MEDIUM\"}\n```",
+            20,
+            12
+        );
 
-        mockRestClientChain(openaiResponse);
+        mockResponse(response);
 
-        AssistantResponse response = adapter.generateResponse(List.of(LlmMessage.user("Status of ticket 100?")), 0.2);
+        AssistantResponse result = adapter.generateResponse(List.of(LlmMessage.user("Status of ticket 100?")), 0.2);
 
-        assertThat(response).isNotNull();
-        assertThat(response.answer()).isEqualTo("Ticket #100 is resolved.");
-        assertThat(response.confidence()).isEqualTo(Confidence.MEDIUM);
+        assertThat(result).isNotNull();
+        assertThat(result.answer()).isEqualTo("Ticket #100 is resolved.");
+        assertThat(result.confidence()).isEqualTo(Confidence.MEDIUM);
     }
 
     @Test
-    @DisplayName("Should throw LlmSchemaValidationException when LLM response is not valid JSON")
+    @DisplayName("Should throw LlmSchemaValidationException when Responses API returns non-JSON text")
     void shouldThrowSchemaValidationExceptionWhenNotJson() {
-        String openaiResponse = """
-            {
-              "id": "chatcmpl-789",
-              "choices": [
-                {
-                  "index": 0,
-                  "message": {
-                    "role": "assistant",
-                    "content": "I am not able to answer in JSON format."
-                  }
-                }
-              ]
-            }
-            """;
+        Response response = createMockResponse(
+            "resp-789",
+            "I cannot answer in JSON format.",
+            10,
+            5
+        );
 
-        mockRestClientChain(openaiResponse);
+        mockResponse(response);
 
         assertThatThrownBy(() -> adapter.generateResponse(List.of(LlmMessage.user("Hello")), null))
             .isInstanceOf(LlmSchemaValidationException.class)
@@ -170,22 +171,14 @@ class OpenAiClientAdapterTest {
     @Test
     @DisplayName("Should throw LlmSchemaValidationException when required 'answer' field is missing")
     void shouldThrowSchemaValidationExceptionWhenAnswerMissing() {
-        String openaiResponse = """
-            {
-              "id": "chatcmpl-789",
-              "choices": [
-                {
-                  "index": 0,
-                  "message": {
-                    "role": "assistant",
-                    "content": "{\\"confidence\\": \\"LOW\\"}"
-                  }
-                }
-              ]
-            }
-            """;
+        Response response = createMockResponse(
+            "resp-789",
+            "{\"confidence\": \"LOW\"}",
+            10,
+            5
+        );
 
-        mockRestClientChain(openaiResponse);
+        mockResponse(response);
 
         assertThatThrownBy(() -> adapter.generateResponse(List.of(LlmMessage.user("Hello")), null))
             .isInstanceOf(LlmSchemaValidationException.class)
@@ -193,32 +186,26 @@ class OpenAiClientAdapterTest {
     }
 
     @Test
-    @DisplayName("Should throw LlmTimeoutException on network timeout")
+    @DisplayName("Should throw LlmTimeoutException on I/O or connection error from Responses API")
     void shouldThrowTimeoutExceptionOnNetworkError() {
-        when(restClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any(MediaType.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.retrieve()).thenThrow(new ResourceAccessException("Connection timed out"));
+        when(openAIClient.responses()).thenReturn(responseService);
+        when(responseService.create(any(ResponseCreateParams.class)))
+            .thenThrow(new OpenAIIoException("Connection reset / timed out"));
 
         assertThatThrownBy(() -> adapter.generateResponse(List.of(LlmMessage.user("Hello")), null))
             .isInstanceOf(LlmTimeoutException.class)
-            .hasMessageContaining("timed out");
+            .hasMessageContaining("OpenAI connection/timeout failure");
     }
 
     @Test
-    @DisplayName("Should throw LlmProviderException on 500 server error")
-    void shouldThrowProviderExceptionOn5xx() {
-        when(restClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any(MediaType.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.body(any(Object.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.retrieve()).thenThrow(
-            new RestClientResponseException("Internal Error", HttpStatusCode.valueOf(500), "Internal Error",
-                HttpHeaders.EMPTY, "{\"error\": \"service overloaded\"}".getBytes(), null));
+    @DisplayName("Should throw LlmProviderException on Responses API error")
+    void shouldThrowProviderExceptionOnApiError() {
+        when(openAIClient.responses()).thenReturn(responseService);
+        when(responseService.create(any(ResponseCreateParams.class)))
+            .thenThrow(new OpenAIException("OpenAI Responses API error"));
 
         assertThatThrownBy(() -> adapter.generateResponse(List.of(LlmMessage.user("Hello")), null))
             .isInstanceOf(LlmProviderException.class)
-            .hasMessageContaining("LLM provider error");
+            .hasMessageContaining("OpenAI provider error");
     }
 }
