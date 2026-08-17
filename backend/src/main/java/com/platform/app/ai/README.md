@@ -1,351 +1,205 @@
-### 1. Sơ đồ tổ chức thư mục com.platform.app.ai (Slice 1)
+# Module AI (Customer Support Platform)
 
-    com.platform.app.ai/
-    ├── api/                                      # [Inbound Adapter] REST API
-    │   ├── ChatController.java                  # POST /api/v1/ai/chat
-    │   └── AiExceptionHandler.java              # Bắt lỗi LLM timeout, provider error -> ApiResponse chuẩn
-    │
-    ├── application/                              # [Application Layer] Use cases & DTOs
-    │   ├── dto/
-    │   │   ├── request/
-    │   │   │   └── ChatRequest.java             # Request payload (@NotBlank message, model, temperature)
-    │   │   └── response/
-    │   │       └── ChatResponse.java            # DTO trả về cho client bọc trong ApiResponse<ChatResponse>
-    │   ├── port/
-    │   │   ├── in/
-    │   │   │   └── ChatUseCase.java             # Inbound Port interface
-    │   │   └── out/
-    │   │       └── LlmClientPort.java           # Outbound Port (decouple core logic khỏi nhà mạng LLM)
-    │   └── service/
-    │       └── ChatService.java                 # Implements ChatUseCase, điều phối gọi LLM & validation
-    │
-    ├── domain/                                   # [Core Domain] Pure Java, zero framework coupling
-    │   ├── model/
-    │   │   ├── AssistantResponse.java           # Structured Output schema (answer, confidence, metadata)
-    │   │   ├── Confidence.java                  # Enum: LOW, MEDIUM, HIGH
-    │   │   └── LlmMessage.java                  # Value Object: role (system/user/assistant), content
-    │   └── exception/
-    │       ├── LlmProviderException.java        # Lỗi khi upstream LLM trả 5xx hoặc fail
-    │       ├── LlmTimeoutException.java         # Lỗi khi gọi LLM quá timeout
-    │       └── LlmSchemaValidationException.java# Lỗi khi LLM trả sai định dạng JSON/Pydantic
-    │
-    └── infrastructure/                           # [Outbound Adapter] Tương tác với Third-party API
-        ├── client/
-        │   ├── OpenAiClientAdapter.java         # Gọi OpenAI/Ollama/Gemini qua Spring RestClient
-        │   └── dto/                             # Payload riêng của provider (OpenAI ChatCompletion request/response)
-        └── config/
-            ├── LlmProperties.java               # @ConfigurationProperties(prefix = "app.ai.llm")
-            └── LlmConfig.java                   # Bean RestClient với connection/read timeout & retry
+Module `com.platform.app.ai` chịu trách nhiệm cung cấp khả năng AI Assistant cho nền tảng Customer Support. Module được thiết kế theo kiến trúc **Clean Architecture / Ports & Adapters (Hexagonal Architecture)** nhằm đảm bảo tính độc lập, khả năng kiểm thử cao và dễ dàng hoán đổi hoặc mở rộng các nhà cung cấp mô hình ngôn ngữ lớn (LLM Providers).
 
-──────
+---
 
-### 2. Luồng thực thi (Mapping với Definition of Done của Slice 1)
+## 1. Kiến trúc tổng quan (Architecture Overview)
 
-    Client (POST /api/v1/ai/chat)
-            ↓
-    ChatController (Validate payload với Jakarta @Valid)
-            ↓
-    ChatService (Build System Prompt + User Message)
-            ↓
-    LlmClientPort / OpenAiClientAdapter (Gọi LLM qua RestClient với timeout + retry)
-            ↓
-    Parse & Validate Structured Output (Map về AssistantResponse)
-            ↓
-    ChatResponse (Bọc trong ApiResponse.ok(response))
-            ↓
-    Nếu Timeout/5xx/Invalid Schema → AiExceptionHandler bắt lỗi → ApiResponse.error(msg)
+Module tuân thủ nghiêm ngặt quy tắc phân tầng và chiều phụ thuộc hướng tâm (Dependency Inversion):
 
-──────
+```
+                        ┌───────────────────────────────────────────┐
+                        │                 API Layer                 │
+                        │             (Inbound Adapter)             │
+                        │    ChatController, AiExceptionHandler    │
+                        └─────────────────────┬─────────────────────┘
+                                              │ calls
+                                              ▼
+                        ┌───────────────────────────────────────────┐
+                        │             APPLICATION Layer             │
+                        │       ChatUseCase (Inbound Port)          │
+                        │       ChatService (Orchestrator)          │
+                        │       LlmClientPort (Outbound Port)       │
+                        └──────────────┬─────────────┬──────────────┘
+                         implements    │             │ uses
+                                       ▼             ▼
+  ┌──────────────────────────────────────────┐     ┌──────────────────────────────────────────┐
+  │           INFRASTRUCTURE Layer           │     │               DOMAIN Layer               │
+  │            (Outbound Adapter)            │     │              (Pure Java/DDD)             │
+  │ OpenAiClientAdapter, LlmConfig/Properties│     │ AssistantResponse, Confidence, LlmMessage│
+  │ (Ollama, Claude, vLLM Adapters...)       │     │ LlmTimeoutException, LlmProviderException│
+  └──────────────────────────────────────────┘     └──────────────────────────────────────────┘
+```
 
-### 3. Chi tiết triển khai code mẫu cho Slice 1
+### Chi tiết các tầng
 
-#### 3.1. Domain Model: Structured Output (AssistantResponse.java)
+| Tầng               | Package                                                          | Vai trò                                                                                                                | Ràng buộc kỹ thuật                                                          |
+| :----------------- | :--------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **Domain**         | `domain.model`<br>`domain.exception`                             | Chứa các thực thể, Value Objects, Enums và Domain Exceptions cốt lõi.                                                  | Pure Java, tuyệt đối **không phụ thuộc framework** (Spring, Jackson, v.v.). |
+| **Application**    | `application.port`<br>`application.service`<br>`application.dto` | Định nghĩa Use Case (Inbound Port), giao tiếp hạ tầng (Outbound Port) và điều phối luồng nghiệp vụ (`ChatService`).    | Phụ thuộc vào Domain, không phụ thuộc chi tiết kỹ thuật ở Infrastructure.   |
+| **Infrastructure** | `infrastructure.client`<br>`infrastructure.config`               | Triển khai các Outbound Port (`LlmClientPort`) kết nối với API bên ngoài (OpenAI, Ollama...), cấu hình HTTP Client.    | Chứa logic serialization, network timeout, retry, sanitize dữ liệu.         |
+| **API**            | `api`                                                            | Inbound REST Controller nhận HTTP request, xác thực dữ liệu đầu vào và chuyển đổi Exception thành HTTP Response chuẩn. | Sử dụng Jakarta Validation (`@Valid`) và `ApiResponse<T>`.                  |
 
-    package com.platform.app.ai.domain.model;
+---
 
-    public record AssistantResponse(
-        String answer,
-        Confidence confidence,
-        int promptTokens,
-        int completionTokens
-    ) {}
+## 2. Cấu trúc thư mục (Directory Structure)
 
-    package com.platform.app.ai.domain.model;
+```text
+com.platform.app.ai/
+├── api/                                      # [Inbound Adapter]
+│   ├── ChatController.java                  # REST endpoint: POST /api/v1/ai/chat
+│   └── AiExceptionHandler.java              # Controller Advice chuẩn hóa lỗi Domain -> HTTP Status
+│
+├── application/                              # [Application Layer]
+│   ├── dto/
+│   │   ├── request/ChatRequest.java         # DTO đầu vào kèm Jakarta Validation
+│   │   └── response/ChatResponse.java       # DTO trả về cho Client
+│   ├── port/
+│   │   ├── in/ChatUseCase.java              # Inbound Port interface
+│   │   └── out/LlmClientPort.java           # Outbound Port interface
+│   └── service/
+│       └── ChatService.java                 # Use case implementation & prompt orchestration
+│
+├── domain/                                   # [Domain Layer - Zero Framework Coupling]
+│   ├── model/
+│   │   ├── AssistantResponse.java           # Record chứa phản hồi đã cấu trúc (answer, confidence, tokens)
+│   │   ├── Confidence.java                  # Enum: LOW, MEDIUM, HIGH
+│   │   ├── LlmMessage.java                  # Value object: role (SYSTEM/USER/ASSISTANT) & content
+│   │   └── LlmRole.java                     # Enum định danh vai trò tin nhắn
+│   └── exception/
+│       ├── LlmTimeoutException.java         # Bắn ra khi request gọi LLM quá thời gian quy định
+│       ├── LlmProviderException.java        # Bắn ra khi nhà cung cấp LLM trả lỗi (5xx, 429...)
+│       └── LlmSchemaValidationException.java# Bắn ra khi LLM trả về sai schema JSON quy định
+│
+└── infrastructure/                           # [Outbound Adapter]
+    ├── client/
+    │   ├── dto/                             # Wire DTOs đặc thù của OpenAI Chat Completions API
+    │   └── OpenAiClientAdapter.java         # Implementation của LlmClientPort sử dụng Spring RestClient
+    └── config/
+        ├── LlmProperties.java               # Type-safe Properties (prefix: app.ai.llm)
+        └── LlmConfig.java                   # Cấu hình Bean RestClient và Timeouts
+```
 
-    public enum Confidence {
-        LOW,
-        MEDIUM,
-        HIGH
-    }
+---
 
-──────
+## 3. Các nguyên tắc kỹ thuật (Core Principles)
 
-#### 3.2. Outbound Port: LlmClientPort.java
+### 3.1. Phân tách nhà mạng LLM qua Outbound Port (`LlmClientPort`)
 
-    package com.platform.app.ai.application.port.out;
+Toàn bộ nghiệp vụ trong `ChatService` chỉ tương tác với `LlmClientPort`. Core application không biết và không quan tâm API thực tế đằng sau là OpenAI, Anthropic Claude, Ollama hay vLLM.
 
-    import java.util.List;
-    import com.platform.app.ai.domain.model.AssistantResponse;
-    import com.platform.app.ai.domain.model.LlmMessage;
+```
+                 ┌── OpenAiClientAdapter (Hiện tại)
+LlmClientPort ───┼── OllamaClientAdapter (Mở rộng Local LLM)
+                 ├── ClaudeClientAdapter (Mở rộng Anthropic)
+                 └── VllmClientAdapter   (Mở rộng Private Cloud)
+```
 
-    public interface LlmClientPort {
-        AssistantResponse generateStructuredResponse(List<LlmMessage> messages, Double temperature);
-    }
+### 3.2. Structured Outputs & Schema Enforcement
 
-──────
+- Model được cấu hình trả về định dạng JSON bắt buộc (`response_format: {"type": "json_object"}`).
+- [OpenAiClientAdapter](file:///c:/Users/DamPhuQuy/Develop/Custom-support-platform/backend/src/main/java/com/platform/app/ai/infrastructure/client/OpenAiClientAdapter.java) thực hiện tiền xử lý làm sạch markdown fences (`json ... `) trước khi deserialize về [AssistantResponse](file:///c:/Users/DamPhuQuy/Develop/Custom-support-platform/backend/src/main/java/com/platform/app/ai/domain/model/AssistantResponse.java).
+- Trường hợp payload thiếu trường bắt buộc (`answer`) hoặc JSON lỗi, hệ thống ném `LlmSchemaValidationException` để tầng API trả về mã `422 Unprocessable Entity`.
 
-#### 3.3. Configuration & Properties: LlmProperties.java
+### 3.3. Cơ chế chịu lỗi (Resilience & Retry)
 
-    package com.platform.app.ai.infrastructure.config;
+- **Timeout Boundaries**: Thiết lập `connectTimeout` và `readTimeout` nghiêm ngặt qua cấu hình `app.ai.llm.timeout` nhằm tránh tình trạng treo thread server khi upstream phản hồi chậm.
+- **Exponential Backoff Retry**: Tự động thử lại khi gặp các lỗi tạm thời (`ResourceAccessException` do nghẽn mạng hoặc mã `5xx` / `429` từ LLM provider) trước khi kết luận thất bại.
 
-    import java.time.Duration;
-    import org.springframework.boot.context.properties.ConfigurationProperties;
+### 3.4. Chuẩn hóa mã lỗi HTTP (Error Mapping)
 
-    @ConfigurationProperties(prefix = "app.ai.llm")
-    public record LlmProperties(
-        String apiKey,
-        String baseUrl,
-        String model,
-        Double defaultTemperature,
-        Duration timeout,
-        int maxRetries
-    ) {}
+| Domain Exception                  | HTTP Status Code           | Diễn giải                                                    |
+| :-------------------------------- | :------------------------- | :----------------------------------------------------------- |
+| `LlmTimeoutException`             | `504 Gateway Timeout`      | Hết thời gian chờ kết nối hoặc đọc dữ liệu từ LLM API        |
+| `LlmProviderException`            | `502 Bad Gateway`          | LLM Provider gặp sự cố nội bộ hoặc từ chối phục vụ           |
+| `LlmSchemaValidationException`    | `422 Unprocessable Entity` | LLM trả về cấu trúc không hợp lệ hoặc thiếu dữ liệu bắt buộc |
+| `MethodArgumentNotValidException` | `400 Bad Request`          | Payload gửi lên từ client vi phạm ràng buộc validation       |
 
-Thêm vào application.yaml:
+---
 
-    app:
-      ai:
-        llm:
-          api-key: ${OPENAI_API_KEY:mock-key}
-          base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
-          model: ${LLM_MODEL:gpt-4o-mini}
-          default-temperature: 0.2
-          timeout: 10s
-          max-retries: 3
+## 4. Cấu hình (Configuration Reference)
 
-──────
+Các tham số cấu hình trong `application.yaml`:
 
-#### 3.4. Infrastructure Adapter: OpenAiClientAdapter.java
+```yaml
+app:
+  ai:
+    llm:
+      api-key: ${LLM_API_KEY:your-api-key}
+      base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+      model: ${LLM_MODEL:gpt-4o-mini}
+      temperature: ${LLM_TEMPERATURE:0.2}
+      timeout: ${LLM_TIMEOUT:10s}
+      max-retries: ${LLM_MAX_RETRIES:3}
+      retry-delay: ${LLM_RETRY_DELAY:500ms}
+```
 
-Tận dụng RestClient của Spring Boot với cấu hình timeout và retry rõ ràng:
+---
 
-    package com.platform.app.ai.infrastructure.client;
+## 5. Tài liệu API (API Endpoints)
 
-    import java.util.List;
-    import java.util.Map;
-    import org.springframework.http.MediaType;
-    import org.springframework.stereotype.Component;
-    import org.springframework.web.client.ResourceAccessException;
-    import org.springframework.web.client.RestClient;
-    import org.springframework.web.client.RestClientResponseException;
+### `POST /api/v1/ai/chat`
 
-    import com.fasterxml.jackson.databind.ObjectMapper;
-    import com.platform.app.ai.application.port.out.LlmClientPort;
-    import com.platform.app.ai.domain.exception.LlmProviderException;
-    import com.platform.app.ai.domain.exception.LlmTimeoutException;
-    import com.platform.app.ai.domain.model.AssistantResponse;
-    import com.platform.app.ai.domain.model.LlmMessage;
-    import com.platform.app.ai.infrastructure.config.LlmProperties;
+Gửi tin nhắn yêu cầu tới AI Assistant và nhận về câu trả lời có cấu trúc.
 
-    import lombok.RequiredArgsConstructor;
-    import lombok.extern.slf4j.Slf4j;
+**Headers:**
 
-    @Slf4j
-    @Component
-    @RequiredArgsConstructor
-    public class OpenAiClientAdapter implements LlmClientPort {
+```http
+Content-Type: application/json
+Authorization: Bearer <JWT_ACCESS_TOKEN>
+```
 
-        private final RestClient restClient;
-        private final LlmProperties properties;
-        private final ObjectMapper objectMapper;
+**Request Body:**
 
-        @Override
-        public AssistantResponse generateStructuredResponse(List<LlmMessage> messages, Double temperature) {
-            // Build JSON Schema hoặc Function Call / response_format json_object
-            var requestBody = Map.of(
-                "model", properties.model(),
-                "temperature", temperature != null ? temperature : properties.defaultTemperature(),
-                "response_format", Map.of("type", "json_object"),
-                "messages", messages.stream().map(m -> Map.of("role", m.role().name().toLowerCase(), "content", m.
-
-content())).toList()
-);
-
-            try {
-                var responseJson = restClient.post()
-                    .uri("/chat/completions")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(String.class);
-
-                return parseLlmResponse(responseJson);
-            } catch (ResourceAccessException ex) {
-                log.error("LLM Provider Timeout or Connection Error: {}", ex.getMessage());
-                throw new LlmTimeoutException("LLM request timed out after " + properties.timeout(), ex);
-            } catch (RestClientResponseException ex) {
-                log.error("LLM Provider returned error status: {} body: {}", ex.getStatusCode(), ex.
-
-getResponseBodyAsString());
-throw new LlmProviderException("LLM upstream failed with status " + ex.getStatusCode(), ex);
+```json
+{
+  "message": "Làm thế nào để đổi mật khẩu tài khoản?",
+  "temperature": 0.3
 }
+```
+
+**Response (200 OK):**
+
+```json
+{
+  "success": true,
+  "message": "Message processed successfully",
+  "data": {
+    "answer": "Bạn có thể đổi mật khẩu bằng cách truy cập mục Cài đặt tài khoản > Đổi mật khẩu.",
+    "confidence": "HIGH",
+    "promptTokens": 65,
+    "completionTokens": 32
+  },
+  "timestamp": "2026-08-17T11:20:00Z"
 }
+```
 
-        private AssistantResponse parseLlmResponse(String responseJson) {
-            // Parse content JSON string từ OpenAI payload và map vào AssistantResponse
-            // ...
-            return null;
-        }
-    }
+---
 
-──────
+## 6. Hướng dẫn mở rộng (Extensibility Guide)
 
-#### 3.5. Application Layer: Request DTO & Service
+### Thêm một LLM Provider mới (Ví dụ: Ollama cho Local AI)
 
-ChatRequest.java:
+1. Tạo class `OllamaClientAdapter` trong `infrastructure.client` implement `LlmClientPort`.
+2. Sử dụng `@ConditionalOnProperty(prefix = "app.ai.llm", name = "provider", havingValue = "ollama")`.
+3. Không cần chỉnh sửa bất kỳ dòng code nào trong tầng `domain` hay `application`.
 
-    package com.platform.app.ai.application.dto.request;
+### Lộ trình tích hợp các Slice tiếp theo
 
-    import jakarta.validation.constraints.NotBlank;
-    import jakarta.validation.constraints.Size;
+- **Slice 2 (Conversation State)**: Bổ sung `ChatHistoryPort` (outbound) và `ConversationSession` trong `application/service` để lưu trữ ngữ cảnh hội thoại vào PostgreSQL.
+- **Slice 3 (RAG / Knowledge Base)**: Bổ sung `KnowledgeRetrieverPort` (outbound) để truy vấn vector embedding từ pgvector và inject evidence vào context của prompt.
+- **Slice 4 (Tool Calling / Agent Loop)**: Bổ sung `ToolRegistryPort` và điều phối vòng lặp tool execution trong `application`.
 
-    public record ChatRequest(
-        @NotBlank(message = "Message cannot be blank")
-        @Size(max = 4000, message = "Message exceeds maximum length")
-        String message,
+---
 
-        Double temperature
-    ) {}
+## 7. Chiến lược kiểm thử (Testing Strategy)
 
-ChatService.java:
+- **Unit Test**: Kiểm thử độc lập logic của `ChatService` và `OpenAiClientAdapter` bằng Mockito (mock `LlmClientPort`, mock `RestClient`).
+- **Integration Test**: Sử dụng `ChatControllerTest` kết hợp `@SpringBootTest` + `MockMvc` và `@MockitoBean` để kiểm thử toàn diện từ API endpoint, Authentication/Authorization, Request Validation cho đến Exception Handler.
 
-    package com.platform.app.ai.application.service;
+Chạy toàn bộ test suite:
 
-    import java.util.List;
-    import org.springframework.stereotype.Service;
-
-    import com.platform.app.ai.application.dto.request.ChatRequest;
-    import com.platform.app.ai.application.dto.response.ChatResponse;
-    import com.platform.app.ai.application.port.in.ChatUseCase;
-    import com.platform.app.ai.application.port.out.LlmClientPort;
-    import com.platform.app.ai.domain.model.LlmMessage;
-    import com.platform.app.ai.domain.model.LlmRole;
-
-    import lombok.RequiredArgsConstructor;
-
-    @Service
-    @RequiredArgsConstructor
-    public class ChatService implements ChatUseCase {
-
-        private final LlmClientPort llmClientPort;
-
-        private static final String SYSTEM_PROMPT = """
-            You are a customer support AI assistant.
-            Always reply in valid JSON conforming to the schema:
-            {
-              "answer": string,
-              "confidence": "LOW" | "MEDIUM" | "HIGH"
-            }
-            """;
-
-        @Override
-        public ChatResponse chat(ChatRequest request) {
-            var messages = List.of(
-                new LlmMessage(LlmRole.SYSTEM, SYSTEM_PROMPT),
-                new LlmMessage(LlmRole.USER, request.message())
-            );
-
-            var response = llmClientPort.generateStructuredResponse(messages, request.temperature());
-
-            return new ChatResponse(
-                response.answer(),
-                response.confidence().name(),
-                response.promptTokens(),
-                response.completionTokens()
-            );
-        }
-    }
-
-──────
-
-#### 3.6. API Inbound: ChatController.java & AiExceptionHandler.java
-
-ChatController.java:
-
-    package com.platform.app.ai.api;
-
-    import org.springframework.http.ResponseEntity;
-    import org.springframework.web.bind.annotation.PostMapping;
-    import org.springframework.web.bind.annotation.RequestBody;
-    import org.springframework.web.bind.annotation.RequestMapping;
-    import org.springframework.web.bind.annotation.RestController;
-
-    import com.platform.app.ai.application.dto.request.ChatRequest;
-    import com.platform.app.ai.application.dto.response.ChatResponse;
-    import com.platform.app.ai.application.port.in.ChatUseCase;
-    import com.platform.app.shared.dto.ApiResponse;
-
-    import io.swagger.v3.oas.annotations.Operation;
-    import io.swagger.v3.oas.annotations.tags.Tag;
-    import jakarta.validation.Valid;
-    import lombok.RequiredArgsConstructor;
-
-    @RestController
-    @RequiredArgsConstructor
-    @RequestMapping("/api/v1/ai/chat")
-    @Tag(name = "AI Chat", description = "AI Assistant endpoints (Slice 1)")
-    public class ChatController {
-
-        private final ChatUseCase chatUseCase;
-
-        @PostMapping
-        @Operation(summary = "Send a prompt and receive structured AI answer")
-        public ResponseEntity<ApiResponse<ChatResponse>> chat(@Valid @RequestBody ChatRequest request) {
-            ChatResponse response = chatUseCase.chat(request);
-            return ResponseEntity.ok(ApiResponse.ok("Message processed successfully", response));
-        }
-    }
-
-AiExceptionHandler.java:
-
-    package com.platform.app.ai.api;
-
-    import org.springframework.core.Ordered;
-    import org.springframework.core.annotation.Order;
-    import org.springframework.http.HttpStatus;
-    import org.springframework.http.ResponseEntity;
-    import org.springframework.web.bind.annotation.ExceptionHandler;
-    import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-    import com.platform.app.ai.domain.exception.LlmProviderException;
-    import com.platform.app.ai.domain.exception.LlmTimeoutException;
-    import com.platform.app.shared.dto.ApiResponse;
-
-    @RestControllerAdvice(basePackages = "com.platform.app.ai")
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public class AiExceptionHandler {
-
-        @ExceptionHandler(LlmTimeoutException.class)
-        public ResponseEntity<ApiResponse<Void>> handleTimeout(LlmTimeoutException ex) {
-            return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT)
-                    .body(ApiResponse.error("AI service timed out. Please try again later."));
-        }
-
-        @ExceptionHandler(LlmProviderException.class)
-        public ResponseEntity<ApiResponse<Void>> handleProviderError(LlmProviderException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .body(ApiResponse.error("AI provider returned an error: " + ex.getMessage()));
-        }
-    }
-
-──────
-
-### 4. Lợi ích khi tổ chức theo cấu trúc này
-
-1. Đáp ứng 100% Definition of Done Slice 1: Có Bean Validation, Timeout, Retry, Structured Output, và Clean Exception
-   Handling.
-2. Decouple hoàn toàn Vendor: Khi đổi từ OpenAI sang Gemini/Claude/Ollama, chỉ cần đổi/thêm implementation của
-   LlmClientPort trong layer infrastructure/, không phải sửa ChatService hay ChatController.
-3. Chuẩn bị sẵn sàng cho Slice 2 & Slice 3:
-   • Slice 2 chỉ cần thêm PromptTemplate vào application/ hoặc domain/.
-   • Slice 3 chỉ cần thêm package rag/ (ingestion, vector store, embedding adapter) và inject vào ChatService.
+```bash
+./gradlew.bat test --tests "com.platform.app.ai.*"
+```
