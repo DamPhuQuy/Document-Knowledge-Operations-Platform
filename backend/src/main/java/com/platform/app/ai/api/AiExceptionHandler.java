@@ -39,7 +39,7 @@ public class AiExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleLlmSchemaValidationException(LlmSchemaValidationException ex) {
         log.warn("AI structured schema error: {}", ex.getMessage());
         return ResponseEntity
-            .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .status(HttpStatus.UNPROCESSABLE_CONTENT)
             .body(ApiResponse.error("Failed to parse AI structured response: " + ex.getMessage()));
     }
 }

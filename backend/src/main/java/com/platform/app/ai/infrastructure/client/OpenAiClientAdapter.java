@@ -1,6 +1,7 @@
 package com.platform.app.ai.infrastructure.client;
 
 import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -15,8 +16,6 @@ import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseFormatTextConfig;
 import com.openai.models.responses.ResponseInputItem;
-import com.openai.models.responses.ResponseOutputItem;
-import com.openai.models.responses.ResponseOutputMessage;
 import com.openai.models.responses.ResponseTextConfig;
 import com.platform.app.ai.application.port.out.LlmClientPort;
 import com.platform.app.ai.domain.exception.LlmProviderException;
@@ -45,7 +44,7 @@ public class OpenAiClientAdapter implements LlmClientPort {
     public AssistantResponse generateResponse(List<LlmMessage> messages, Double temperature) {
         String instructions = messages.stream()
             .filter(m -> m.role() == LlmRole.SYSTEM)
-            .map(LlmMessage::content)
+            .map(m -> m.content().trim())
             .findFirst()
             .orElse(null);
 
@@ -57,7 +56,7 @@ public class OpenAiClientAdapter implements LlmClientPort {
                     : EasyInputMessage.Role.USER;
                 EasyInputMessage easyMessage = EasyInputMessage.builder()
                     .role(role)
-                    .content(EasyInputMessage.Content.ofTextInput(m.content()))
+                    .content(EasyInputMessage.Content.ofTextInput(m.content().trim()))
                     .build();
                 return ResponseInputItem.ofEasyInputMessage(easyMessage);
             })
@@ -101,10 +100,10 @@ public class OpenAiClientAdapter implements LlmClientPort {
         }
 
         String rawContent = response.output().stream()
-            .filter(ResponseOutputItem::isMessage)
-            .map(ResponseOutputItem::asMessage)
+            .filter(item -> item != null && item.isMessage())
+            .map(item -> item.asMessage())
             .flatMap(m -> m.content().stream())
-            .filter(ResponseOutputMessage.Content::isOutputText)
+            .filter(content -> content != null && content.isOutputText())
             .map(c -> c.asOutputText().text())
             .findFirst()
             .orElseThrow(() -> new LlmSchemaValidationException("OpenAI Responses API returned no text output message"));
