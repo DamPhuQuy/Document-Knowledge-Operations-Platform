@@ -200,161 +200,6 @@ ApiResponse<ChatResponse> (Standard HTTP Response Body)
 ---
 
 ## 3. Cấu trúc thư mục (Directory Structure)
-## 2. Flow tương tác giữa các thành phần (Component Interaction Flow)
-
-Để dễ theo dõi và bảo trì, luồng thực thi được phân rã thành **4 sub-flow độc lập** tương ứng với từng giai đoạn và kịch bản trong hệ thống:
-
----
-
-### Flow 1: Tiếp nhận Request & Điều phối nghiệp vụ (Inbound & Application Layer)
-
-Tập trung vào việc tiếp nhận HTTP Request, kiểm thực dữ liệu đầu vào và chuyển đổi thành Domain Message:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Client as Frontend / Client
-    participant Controller as ChatController
-    participant UseCase as ChatUseCase (Interface)
-    participant Service as ChatService (Impl)
-    participant OutPort as LlmClientPort (Interface)
-
-    Client->>Controller: POST /api/v1/ai/chat (ChatRequest: {message, temperature})
-    Note over Controller: 1. Validate @Valid (@NotBlank, @Size, @DecimalMin, @DecimalMax)
-    Controller->>UseCase: sendMessage(ChatRequest request)
-    UseCase->>Service: (delegates)
-
-    Note over Service: 2. buildSystemPrompt() -> Prompt JSON Schema
-    Note over Service: 3. Pack: LlmMessage.system(...) & LlmMessage.user(...)
-
-    Service->>OutPort: generateResponse(List<LlmMessage> messages, Double temperature)
-    Note right of OutPort: Chuyển giao xuống Infrastructure...
-```
-
----
-
-### Flow 2: Giao tiếp hạ tầng với OpenAI Responses API (Infrastructure Layer)
-
-Tập trung vào việc chuyển đổi Domain Model sang chuẩn OpenAI Responses API và gọi upstream:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Service as ChatService
-    participant OutPort as LlmClientPort (Interface)
-    participant Adapter as OpenAiClientAdapter (Impl)
-    participant SDK as OpenAIClient / ResponseService
-    participant OpenAI as OpenAI Responses API (/v1/responses)
-
-    Service->>OutPort: generateResponse(messages, temperature)
-    OutPort->>Adapter: (delegates)
-
-    Note over Adapter: 1. instructions = System message<br/>2. inputOfResponse = List<ResponseInputItem><br/>3. text = json_object format<br/>-> ResponseCreateParams
-
-    Adapter->>SDK: openAIClient.responses().create(params)
-    SDK->>OpenAI: POST /v1/responses (HTTP)
-    OpenAI-->>SDK: 200 OK (Wire JSON Response)
-    SDK-->>Adapter: Response Model
-```
-
----
-
-### Flow 3: Tiền xử lý, Parse JSON Schema & Mapping kết quả (Sanitization & Mapping)
-
-Tập trung vào khâu làm sạch output text từ model, parse JSON schema và chuyển đổi dữ liệu trả về cho client:
-
-````mermaid
-sequenceDiagram
-    autonumber
-    participant Adapter as OpenAiClientAdapter
-    participant Sanitizer as sanitizeJsonContent()
-    participant Mapper as ObjectMapper
-    participant Service as ChatService
-    participant Controller as ChatController
-    actor Client as Frontend / Client
-
-    Note over Adapter: 1. Extract text from ResponseOutputText
-    Adapter->>Sanitizer: sanitizeJsonContent(rawContent)
-    Note over Sanitizer: Strip Markdown fences (```json ... ```)
-    Sanitizer-->>Adapter: Clean JSON string
-
-    Adapter->>Mapper: readValue(cleanJson, OpenAiStructuredOutputPayload.class)
-    Mapper-->>Adapter: OpenAiStructuredOutputPayload (answer, confidence)
-
-    Note over Adapter: 2. Extract token usage (input/output tokens)<br/>3. Build AssistantResponse (Domain Model)
-    Adapter-->>Service: AssistantResponse
-
-    Note over Service: 4. Map AssistantResponse -> ChatResponse (DTO)
-    Service-->>Controller: ChatResponse
-    Controller-->>Client: 200 OK - ApiResponse.ok(ChatResponse)
-````
-
----
-
-### Flow 4: Luồng xử lý và Chuẩn hóa ngoại lệ (Exception Handling Flow)
-
-Tập trung vào việc bắt các lỗi từ hạ tầng, chuyển thành Domain Exception và map sang HTTP Status chuẩn:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Adapter as OpenAiClientAdapter
-    participant SDK as OpenAI SDK / Network
-    participant Handler as AiExceptionHandler
-    actor Client as Frontend / Client
-
-    alt Kịch bản 1: Timeout / Lỗi kết nối mạng
-        SDK-->>Adapter: throw OpenAIIoException
-        Adapter-->>Handler: throw LlmTimeoutException
-        Handler-->>Client: 504 Gateway Timeout (ApiResponse.error)
-    else Kịch bản 2: LLM Provider gặp sự cố (5xx / 429)
-        SDK-->>Adapter: throw OpenAIException
-        Adapter-->>Handler: throw LlmProviderException
-        Handler-->>Client: 502 Bad Gateway (ApiResponse.error)
-    else Kịch bản 3: Model trả về sai schema / thiếu field answer
-        Adapter-->>Handler: throw LlmSchemaValidationException
-        Handler-->>Client: 422 Unprocessable Entity (ApiResponse.error)
-    else Kịch bản 4: Client gửi dữ liệu không hợp lệ (@Valid fail)
-        Adapter-->>Handler: (Spring MVC) MethodArgumentNotValidException
-        Handler-->>Client: 400 Bad Request (ApiResponse.error)
-    end
-```
-
----
-
-### 2.2. Vòng đời chuyển đổi dữ liệu (Data Transformation Lifecycle)
-
-```
-[HTTP Request Body]
-       │
-       ▼
-ChatRequest (Application DTO: message, temperature)
-       │
-       ▼  (ChatService builds System Prompt & maps)
-List<LlmMessage> (Domain Value Object: SYSTEM, USER)
-       │
-       ▼  (OpenAiClientAdapter builds ResponseCreateParams)
-ResponseCreateParams (OpenAI SDK Request: instructions, inputOfResponse, json_object)
-       │
-       ▼  (OpenAI Responses API executes via HTTP)
-Response (OpenAI SDK Response: output text, usage tokens)
-       │
-       ▼  (OpenAiClientAdapter sanitizes & Jackson deserializes)
-OpenAiStructuredOutputPayload (Infrastructure DTO: answer, confidence)
-       │
-       ▼  (OpenAiClientAdapter validates & maps to Domain)
-AssistantResponse (Domain Model: answer, confidence, token metrics)
-       │
-       ▼  (ChatService maps to Application Response)
-ChatResponse (Application DTO: answer, confidence, token metrics)
-       │
-       ▼  (ChatController wraps in ApiResponse)
-ApiResponse<ChatResponse> (Standard HTTP Response Body)
-```
-
----
-
-## 3. Cấu trúc thư mục (Directory Structure)
 
 ```text
 com.platform.app.ai/
@@ -395,9 +240,7 @@ com.platform.app.ai/
 ---
 
 ## 4. Các nguyên tắc kỹ thuật (Core Principles)
-## 4. Các nguyên tắc kỹ thuật (Core Principles)
 
-### 4.1. Phân tách nhà mạng LLM qua Outbound Port (`LlmClientPort`)
 ### 4.1. Phân tách nhà mạng LLM qua Outbound Port (`LlmClientPort`)
 
 Toàn bộ nghiệp vụ trong `ChatService` chỉ tương tác với `LlmClientPort`. Core application không biết và không quan tâm API thực tế đằng sau là OpenAI, Anthropic Claude, Ollama hay vLLM.
@@ -425,7 +268,6 @@ LlmClientPort ───┼── OllamaClientAdapter (Mở rộng Local LLM)
 - **Phân tách Latency SLA (Synchronous vs Streaming SSE)**: Nhận diện rõ hạn chế của mô hình Synchronous Request-Response (Blocking I/O) ở Slice 1: Phù hợp cho batch processing / internal service-to-service calls, nhưng là tiền đề để mở rộng sang **Server-Sent Events (SSE / Streaming)** ở các slice sau nhằm tối ưu hóa chỉ số **Time-To-First-Token (TTFT)** cho trải nghiệm người dùng và tránh nguy cơ bị Proxy / API Gateway timeout khi mô hình suy luận kéo dài.
 
 ### 4.4. Chuẩn hóa mã lỗi HTTP (Error Mapping)
-### 4.4. Chuẩn hóa mã lỗi HTTP (Error Mapping)
 
 | Domain Exception                  | HTTP Status Code           | Diễn giải                                                    |
 | :-------------------------------- | :------------------------- | :----------------------------------------------------------- |
@@ -436,7 +278,6 @@ LlmClientPort ───┼── OllamaClientAdapter (Mở rộng Local LLM)
 
 ---
 
-## 5. Cấu hình (Configuration Reference)
 ## 5. Cấu hình (Configuration Reference)
 
 Các tham số cấu hình trong `application.yaml`:
@@ -456,7 +297,6 @@ app:
 
 ---
 
-## 6. Tài liệu API (API Endpoints)
 ## 6. Tài liệu API (API Endpoints)
 
 ### `POST /api/v1/ai/chat`
@@ -498,7 +338,6 @@ Authorization: Bearer <JWT_ACCESS_TOKEN>
 ---
 
 ## 7. Mở rộng (Extensibility)
-## 7. Mở rộng (Extensibility)
 
 ### Thêm một LLM Provider mới (Ví dụ: Ollama cho Local AI)
 
@@ -515,8 +354,8 @@ Authorization: Bearer <JWT_ACCESS_TOKEN>
 ---
 
 ## 8. Chiến lược kiểm thử (Testing Strategy)
-## 8. Chiến lược kiểm thử (Testing Strategy)
 
+- **Unit Test**: Kiểm thử độc lập logic của `ChatService` và `OpenAiClientAdapter` bằng Mockito (mock `LlmClientPort`, mock `ResponseService`).
 - **Unit Test**: Kiểm thử độc lập logic của `ChatService` và `OpenAiClientAdapter` bằng Mockito (mock `LlmClientPort`, mock `ResponseService`).
 - **Unit Test**: Kiểm thử độc lập logic của `ChatService` và `OpenAiClientAdapter` bằng Mockito (mock `LlmClientPort`, mock `ResponseService`).
 - **Integration Test**: Sử dụng `ChatControllerTest` kết hợp `@SpringBootTest` + `MockMvc` và `@MockitoBean` để kiểm thử toàn diện từ API endpoint, Authentication/Authorization, Request Validation cho đến Exception Handler.
