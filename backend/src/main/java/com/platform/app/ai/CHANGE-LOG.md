@@ -63,7 +63,30 @@ Codebase cho Slice 1 (LLM API thật sự) trong module ai đã được triển
 
 ──────
 
-### 3. Bộ Unit Test & Integration Test (100% Passed)
+### 3. Basic flow
+
+```java
+
+    ChatController
+    ↓
+    ChatUseCase
+    ↓
+    ChatService
+    ↓
+    LlmClientPort
+    ↓
+    OpenAiClientAdapter
+
+Sau đó:
+
+                 ┌─ OpenAI Adapter
+LlmClientPort ───┼─ Ollama Adapter
+                 ├─ Anthropic Adapter
+                 └─ vLLM Adapter
+
+```
+
+### 4. Bộ Unit Test & Integration Test (100% Passed)
 
 • ChatServiceTest.java: Kiểm thử việc đóng gói System Prompt, User Message, ủy quyền cho Port và map response.
 • OpenAiClientAdapterTest.java: Kiểm thử parse JSON sạch, JSON bọc trong markdown, xử lý lỗi schema, lỗi timeout và lỗi 500 từ provider.
