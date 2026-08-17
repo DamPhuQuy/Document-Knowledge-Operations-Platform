@@ -2,6 +2,8 @@
 
 Module `com.platform.app.ai` chịu trách nhiệm cung cấp khả năng AI Assistant cho nền tảng Customer Support. Module được thiết kế theo kiến trúc **Clean Architecture / Ports & Adapters (Hexagonal Architecture)** nhằm đảm bảo tính độc lập, khả năng kiểm thử cao và dễ dàng hoán đổi hoặc mở rộng các nhà cung cấp mô hình ngôn ngữ lớn (LLM Providers).
 
+> **Vai trò trong tiến trình Agentic**: Slice 1 được thiết kế dưới dạng một **Atomic Execution Step (hàm suy luận đơn nguyên tử)**. Thiết kế cô lập này đảm bảo khi tiến lên **Slice 4 (Agentic Loop)**, hệ thống chỉ việc tái sử dụng Slice 1 làm Execution Node bên trong vòng lặp ReAct / State Machine mà không phải chỉnh sửa logic gọi mô hình.
+
 ---
 
 ## 1. Kiến trúc tổng quan (Architecture Overview)
@@ -250,16 +252,20 @@ LlmClientPort ───┼── OllamaClientAdapter (Mở rộng Local LLM)
                  └── VllmClientAdapter   (Mở rộng Private Cloud)
 ```
 
-### 4.2. Structured Outputs & Schema Enforcement
+### 4.2. Structured Outputs & Schema Enforcement (Probabilistic Failure Modes)
 
-- Model được cấu hình trả về định dạng JSON bắt buộc (`text.format: json_object`).
-- `OpenAiClientAdapter` thực hiện tiền xử lý làm sạch markdown fences (```json ... ```) trước khi deserialize về `AssistantResponse`.
-- Trường hợp payload thiếu trường bắt buộc (`answer`) hoặc JSON lỗi, hệ thống ném `LlmSchemaValidationException` để tầng API trả về mã `422 Unprocessable Entity`.
+- **JSON Mode Enforcement**: Model được cấu hình trả về định dạng JSON bắt buộc (`text.format: json_object`).
+- **Markdown Sanitization**: `OpenAiClientAdapter` thực hiện tiền xử lý làm sạch markdown fences (`json ... `) trước khi deserialize về `AssistantResponse`.
+- **Probabilistic Semantic Validation**: Trong AI Engineering, LLM không chỉ sinh sai JSON syntax (thiếu ngoặc, sai kiểu dữ liệu), mà còn sinh JSON đúng cú pháp nhưng **sai ngữ nghĩa** (_Semantic Invalidation / Hallucinated Enums / Out-of-range Confidence_). Tầng Validation không chỉ dừng ở việc parse JSON, mà cần kiểm tra tính hợp lệ về mặt **miền giá trị (Domain Value Range)**:
+  - Trường `answer` không được để trống (`isBlank()`).
+  - Trường `confidence` phải thuộc whitelist enum định sẵn (`LOW`, `MEDIUM`, `HIGH`) hoặc nằm trong miền giá trị hợp lệ.
+- Trường hợp payload thiếu trường bắt buộc, sai định dạng hoặc vi phạm miền giá trị, hệ thống ném `LlmSchemaValidationException` để tầng API trả về mã `422 Unprocessable Entity`.
 
-### 4.3. Cơ chế chịu lỗi (Resilience & Retry)
+### 4.3. Cơ chế chịu lỗi & Quản trị Độ trễ (Resilience & Latency SLA)
 
 - **Timeout Boundaries**: Thiết lập `connectTimeout` và `requestTimeout` nghiêm ngặt qua cấu hình `app.ai.llm.timeout` nhằm tránh tình trạng treo thread server khi upstream phản hồi chậm.
 - **Built-in SDK Retry**: Tự động thử lại khi gặp các lỗi tạm thời (I/O timeout, mã `5xx` / `429` từ LLM provider) theo số lần cấu hình trong `app.ai.llm.max-retries`.
+- **Phân tách Latency SLA (Synchronous vs Streaming SSE)**: Nhận diện rõ hạn chế của mô hình Synchronous Request-Response (Blocking I/O) ở Slice 1: Phù hợp cho batch processing / internal service-to-service calls, nhưng là tiền đề để mở rộng sang **Server-Sent Events (SSE / Streaming)** ở các slice sau nhằm tối ưu hóa chỉ số **Time-To-First-Token (TTFT)** cho trải nghiệm người dùng và tránh nguy cơ bị Proxy / API Gateway timeout khi mô hình suy luận kéo dài.
 
 ### 4.4. Chuẩn hóa mã lỗi HTTP (Error Mapping)
 
@@ -357,3 +363,72 @@ Chạy toàn bộ test suite:
 ```bash
 ./gradlew.bat test --tests "com.platform.app.ai.*"
 ```
+
+---
+
+## 9. Knowledge in Big Process (Bức tranh tổng thể AI Application Engineering)
+
+### 9.1. Vị trí của Slice 1 trong toàn bộ hệ thống
+
+Trong hành trình xây dựng một nền tảng **Enterprise AI Application** (Customer Support Platform), Slice 1 đóng vai trò là **Lớp nền tảng (Foundational Substrate Layer)**. Toàn bộ lộ trình 9 Vertical Slices được cấu trúc như sau:
+
+```
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                     Enterprise Customer Support AI Platform                       │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ [Slice 9] Production Scaling, Semantic Caching & Rate Limiting                    │
+│ [Slice 8] Security Guardrails, Prompt Injection & Red Teaming                     │
+│ [Slice 7] Observability, Tracing & Token Cost Tracking (FinOps)                   │
+│ [Slice 6] Multi-turn Workflow Orchestration & Human-in-the-loop                   │
+│ [Slice 5] Automated Evaluation, Faithfulness & Ground-Truth Testing               │
+│ [Slice 4] Deterministic Routing, Tool Calling & Agentic Loop                      │
+│ [Slice 3] RAG, pgvector Embeddings, Multi-Tenant ACL & Citation                   │
+│ [Slice 2] Conversation State, Sliding Window Memory (PostgreSQL)                  │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ ★ [Slice 1 - HIỆN TẠI] LLM Foundations, Responses API & Port-Adapter Isolation    │
+└───────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.2. Những bài học kỹ thuật cốt lõi thu nạp từ Slice 1
+
+Sau khi hoàn thành Slice 1, những nguyên lý và bài toán lớn trong kỹ thuật phần mềm AI đã được làm sáng tỏ:
+
+#### 1. Xem LLM như một Unreliable External Dependency (Tư duy Ports & Adapters)
+
+- **Vấn đề thực tế**: Trong thực tế, nhiều hệ thống AI gặp thất bại vì phụ thuộc chặt chẽ vào các thư viện bọc (LangChain, framework trung gian) hoặc gọi trực tiếp API của một nhà cung cấp bên trong tầng nghiệp vụ. Khi nhà cung cấp đổi SDK, sập mạng hoặc dự án cần chuyển sang mô hình nội bộ (On-premise / Local LLM như Ollama/vLLM), toàn bộ codebase bị phá vỡ.
+- **Giải pháp thu nạp**: Xem LLM như một hệ thống I/O bên ngoài không đáng tin cậy (tương tự cổng thanh toán bên thứ ba). Việc đóng gói toàn bộ logic gọi mô hình đằng sau Outbound Port `LlmClientPort` giúp Domain và Application Layer hoàn toàn độc lập với OpenAI, Anthropic hay Ollama.
+
+#### 2. Chuẩn mới OpenAI Responses API vs Legacy Chat Completion
+
+- **Vấn đề thực tế**: `/v1/chat/completions` cũ trộn lẫn `system`, `user`, `assistant` vào một mảng duy nhất, gây khó khăn cho việc phân tách rõ ràng giữa _chỉ thị của nhà phát triển (developer instructions)_ và _lượt trò chuyện của người dùng_, đồng thời cơ chế schema output còn lỏng lẻo.
+- **Giải pháp thu nạp**: Ứng dụng trực tiếp chuẩn **Responses API** (`/v1/responses`):
+  - `instructions`: Nơi đặt chỉ thị của hệ thống (Developer Prompt).
+  - `inputOfResponse`: Quản lý danh sách các lượt hội thoại (`EasyInputMessage`).
+  - `text.format`: Ép cấu trúc JSON chuẩn (`json_object`).
+
+#### 3. Xử lý tính Bất định & Lỗi Ngữ nghĩa (Probabilistic Failure Modes & Structured Outputs)
+
+- **Vấn đề thực tế**: LLM có bản chất sinh từ xác suất (probabilistic). Mô hình không chỉ sinh sai cú pháp JSON (thiếu ngoặc, thừa markdown fences), mà còn có thể sinh JSON đúng cú pháp nhưng sai ngữ nghĩa (_Semantic Invalidation_, sinh ra enum không tồn tại hoặc điểm confidence ngoài phạm vi).
+- **Giải pháp thu nạp**:
+  - Ép model trả về JSON và định nghĩa schema rõ ràng (`answer`, `confidence`).
+  - Xây dựng cơ chế tiền xử lý khử markdown fence (`json ... `).
+  - Kiểm tra tính hợp lệ về mặt **miền giá trị (Domain Value Range)**: `confidence` phải thuộc whitelist enum định sẵn (`LOW`, `MEDIUM`, `HIGH`), trường `answer` không được để trống.
+  - Bắt lỗi và ném `LlmSchemaValidationException` $\rightarrow$ `422 Unprocessable Entity` thay vì để ứng dụng nhận dữ liệu rác.
+
+#### 4. Quản trị Ranh giới Độ trễ & Chịu lỗi (Latency SLA & Fault Tolerance Boundaries)
+
+- **Vấn đề thực tế**: Các API thông thường phản hồi trong $5 - 50\text{ms}$, nhưng một lệnh gọi LLM thường mất $1 - 10\text{s}+$. Nếu không có timeout cứng và retry thông minh, server sẽ nhanh chóng bị cạn kiệt Thread Pool và treo toàn bộ hệ thống. Bên cạnh đó, giữ kết nối HTTP Blocking quá lâu sẽ làm giảm trải nghiệm người dùng hoặc bị Proxy Gateway ngắt kết nối.
+- **Giải pháp thu nạp**:
+  - Cấu hình Timeout nghiêm ngặt ở tầng hạ tầng.
+  - Phân loại lỗi chính xác: Lỗi mạng/Timeout $\rightarrow$ `504 Gateway Timeout`; Lỗi nhà mạng 5xx/429 $\rightarrow$ `502 Bad Gateway`; Lỗi dữ liệu đầu vào $\rightarrow$ `400 Bad Request`.
+  - Tích hợp Exponential Backoff Retry đối với các lỗi tạm thời.
+  - Nhận diện rõ vai trò của mô hình **Synchronous Request-Response (Blocking I/O)** ở Slice 1 là nền móng cho batch processing / internal service calls, đồng thời định hướng mở rộng sang **Server-Sent Events (SSE / Streaming)** ở các slice sau nhằm tối ưu hóa chỉ số **Time-To-First-Token (TTFT)** cho người dùng cuối.
+
+#### 5. Token Economics & Nền tảng FinOps
+
+- **Vấn đề thực tế**: Chi phí LLM tăng tuyến tính theo số lượng token đầu vào (prompt) và đầu ra (completion). Nếu không theo dõi token từ ngày đầu, hệ thống sẽ mất kiểm soát chi phí khi mở rộng sang RAG và Agent.
+- **Giải pháp thu nạp**: Thu thập `promptTokens` và `completionTokens` từ `ResponseUsage` ngay tại tầng Adapter và đưa vào `AssistantResponse`. Dữ liệu này là tiền đề trực tiếp để:
+  - Tính toán cửa sổ ngữ cảnh (Context Window Trimming) trong **Slice 2**.
+  - Tối ưu hóa chi phí và thiết lập ngân sách token (Token FinOps) trong **Slice 7**.
