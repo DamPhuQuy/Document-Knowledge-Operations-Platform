@@ -200,6 +200,7 @@ ApiResponse<ChatResponse> (Standard HTTP Response Body)
 ---
 
 ## 3. Cấu trúc thư mục (Directory Structure)
+
 ## 2. Flow tương tác giữa các thành phần (Component Interaction Flow)
 
 Để dễ theo dõi và bảo trì, luồng thực thi được phân rã thành **4 sub-flow độc lập** tương ứng với từng giai đoạn và kịch bản trong hệ thống:
@@ -395,9 +396,11 @@ com.platform.app.ai/
 ---
 
 ## 4. Các nguyên tắc kỹ thuật (Core Principles)
+
 ## 4. Các nguyên tắc kỹ thuật (Core Principles)
 
 ### 4.1. Phân tách nhà mạng LLM qua Outbound Port (`LlmClientPort`)
+
 ### 4.1. Phân tách nhà mạng LLM qua Outbound Port (`LlmClientPort`)
 
 Toàn bộ nghiệp vụ trong `ChatService` chỉ tương tác với `LlmClientPort`. Core application không biết và không quan tâm API thực tế đằng sau là OpenAI, Anthropic Claude, Ollama hay vLLM.
@@ -425,6 +428,7 @@ LlmClientPort ───┼── OllamaClientAdapter (Mở rộng Local LLM)
 - **Phân tách Latency SLA (Synchronous vs Streaming SSE)**: Nhận diện rõ hạn chế của mô hình Synchronous Request-Response (Blocking I/O) ở Slice 1: Phù hợp cho batch processing / internal service-to-service calls, nhưng là tiền đề để mở rộng sang **Server-Sent Events (SSE / Streaming)** ở các slice sau nhằm tối ưu hóa chỉ số **Time-To-First-Token (TTFT)** cho trải nghiệm người dùng và tránh nguy cơ bị Proxy / API Gateway timeout khi mô hình suy luận kéo dài.
 
 ### 4.4. Chuẩn hóa mã lỗi HTTP (Error Mapping)
+
 ### 4.4. Chuẩn hóa mã lỗi HTTP (Error Mapping)
 
 | Domain Exception                  | HTTP Status Code           | Diễn giải                                                    |
@@ -436,7 +440,6 @@ LlmClientPort ───┼── OllamaClientAdapter (Mở rộng Local LLM)
 
 ---
 
-## 5. Cấu hình (Configuration Reference)
 ## 5. Cấu hình (Configuration Reference)
 
 Các tham số cấu hình trong `application.yaml`:
@@ -457,6 +460,7 @@ app:
 ---
 
 ## 6. Tài liệu API (API Endpoints)
+
 ## 6. Tài liệu API (API Endpoints)
 
 ### `POST /api/v1/ai/chat`
@@ -498,6 +502,7 @@ Authorization: Bearer <JWT_ACCESS_TOKEN>
 ---
 
 ## 7. Mở rộng (Extensibility)
+
 ## 7. Mở rộng (Extensibility)
 
 ### Thêm một LLM Provider mới (Ví dụ: Ollama cho Local AI)
@@ -515,6 +520,7 @@ Authorization: Bearer <JWT_ACCESS_TOKEN>
 ---
 
 ## 8. Chiến lược kiểm thử (Testing Strategy)
+
 ## 8. Chiến lược kiểm thử (Testing Strategy)
 
 - **Unit Test**: Kiểm thử độc lập logic của `ChatService` và `OpenAiClientAdapter` bằng Mockito (mock `LlmClientPort`, mock `ResponseService`).
