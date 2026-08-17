@@ -1,4 +1,4 @@
-package com.platform.app.shared.security;
+package com.platform.app.shared.config.security;
 
 import com.platform.app.shared.config.properties.AppProperties;
 import io.jsonwebtoken.Claims;

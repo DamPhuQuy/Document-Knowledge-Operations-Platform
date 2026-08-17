@@ -1,4 +1,4 @@
-package com.platform.app.shared.security;
+package com.platform.app.shared.config.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

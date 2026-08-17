@@ -1,6 +1,8 @@
 package com.platform.app.shared.security;
 
 import com.platform.app.shared.config.properties.AppProperties;
+import com.platform.app.shared.config.security.JwtTokenProvider;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

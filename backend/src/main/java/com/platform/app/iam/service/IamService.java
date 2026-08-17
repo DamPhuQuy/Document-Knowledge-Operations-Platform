@@ -7,12 +7,13 @@ import com.platform.app.iam.web.dto.AuthResponse;
 import com.platform.app.iam.web.dto.LoginRequest;
 import com.platform.app.iam.web.dto.RegisterRequest;
 import com.platform.app.iam.web.dto.UserResponse;
+import com.platform.app.shared.config.security.JwtTokenProvider;
+import com.platform.app.shared.config.security.UserPrincipal;
 import com.platform.app.shared.exception.AppException;
 import com.platform.app.shared.exception.ErrorCode;
 import com.platform.app.shared.exception.ResourceNotFoundException;
 import com.platform.app.shared.exception.UnauthorizedException;
-import com.platform.app.shared.security.JwtTokenProvider;
-import com.platform.app.shared.security.UserPrincipal;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;

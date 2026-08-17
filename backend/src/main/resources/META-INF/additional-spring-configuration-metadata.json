@@ -61,6 +61,11 @@
       "name": "app.swagger.version",
       "type": "java.lang.String",
       "description": "OpenAPI documentation version."
+    },
+    {
+      "name": "api.ai",
+      "type": "com.platform.app.ai.config.LlmProperties",
+      "description": "Configuration properties for the LLM (Large Language Model) API integration."
     }
   ]
 }

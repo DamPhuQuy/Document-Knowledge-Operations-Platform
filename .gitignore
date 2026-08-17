@@ -31,3 +31,4 @@ dist/
 build/
 .gradle/
 !gradle/wrapper/gradle-wrapper.jar
+.vscode/

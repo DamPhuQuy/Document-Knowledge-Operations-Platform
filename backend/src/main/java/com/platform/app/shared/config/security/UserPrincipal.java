@@ -1,4 +1,4 @@
-package com.platform.app.shared.security;
+package com.platform.app.shared.config.security;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

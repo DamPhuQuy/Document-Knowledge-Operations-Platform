@@ -1,4 +1,4 @@
-package com.platform.app.shared.security;
+package com.platform.app.shared.config.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.platform.app.shared.dto.ApiResponse;

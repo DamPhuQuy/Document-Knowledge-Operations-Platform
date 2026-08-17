@@ -2,7 +2,8 @@ package com.platform.app.iam.service;
 
 import com.platform.app.iam.domain.User;
 import com.platform.app.iam.repository.UserRepository;
-import com.platform.app.shared.security.UserPrincipal;
+import com.platform.app.shared.config.security.UserPrincipal;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
