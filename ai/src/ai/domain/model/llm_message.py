@@ -1,10 +1,17 @@
-from dataclasses import dataclass
 from ai.domain.model.llm_role import LlmRole
 
-@dataclass(frozen=True)
 class LlmMessage:
-    role: LlmRole
-    content: str
+    def __init__(self, role: LlmRole, content: str) -> None:
+        self.__role = role
+        self.__content = content
+
+    @property
+    def role(self) -> LlmRole:
+        return self.__role
+
+    @property
+    def content(self) -> str:
+        return self.__content
 
     @classmethod
     def system(cls, content: str) -> "LlmMessage":

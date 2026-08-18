@@ -8,11 +8,12 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "grpcio>=1.83.0",
-    "grpcio-tools>=1.83.0",
+    "dependency-injector>=4.49.1",
+    "fastapi>=0.141.1",
     "openai>=3.2.0",
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.3",
+    "uvicorn>=0.52.3",
 ]
 
 [project.scripts]
@@ -22,10 +23,4 @@ ai = "ai:main"
 requires = ["uv_build>=0.12.3,<0.13.0"]
 build-backend = "uv_build"
 
-[tool.ruff]
-exclude = [
-    "src/ai/generated"
-]
 
-[tool.pylint.master]
-ignore = ["generated"]

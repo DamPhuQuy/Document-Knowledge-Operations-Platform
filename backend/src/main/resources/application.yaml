@@ -59,8 +59,13 @@ app:
     version: ${SWAGGER_VERSION:1.0.0}
   ai:
     llm:
+<<<<<<< HEAD
+      url: ${AI_SERVICE_URL:http://localhost:8000}
+      generate-path: ${AI_GENERATE_PATH:/api/v1/ai/generate}
+=======
       host: ${AI_GRPC_HOST:localhost}
       port: ${AI_GRPC_PORT:50051}
+>>>>>>> origin/main
       timeout: ${LLM_TIMEOUT:10s}
 
 # SpringDoc OpenAPI Documentation

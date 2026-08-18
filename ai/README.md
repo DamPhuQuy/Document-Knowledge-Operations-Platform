@@ -1,3 +1,18 @@
+<<<<<<< HEAD
+# AI Microservice (Python)
+
+## 1. Tổng quan
+
+Dịch vụ độc lập `ai` chịu trách nhiệm cung cấp khả năng AI Assistant. Dự án được triển khai bằng **Python 3.11+**, quản lý package qua **`uv`** và kết nối trực tiếp với Java Backend thông qua giao thức truyền tải hiệu năng cao **gRPC** trên cổng `50051`.
+
+Dịch vụ được thiết kế nghiêm ngặt theo kiến trúc **Clean Architecture / Ports & Adapters (Hexagonal Architecture)** nhằm đảm bảo tính độc lập, khả năng kiểm thử cao và dễ dàng mở rộng.
+
+---
+
+## 2. Kiến trúc Clean Architecture (Hexagonal)
+
+Cấu trúc phân tầng và luồng phụ thuộc (Dependency Inversion):
+=======
 # AI Module
 
 ## 1. Overview
@@ -11,12 +26,17 @@ Module `com.platform.app.ai` chịu trách nhiệm cung cấp khả năng AI Ass
 ## 2. Current Architecture
 
 Module tuân thủ nghiêm ngặt quy tắc phân tầng và chiều phụ thuộc hướng tâm (Dependency Inversion):
+>>>>>>> origin/main
 
 ```
                         ┌───────────────────────────────────────────┐
                         │                 API Layer                 │
                         │             (Inbound Adapter)             │
+<<<<<<< HEAD
+                        │             AiGrpcController              │
+=======
                         │    ChatController, AiExceptionHandler    │
+>>>>>>> origin/main
                         └─────────────────────┬─────────────────────┘
                                               │ calls
                                               ▼
@@ -28,6 +48,60 @@ Module tuân thủ nghiêm ngặt quy tắc phân tầng và chiều phụ thu�
                         └──────────────┬─────────────┬──────────────┘
                          implements    │             │ uses
                                        ▼             ▼
+<<<<<<< HEAD
+   ┌──────────────────────────────────────────┐     ┌──────────────────────────────────────────┐
+   │           INFRASTRUCTURE Layer           │     │               DOMAIN Layer               │
+   │            (Outbound Adapter)            │     │           (Pure Python/No FW)            │
+   │      OpenAiClientAdapter, LlmConfig      │     │ AssistantResponse, Confidence, LlmMessage│
+   │                                          │     │ LlmTimeoutException, LlmProviderException│
+   └──────────────────────────────────────────┘     └──────────────────────────────────────────┘
+```
+
+### Chi tiết các phân tầng
+
+| Tầng               | Thư mục                                                                  | Vai trò                                                                                                             | Ràng buộc kỹ thuật                                               |
+| :----------------- | :----------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------- |
+| **Domain**         | `domain/model`<br>`domain/exception`                                     | Thực thể cốt lõi, Value Objects, Enums và Domain Exceptions.                                                        | Không phụ thuộc vào bất kỳ framework hay thư viện ngoài nào.     |
+| **Application**    | `application/port_in`<br>`application/port_out`<br>`application/service` | Định nghĩa Use Case (Inbound Port), giao tiếp hạ tầng (Outbound Port) và điều phối luồng nghiệp vụ (`ChatService`). | Phụ thuộc vào Domain, độc lập với thư viện bên ngoài và API.     |
+| **Infrastructure** | `infrastructure/client`<br>`infrastructure/config`                       | Triển khai Outbound Port (`LlmClientPort`) kết nối với OpenAI SDK, quản lý cấu hình nạp biến môi trường.            | Chứa logic tích hợp API, xử lý timeout, retry, sanitize dữ liệu. |
+| **API**            | `api`                                                                    | Triển khai Inbound Adapter đón nhận REST request từ Java backend và xử lý ánh xạ ngoại lệ.                         | Chứa các router và endpoint của FastAPI.                         |
+| **Generated**      | `generated`                                                              | Chứa các file stub gRPC cũ (nếu có, không dùng nữa).                                                                | Mã tự sinh từ máy.                                               |
+
+---
+
+## 3. Cấu trúc thư mục
+
+```text
+ai/
+├── src/ai/                                     # Thư mục mã nguồn chính của module AI
+│   ├── api/
+│   │   └── ai_controller.py                    # Inbound Adapter: HTTP Router & Endpoints
+│   ├── application/
+│   │   ├── port_in/
+│   │   │   └── chat_use_case.py                # Giao diện Inbound Port ChatUseCase
+│   │   ├── port_out/
+│   │   │   └── llm_client_port.py              # Giao diện Outbound Port LlmClientPort
+│   │   └── service/
+│   │       └── chat_service.py                 # Triển khai Use Case chính
+│   ├── domain/
+│   │   ├── exception/
+│   │   │   └── exceptions.py                   # Lỗi Domain chuẩn hóa
+│   │   └── model/
+│   │       ├── assistant_response.py           # DTO domain của Assistant
+│   │       ├── confidence.py                   # Enum mức độ tin cậy
+│   │       ├── llm_message.py                  # Tin nhắn hội thoại
+│   │       └── llm_role.py                     # Enum vai trò tin nhắn (SYSTEM, USER, ASSISTANT)
+│   ├── infrastructure/
+│   │   ├── client/
+│   │   │   └── openai_client_adapter.py        # Outbound Adapter kết nối OpenAI SDK (Responses API)
+│   │   └── config/
+│   │       ├── config.py                       # Đọc biến cấu hình từ môi trường
+│   │       └── container.py                    # Dependency Injection Container (dependency-injector)
+│   └── main.py                                 # Điểm khởi chạy REST API server & DI Bootstrapper
+├── pyproject.toml                              # Quản lý dependencies (uv) và linter rules
+├── pyrightconfig.json                          # Cấu hình Pyright/Pylance cho IDE
+└── .env                                        # Lưu cấu hình biến môi trường cục bộ
+=======
   ┌──────────────────────────────────────────┐     ┌──────────────────────────────────────────┐
   │           INFRASTRUCTURE Layer           │     │               DOMAIN Layer               │
   │            (Outbound Adapter)            │     │              (Pure Java/DDD)             │
@@ -93,10 +167,23 @@ com.platform.app.ai/
     └── config/
         ├── LlmProperties.java               # Type-safe Properties (prefix: app.ai.llm)
         └── LlmConfig.java                   # Cấu hình Bean OpenAIClient với Timeouts & Retries
+>>>>>>> origin/main
 ```
 
 ---
 
+<<<<<<< HEAD
+## 4. Cấu hình biến môi trường (`.env`)
+
+Mẫu cấu hình trong file `.env`:
+
+```env
+LLM_API_KEY=your-api-key
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
+LLM_TEMPERATURE=0.2
+LLM_GRPC_PORT=50051
+=======
 ## 4. Core Design Principles
 
 - **Ports & Adapters (Hexagonal Architecture)**: Tách biệt hoàn toàn phần logic nghiệp vụ lõi (Domain/Application) khỏi các chi tiết hạ tầng (LLM Providers, REST APIs) qua hệ thống Port & Adapter.
@@ -120,10 +207,52 @@ app:
       timeout: ${LLM_TIMEOUT:10s}
       max-retries: ${LLM_MAX_RETRIES:3}
       retry-delay: ${LLM_RETRY_DELAY:500ms}
+>>>>>>> origin/main
 ```
 
 ---
 
+<<<<<<< HEAD
+## 5. Hướng dẫn cài đặt và khởi chạy
+
+Dự án sử dụng trình quản lý package **`uv`** của Astral để tối ưu hóa hiệu năng cài đặt.
+
+### Bước 1: Khởi tạo và cài đặt dependencies
+
+```bash
+uv sync
+```
+
+### Bước 2: Kích hoạt môi trường ảo (Virtual Env)
+
+- **Windows (PowerShell):**
+  ```powershell
+  (Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& .venv\Scripts\Activate.ps1)
+  ```
+- **macOS/Linux:**
+  ```bash
+  source .venv/bin/activate
+  ```
+
+### Bước 3: Khởi chạy REST API Server
+
+```bash
+uv run python src/ai/main.py
+```
+
+Server sẽ chạy trên cổng `8000`. Bạn có thể truy cập Swagger UI để test API tại `http://localhost:8000/docs`.
+
+---
+
+---
+
+## 6. Cấu hình IDE / Linting
+
+Dự án đi kèm các cấu hình linter để tránh việc hiển thị báo lỗi đỏ do các file sinh tự động từ Protobuf:
+
+- [pyproject.toml](pyproject.toml): Cấu hình loại trừ thư mục `src/ai/generated` khỏi kiểm tra quy chuẩn viết mã của **Ruff** và **Pylint**.
+- [pyrightconfig.json](pyrightconfig.json): Khai báo thư mục chứa stubs vào `extraPaths` và đưa vào danh sách `ignore` của **Pylance/Pyright** để IDE nhận dạng kiểu tự động (IntelliSense) và không báo lỗi.
+=======
 ## 6. API
 
 ### `POST /api/v1/ai/chat`
@@ -189,14 +318,22 @@ Chạy toàn bộ test suite:
 - [Architecture Design](docs/ARCHITECTURE.md) — Chi tiết kiến trúc chi tiết, sequence diagrams, request lifecycle và data transformations.
 - [Learning Roadmap & Notes](docs/LEARNING.md) — Tổng hợp kiến thức thu thập và engineering journal qua từng slices.
 - [Changelog](CHANGELOG.md) — Lịch sử cập nhật của module qua từng phiên bản.
+>>>>>>> origin/main
 
 ---
 
 ## Roadmap
 
+<<<<<<< HEAD
+- Slice 1 — LLM Foundation ✅ (Đã chuyển đổi độc lập sang Python gRPC Service)
+- Slice 2 — Conversation State
+- Slice 3 — RAG
+- Slice 4 — Agentic Tool Calling
+=======
 - Slice 1 — LLM Foundation ✅
 - Slice 2 — Conversation State
 - Slice 3 — RAG
 - Slice 4 — Agentic Tool Calling
 
 See [Learning Notes](docs/LEARNING.md) for the complete learning roadmap.
+>>>>>>> origin/main
