@@ -43,8 +43,8 @@ Cấu trúc phân tầng và luồng phụ thuộc (Dependency Inversion):
 | **Domain**         | `domain/model`<br>`domain/exception`                                     | Thực thể cốt lõi, Value Objects, Enums và Domain Exceptions.                                                        | Không phụ thuộc vào bất kỳ framework hay thư viện ngoài nào.     |
 | **Application**    | `application/port_in`<br>`application/port_out`<br>`application/service` | Định nghĩa Use Case (Inbound Port), giao tiếp hạ tầng (Outbound Port) và điều phối luồng nghiệp vụ (`ChatService`). | Phụ thuộc vào Domain, độc lập với thư viện bên ngoài và API.     |
 | **Infrastructure** | `infrastructure/client`<br>`infrastructure/config`                       | Triển khai Outbound Port (`LlmClientPort`) kết nối với OpenAI SDK, quản lý cấu hình nạp biến môi trường.            | Chứa logic tích hợp API, xử lý timeout, retry, sanitize dữ liệu. |
-| **API**            | `api`                                                                    | Triển khai Inbound Adapter (`AiGrpcController`) đón nhận gRPC request từ Java backend và xử lý ánh xạ ngoại lệ.     | Kế thừa gRPC Servicer sinh từ Protobuf.                          |
-| **Generated**      | `generated`                                                              | Chứa các file stub do `grpc_tools.protoc` tự sinh kèm các file `.pyi` hỗ trợ khai báo kiểu cho IDE.                 | Mã tự sinh từ máy, tuyệt đối không chỉnh sửa thủ công.           |
+| **API**            | `api`                                                                    | Triển khai Inbound Adapter đón nhận REST request từ Java backend và xử lý ánh xạ ngoại lệ.                         | Chứa các router và endpoint của FastAPI.                         |
+| **Generated**      | `generated`                                                              | Chứa các file stub gRPC cũ (nếu có, không dùng nữa).                                                                | Mã tự sinh từ máy.                                               |
 
 ---
 
@@ -52,11 +52,9 @@ Cấu trúc phân tầng và luồng phụ thuộc (Dependency Inversion):
 
 ```text
 ai/
-├── proto/                                      # Chứa đặc tả file .proto
-│   └── ai_service.proto                        # Đặc tả hợp đồng gRPC giữa Java và Python
 ├── src/ai/                                     # Thư mục mã nguồn chính của module AI
 │   ├── api/
-│   │   └── grpc_handler.py                     # Inbound Adapter: AiGrpcController
+│   │   └── ai_controller.py                    # Inbound Adapter: HTTP Router & Endpoints
 │   ├── application/
 │   │   ├── port_in/
 │   │   │   └── chat_use_case.py                # Giao diện Inbound Port ChatUseCase
@@ -72,16 +70,13 @@ ai/
 │   │       ├── confidence.py                   # Enum mức độ tin cậy
 │   │       ├── llm_message.py                  # Tin nhắn hội thoại
 │   │       └── llm_role.py                     # Enum vai trò tin nhắn (SYSTEM, USER, ASSISTANT)
-│   ├── generated/                              # Mã tự sinh gRPC stubs (.py & .pyi)
-│   │   ├── ai_service_pb2.py
-│   │   ├── ai_service_pb2.pyi
-│   │   └── ai_service_pb2_grpc.py
 │   ├── infrastructure/
 │   │   ├── client/
 │   │   │   └── openai_client_adapter.py        # Outbound Adapter kết nối OpenAI SDK (Responses API)
 │   │   └── config/
-│   │       └── config.py                       # Đọc biến cấu hình từ môi trường
-│   └── main.py                                 # Điểm khởi chạy gRPC server & DI Bootstrapper
+│   │       ├── config.py                       # Đọc biến cấu hình từ môi trường
+│   │       └── container.py                    # Dependency Injection Container (dependency-injector)
+│   └── main.py                                 # Điểm khởi chạy REST API server & DI Bootstrapper
 ├── pyproject.toml                              # Quản lý dependencies (uv) và linter rules
 ├── pyrightconfig.json                          # Cấu hình Pyright/Pylance cho IDE
 └── .env                                        # Lưu cấu hình biến môi trường cục bộ
@@ -124,21 +119,15 @@ uv sync
   source .venv/bin/activate
   ```
 
-### Bước 3: Khởi chạy gRPC Server
+### Bước 3: Khởi chạy REST API Server
 
 ```bash
 uv run python src/ai/main.py
 ```
 
-Server sẽ chạy trên cổng `50051`.
+Server sẽ chạy trên cổng `8000`. Bạn có thể truy cập Swagger UI để test API tại `http://localhost:8000/docs`.
 
-### Bước 4: Biên dịch lại Protobuf (Khi có thay đổi ở file `.proto`)
-
-Nếu bạn chỉnh sửa file đặc tả `proto/ai_service.proto`, hãy chạy lệnh sau tại thư mục `ai` để cập nhật lại mã tự sinh:
-
-```bash
-uv run python -m grpc_tools.protoc -Iproto --python_out=src/ai/generated --grpc_python_out=src/ai/generated --pyi_out=src/ai/generated proto/ai_service.proto
-```
+---
 
 ---
 

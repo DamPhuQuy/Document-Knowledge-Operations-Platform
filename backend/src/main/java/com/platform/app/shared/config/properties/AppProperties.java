@@ -14,6 +14,7 @@ public class AppProperties {
     private Jwt jwt = new Jwt();
     private Cors cors = new Cors();
     private Swagger swagger = new Swagger();
+    private Ai ai = new Ai();
 
     @Data
     public static class Jwt {
@@ -33,5 +34,17 @@ public class AppProperties {
         private String title = "Customer Support Platform API";
         private String description = "RESTful API documentation for Customer Support Platform";
         private String version = "1.0.0";
+    }
+
+    @Data
+    public static class Ai {
+        private Llm llm = new Llm();
+
+        @Data
+        public static class Llm {
+            private String url = "http://localhost:8000";
+            private String generatePath = "/api/v1/ai/generate";
+            private String timeout = "10s";
+        }
     }
 }

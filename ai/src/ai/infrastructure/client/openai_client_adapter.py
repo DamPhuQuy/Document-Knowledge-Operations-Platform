@@ -1,5 +1,5 @@
 import json
-from typing import List
+
 from openai import OpenAI
 from ai.application.port_out.llm_client_port import LlmClientPort
 from ai.domain.model.llm_message import LlmMessage
@@ -13,7 +13,7 @@ from ai.domain.exception.exceptions import (
 )
 from ai.infrastructure.config.config import LlmConfig
 
-def strip_json_content(content: str) -> str:
+def _strip_json_content(content: str) -> str:
     content = content.strip()
     if content.startswith("```json"):
         content = content[7:]
@@ -25,10 +25,10 @@ def strip_json_content(content: str) -> str:
 
 class OpenAiClientAdapter(LlmClientPort):
     def __init__(self, config: LlmConfig):
-        self.config = config
-        self.client = OpenAI(api_key=config.api_key, base_url=config.base_url)
+        self.__config = config
+        self.__client = OpenAI(api_key=config.api_key, base_url=config.base_url)
 
-    def generateResponse(self, messages: List[LlmMessage], temperature: float = None) -> AssistantResponse:
+    def generateResponse(self, messages: list[LlmMessage], temperature: float = None) -> AssistantResponse:
         try:
             # Extract system instructions and input messages
             instructions = None
@@ -40,10 +40,10 @@ class OpenAiClientAdapter(LlmClientPort):
                     role = "assistant" if msg.role == LlmRole.ASSISTANT else "user"
                     input_items.append({"role": role, "content": msg.content})
 
-            temp = temperature if temperature is not None and temperature > 0 else self.config.default_temperature
+            temp = temperature if temperature is not None and temperature > 0 else self.__config.default_temperature
 
             kwargs = {
-                "model": self.config.model,
+                "model": self.__config.model,
                 "input": input_items,
                 "temperature": temp,
                 "text": {"format": {"type": "json_object"}}
@@ -52,13 +52,13 @@ class OpenAiClientAdapter(LlmClientPort):
                 kwargs["instructions"] = instructions
 
             # Invoke using the new Responses API: client.responses.create()
-            response = self.client.responses.create(**kwargs)
+            response = self.__client.responses.create(**kwargs)
 
             raw_content = response.output_text
             if not raw_content:
                 raise LlmSchemaValidationException("OpenAI Responses API returned no text output message")
 
-            sanitized_content = strip_json_content(raw_content)
+            sanitized_content = _strip_json_content(raw_content)
             
             data = json.loads(sanitized_content)
             answer = data.get("answer", "")
