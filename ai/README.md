@@ -2,7 +2,7 @@
 
 ## 1. Tổng quan
 
-Dịch vụ độc lập `ai` chịu trách nhiệm cung cấp khả năng AI Assistant cho toàn bộ nền tảng Customer Support. Dự án được triển khai bằng **Python 3.11+**, quản lý package qua **`uv`** và kết nối trực tiếp với Java Backend thông qua giao thức truyền tải hiệu năng cao **gRPC** trên cổng `50051`.
+Dịch vụ độc lập `ai` chịu trách nhiệm cung cấp khả năng AI Assistant. Dự án được triển khai bằng **Python 3.11+**, quản lý package qua **`uv`** và kết nối trực tiếp với Java Backend thông qua giao thức truyền tải hiệu năng cao **gRPC** trên cổng `50051`.
 
 Dịch vụ được thiết kế nghiêm ngặt theo kiến trúc **Clean Architecture / Ports & Adapters (Hexagonal Architecture)** nhằm đảm bảo tính độc lập, khả năng kiểm thử cao và dễ dàng mở rộng.
 
