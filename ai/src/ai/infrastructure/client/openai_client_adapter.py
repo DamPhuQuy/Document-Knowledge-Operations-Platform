@@ -59,7 +59,7 @@ class OpenAiClientAdapter(LlmClientPort):
                 raise LlmSchemaValidationException("OpenAI Responses API returned no text output message")
 
             sanitized_content = _strip_json_content(raw_content)
-            
+
             data = json.loads(sanitized_content)
             answer = data.get("answer", "")
             if not answer:
