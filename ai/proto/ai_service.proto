@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package com.platform.app.ai;
+
+option java_multiple_files = true;
+option java_package = "com.platform.app.ai.grpc";
+option java_outer_classname = "AiServiceProto";
+
+service AiService {
+  rpc GenerateResponse (ChatRequest) returns (ChatResponse);
+}
+
+enum LlmRole {
+  SYSTEM = 0;
+  USER = 1;
+  ASSISTANT = 2;
+}
+
+message LlmMessage {
+  LlmRole role = 1;
+  string content = 2;
+}
+
+message ChatRequest {
+  repeated LlmMessage messages = 1;
+  double temperature = 2;
+}
+
+enum Confidence {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+message ChatResponse {
+  string answer = 1;
+  Confidence confidence = 2;
+  int32 prompt_tokens = 3;
+  int32 completion_tokens = 4;
+}

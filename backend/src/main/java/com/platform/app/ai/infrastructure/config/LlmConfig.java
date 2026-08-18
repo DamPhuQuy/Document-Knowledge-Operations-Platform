@@ -1,30 +1,27 @@
 package com.platform.app.ai.infrastructure.config;
 
-import java.time.Duration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.openai.client.OpenAIClient;
-import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.platform.app.ai.grpc.AiServiceGrpc;
+
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 
 @Configuration
 @EnableConfigurationProperties(LlmProperties.class)
 public class LlmConfig {
 
-    @Bean
-    public OpenAIClient openAIClient(LlmProperties properties) {
-        String apiKey = properties.apiKey() != null && !properties.apiKey().isBlank()
-            ? properties.apiKey()
-            : "test-api-key";
-
-        Duration timeout = properties.timeout() != null ? properties.timeout() : Duration.ofSeconds(10);
-
-        return OpenAIOkHttpClient.builder()
-            .apiKey(apiKey)
-            .baseUrl(properties.baseUrl())
-            .timeout(timeout)
-            .maxRetries(properties.maxRetries())
+    @Bean(destroyMethod = "shutdown")
+    public ManagedChannel managedChannel(LlmProperties properties) {
+        return ManagedChannelBuilder.forAddress(properties.host(), properties.port())
+            .usePlaintext()
             .build();
+    }
+
+    @Bean
+    public AiServiceGrpc.AiServiceBlockingStub aiServiceBlockingStub(ManagedChannel channel) {
+        return AiServiceGrpc.newBlockingStub(channel);
     }
 }
