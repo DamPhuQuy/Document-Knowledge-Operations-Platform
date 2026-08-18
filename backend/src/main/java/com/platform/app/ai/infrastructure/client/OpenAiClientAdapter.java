@@ -108,7 +108,7 @@ public class OpenAiClientAdapter implements LlmClientPort {
             .findFirst()
             .orElseThrow(() -> new LlmSchemaValidationException("OpenAI Responses API returned no text output message"));
 
-        String sanitizedContent = sanitizeJsonContent(rawContent.trim());
+        String sanitizedContent = stripJsonContent(rawContent.trim());
 
         OpenAiStructuredOutputPayload structuredPayload;
         try {
@@ -136,7 +136,7 @@ public class OpenAiClientAdapter implements LlmClientPort {
             .build();
     }
 
-    private String sanitizeJsonContent(String content) {
+    private String stripJsonContent(String content) {
         if (content.startsWith("```json")) {
             content = content.substring(7);
         } else if (content.startsWith("```")) {
