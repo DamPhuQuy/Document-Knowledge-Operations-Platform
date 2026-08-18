@@ -17,7 +17,11 @@ public enum ErrorCode {
     RESOURCE_ALREADY_EXISTS(HttpStatus.CONFLICT, "ERR_409", "Resource already exists"),
     DOMAIN_RULE_VIOLATION(HttpStatus.UNPROCESSABLE_CONTENT, "ERR_422_DOMAIN", "Business domain rule violation"),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "ERR_USER_404", "User not found"),
+<<<<<<< HEAD
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "ERR_EMAIL_409", "Email is already registered");
+=======
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "ERR_EMAIL_409", "Email is already registered"),
+>>>>>>> origin/main
 
     private final HttpStatus httpStatus;
     private final String code;
