@@ -1,4 +1,6 @@
-### 🏛️ Chi tiết kiến trúc đã áp dụng
+# architecture
+
+## kiến trúc đã áp dụng
 
                                         +-----------------------------------------+
                                         |         com.platform.app                |
@@ -63,10 +65,4 @@ ticket │ Cao (Core Domain) │ Full Tactical DDD │ Nghiệp vụ trung tâm 
 
 ──────
 
-### 🧪 Bộ kiểm thử (Unit, Domain Invariant & E2E Integration)
-
-1. **TicketAggregateTest.java**: Kiểm tra các quy tắc nghiệp vụ bất biến (invariants), state transitions hợp lệ/không hợp lệ và domain events.
-2. **TicketIntegrationTest.java**: Kiểm tra toàn bộ luồng tạo ticket, trao đổi tin nhắn, phân trang qua MockMvc và JWT token.
-3. **AuthControllerTest.java** & **HealthControllerTest.java**: Kiểm tra các luồng xác thực và health check.
-
-Tất cả đã được biên dịch và vượt qua 100% test cases với ./gradlew.bat build.
+### Bộ kiểm thử (Unit, Domain Invariant & E2E Integration)
