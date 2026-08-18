@@ -1,0 +1,31 @@
+[project]
+name = "ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "DamPhuQuy", email = "phuquydam06@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "grpcio>=1.83.0",
+    "grpcio-tools>=1.83.0",
+    "openai>=3.2.0",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.3",
+]
+
+[project.scripts]
+ai = "ai:main"
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+exclude = [
+    "src/ai/generated"
+]
+
+[tool.pylint.master]
+ignore = ["generated"]
