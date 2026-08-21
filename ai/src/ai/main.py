@@ -25,7 +25,7 @@ def serve():
     print(
         f"Starting Clean Architecture Python AI REST server on port {config.http_port}..."
     )
-    uvicorn.run(app, host="0.0.0.0", port=config.http_port)
+    uvicorn.run(app, host="127.0.0.1", port=config.http_port)
 
 
 if __name__ == "__main__":
