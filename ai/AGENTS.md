@@ -11,6 +11,8 @@ uv run ruff check .
 uv run ruff format --check .
 </validation_commands>
 
+<code_setup>The project uses aspects of programming by using dependency injection, follows controllers, services and repositories to use dependency injector library</code_setup>
+
 <completion_gate>
 Before marking any task as complete, execute all relevant validation commands.
 A task is strictly incomplete if it introduces unresolved type, linting, formatting, or test failures.
