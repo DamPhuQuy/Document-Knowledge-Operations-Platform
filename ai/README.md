@@ -1,48 +1,43 @@
-# AI Microservice (Python)
+# AI & RAG Microservice (Python)
 
 ## 1. Tổng quan
 
-Dịch vụ độc lập `ai` chịu trách nhiệm cung cấp khả năng AI Assistant cho hệ thống. Dự án được triển khai bằng **Python 3.11+**, quản lý package qua **`uv`** và kết nối trực tiếp với Java Backend thông qua giao thức **HTTP REST API** (FastAPI) trên cổng `8000`.
+Dịch vụ độc lập `ai` chịu trách nhiệm cung cấp khả năng AI Assistant và nền tảng **RAG (Retrieval-Augmented Generation)** cho hệ thống. Dự án được triển khai bằng **Python 3.11+**, quản lý package qua **`uv`** và kết nối trực tiếp với backend thông qua giao thức **HTTP REST API** (FastAPI) trên cổng `8000`.
 
-Dịch vụ được thiết kế nghiêm ngặt theo kiến trúc **Clean Architecture / Ports & Adapters (Hexagonal Architecture)** nhằm đảm bảo tính độc lập, khả năng kiểm thử cao và dễ dàng mở rộng.
+Dịch vụ được thiết kế nghiêm ngặt theo kiến trúc **Clean Architecture / Ports & Adapters (Hexagonal Architecture)** với:
+- **Offline Ingestion Pipeline**: Chunking, batch embedding, indexing vào PostgreSQL + `pgvector` & `tsvector` Full-Text Search.
+- **Online Hybrid Retrieval & Generation Pipeline**: Tìm kiếm kết hợp (Dense Semantic + Sparse FTS) qua Reciprocal Rank Fusion (RRF), trích dẫn nguồn có kiểm chứng và sinh câu trả lời không ảo giác (Zero Hallucination).
 
 ---
 
 ## 2. Kiến trúc Clean Architecture (Hexagonal)
 
-Cấu trúc phân tầng và luồng phụ thuộc (Dependency Inversion):
-
 ```
-                        ┌───────────────────────────────────────────┐
-                        │                 API Layer                 │
-                        │             (Inbound Adapter)             │
-                        │               AiController                │
-                        └─────────────────────┬─────────────────────┘
-                                              │ calls
-                                              ▼
-                        ┌───────────────────────────────────────────┐
-                        │             APPLICATION Layer             │
-                        │       ChatUseCase (Inbound Port)          │
-                        │       ChatService (Orchestrator)          │
-                        │       LlmClientPort (Outbound Port)       │
-                        └──────────────┬─────────────┬──────────────┘
-                         implements    │             │ uses
-                                       ▼             ▼
-   ┌──────────────────────────────────────────┐     ┌──────────────────────────────────────────┐
-   │           INFRASTRUCTURE Layer           │     │               DOMAIN Layer               │
-   │            (Outbound Adapter)            │     │           (Pure Python/No FW)            │
-   │      OpenAiClientAdapter, LlmConfig      │     │ AssistantResponse, Confidence, LlmMessage│
-   └──────────────────────────────────────────┘     └──────────────────────────────────────────┘
+                        ┌───────────────────────────────────────────────────────────┐
+                        │                         API Layer                         │
+                        │                 ai_controller, rag_controller             │
+                        └─────────────────────────────┬─────────────────────────────┘
+                                                      │ calls
+                                                      ▼
+                        ┌───────────────────────────────────────────────────────────┐
+                        │                     APPLICATION Layer                     │
+                        │      Use Cases: ChatUseCase, IngestionUseCase,            │
+                        │                 RetrievalUseCase, RagUseCase              │
+                        │      Services:  OfflineIngestionPipeline,                 │
+                        │                 OnlineRetrievalPipeline, RagService,      │
+                        │                 ChunkingService, ChatService              │
+                        │      Ports Out: EmbeddingPort, VectorStorePort,           │
+                        │                 LlmClientPort, RerankerPort               │
+                        └──────────────────────┬─────────────┬──────────────────────┘
+                         implements            │             │ uses
+                                               ▼             ▼
+    ┌───────────────────────────────────────────────┐   ┌───────────────────────────────────────────┐
+    │              INFRASTRUCTURE Layer             │   │               DOMAIN Layer                │
+    │  PgVectorStore (PostgreSQL), ChromaVectorStore│   │  Document, Chunk, SearchResult,           │
+    │  InMemoryVectorStore, OpenAiEmbeddingAdapter, │   │  RagQuery, RagResponse, Confidence,       │
+    │  OpenAiClientAdapter, ReciprocalRankFusion    │   │  LlmMessage, LlmRole, Domain Exceptions   │
+    └───────────────────────────────────────────────┘   └───────────────────────────────────────────┘
 ```
-
-### Chi tiết các phân tầng
-
-| Tầng               | Thư mục                                                                  | Vai trò                                                                                                             | Ràng buộc kỹ thuật                                               |
-| :----------------- | :----------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------- |
-| **Domain**         | `domain/model`<br>`domain/exception`                                     | Thực thể cốt lõi, Value Objects, Enums và Domain Exceptions.                                                        | Không phụ thuộc vào bất kỳ framework hay thư viện ngoài nào.     |
-| **Application**    | `application/port_in`<br>`application/port_out`<br>`application/service` | Định nghĩa Use Case (Inbound Port), giao tiếp hạ tầng (Outbound Port) và điều phối luồng nghiệp vụ (`ChatService`). | Phụ thuộc vào Domain, độc lập với thư viện bên ngoài và API.     |
-| **Infrastructure** | `infrastructure/client`<br>`infrastructure/config`                       | Triển khai Outbound Port (`LlmClientPort`) kết nối với OpenAI SDK, quản lý cấu hình nạp biến môi trường.            | Chứa logic tích hợp API, xử lý timeout, retry, sanitize dữ liệu. |
-| **API**            | `api`                                                                    | Triển khai Inbound Adapter đón nhận REST request từ Java backend và xử lý ánh xạ ngoại lệ.                         | Chứa các router và endpoint của FastAPI.                         |
 
 ---
 
@@ -50,119 +45,205 @@ Cấu trúc phân tầng và luồng phụ thuộc (Dependency Inversion):
 
 ```text
 ai/
-├── src/ai/                                     # Thư mục mã nguồn chính của module AI
-│   ├── api/
+├── src/ai/
+│   ├── api/                                    # Inbound Adapters: FastAPI HTTP Routers & Endpoints
 │   │   ├── dto/                                # API Data Transfer Objects (Pydantic Models & Enums)
-│   │   │   ├── chat_request.py
-│   │   │   ├── chat_response.py
-│   │   │   ├── enums.py
-│   │   │   └── message_model.py
-│   │   └── ai_controller.py                    # Inbound Adapter: HTTP Router & Endpoints
+│   │   ├── ai_controller.py                    # LLM Chat Endpoints (/api/v1/ai)
+│   │   └── rag_controller.py                   # RAG Endpoints (/api/v1/rag)
 │   ├── application/
-│   │   ├── port_in/
-│   │   │   └── chat_use_case.py                # Giao diện Inbound Port ChatUseCase
-│   │   ├── port_out/
-│   │   │   └── llm_client_port.py              # Giao diện Outbound Port LlmClientPort
-│   │   └── service/
-│   │       └── chat_service.py                 # Triển khai Use Case chính
-│   ├── domain/
+│   │   ├── port_in/                            # Inbound Ports (Interfaces Use Cases)
+│   │   │   ├── chat_use_case.py
+│   │   │   ├── ingestion_use_case.py           # Interface cho Offline Ingestion Pipeline
+│   │   │   ├── retrieval_use_case.py           # Interface cho Online Hybrid Retrieval
+│   │   │   └── rag_use_case.py                 # Unified RAG Facade Port
+│   │   ├── port_out/                           # Outbound Ports (Interfaces SPI)
+│   │   │   ├── embedding_port.py               # Vector Embedding Port
+│   │   │   ├── vector_store_port.py            # Vector Database Port
+│   │   │   ├── reranker_port.py                # Reranking Port
+│   │   │   └── llm_client_port.py              # LLM Generation Port
+│   │   └── service/                            # Core Pipelines & Application Services
+│   │       ├── chunking_service.py             # Fixed, Recursive, Markdown, Token Chunkers
+│   │       ├── ingestion_pipeline.py           # Offline Ingestion Pipeline Template
+│   │       ├── retrieval_pipeline.py           # Online Hybrid Retrieval & Generation Pipeline
+│   │       ├── rag_service.py                  # Unified RAG Facade Service
+│   │       └── chat_service.py                 # Chat LLM Service
+│   ├── domain/                                 # Pure Python Domain Entities (No Framework)
 │   │   ├── exception/
-│   │   │   └── exceptions.py                   # Lỗi Domain chuẩn hóa
+│   │   │   └── exceptions.py                   # Standardized Domain Exceptions
 │   │   └── model/
-│   │       ├── assistant_response.py           # DTO domain của Assistant
-│   │       ├── confidence.py                   # Enum mức độ tin cậy
-│   │       ├── llm_message.py                  # Tin nhắn hội thoại
-│   │       └── llm_role.py                     # Enum vai trò tin nhắn (SYSTEM, USER, ASSISTANT)
-│   ├── infrastructure/
+│   │       ├── document.py                     # Document, Chunk, SearchResult
+│   │       ├── rag_query.py                    # RagQuery specification
+│   │       ├── rag_response.py                 # Grounded RagResponse with citations
+│   │       ├── assistant_response.py           # Assistant response DTO
+│   │       ├── confidence.py                   # Confidence Enum (LOW, MEDIUM, HIGH)
+│   │       ├── llm_message.py                  # LlmMessage entity
+│   │       └── llm_role.py                     # LlmRole Enum (SYSTEM, USER, ASSISTANT)
+│   ├── infrastructure/                         # Outbound Adapters & Framework Integrations
 │   │   ├── client/
-│   │   │   └── openai_client_adapter.py        # Outbound Adapter kết nối OpenAI SDK (Responses API)
+│   │   │   └── openai_client_adapter.py        # OpenAI Chat Completions Adapter
+│   │   ├── embedding/
+│   │   │   ├── openai_embedding_adapter.py     # OpenAI Embeddings Adapter (text-embedding-3-small)
+│   │   │   └── mock_embedding_adapter.py       # Deterministic Local Hash Embedder (offline/testing)
+│   │   ├── vector_store/
+│   │   │   ├── pgvector_store.py               # PostgreSQL + pgvector + GIN tsvector Hybrid Store
+│   │   │   ├── chroma_vector_store.py          # ChromaDB Adapter
+│   │   │   └── in_memory_vector_store.py       # NumPy In-Memory Vector Store
+│   │   ├── reranker/
+│   │   │   └── rrf_reranker.py                 # Reciprocal Rank Fusion (RRF) Reranker
 │   │   └── config/
-│   │       ├── config.py                       # Đọc biến cấu hình từ môi trường
+│   │       ├── config.py                       # Configuration Loader (.env)
 │   │       └── container.py                    # Dependency Injection Container (dependency-injector)
-│   └── main.py                                 # Điểm khởi chạy REST API server & DI Bootstrapper
-├── pyproject.toml                              # Quản lý dependencies (uv) và linter rules
-└── .env                                        # Lưu cấu hình biến môi trường cục bộ
+│   └── main.py                                 # Điểm khởi chạy REST API Server
+├── examples/rag/                               # 📚 Interactive Educational RAG Cookbook
+│   ├── 01_naive_rag.py                         # Naive RAG baseline from scratch
+│   ├── 02_chunking_strategies.py               # Chunking algorithms benchmark & visualizer
+│   ├── 03_embeddings_and_vector_search.py      # Vector mathematics & ChromaDB operations
+│   ├── 04_hybrid_search.py                     # BM25 + Dense Semantic + RRF Fusion
+│   ├── 05_query_transformation_and_hyde.py     # Multi-Query Expansion & HyDE
+│   ├── 06_reranking_and_compression.py         # Two-stage retrieval & Context Compression
+│   ├── 07_rag_evaluation.py                    # The RAG Triad (Context & Answer Relevance, Faithfulness)
+│   └── 08_postgres_pgvector_pipeline.py        # PostgreSQL pgvector Offline & Online Pipelines
+├── tests/                                      # Comprehensive Automated Unit & API Tests
+├── pyproject.toml                              # Quản lý dependencies (uv) & linters
+└── .env                                        # Biến môi trường
 ```
 
 ---
 
 ## 4. Cấu hình biến môi trường (`.env`)
 
-Mẫu cấu hình trong file `.env`:
-
 ```env
+# LLM Settings
 LLM_API_KEY=your-api-key
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
 LLM_TEMPERATURE=0.2
 AI_HTTP_PORT=8000
+
+# Embedding Settings
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIMENSIONS=1536
+
+# PostgreSQL with pgvector Settings
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=knowledge_ops
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_RAG_TABLE=document_chunks
+
+# RAG Defaults
+DEFAULT_CHUNK_SIZE=500
+DEFAULT_CHUNK_OVERLAP=50
+RAG_TOP_K=4
 ```
 
 ---
 
 ## 5. Hướng dẫn cài đặt và khởi chạy
 
-Dự án sử dụng trình quản lý package **`uv`** của Astral để tối ưu hóa hiệu năng cài đặt.
-
-### Bước 1: Khởi tạo và cài đặt dependencies
-
+### Cài đặt dependencies với `uv`
 ```bash
 uv sync
 ```
 
-### Bước 2: Kích hoạt môi trường ảo (Virtual Env)
+### Chạy Unit Tests & Validations
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+```
 
-- **Windows (PowerShell):**
-  ```powershell
-  (Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& .venv\Scripts\Activate.ps1)
-  ```
-- **macOS/Linux:**
-  ```bash
-  source .venv/bin/activate
-  ```
-
-### Bước 3: Khởi chạy REST API Server
-
+### Chạy REST API Server
 ```bash
 uv run python src/ai/main.py
 ```
+Truy cập Swagger UI tại `http://localhost:8000/docs`.
 
-Server sẽ chạy trên cổng `8000`. Bạn có thể truy cập Swagger UI để test API tại `http://localhost:8000/docs`.
+### Chạy các Cookbook Examples
+```bash
+uv run python examples/rag/08_postgres_pgvector_pipeline.py
+```
 
 ---
 
 ## 6. REST API Endpoints
 
-### `POST /api/v1/ai/generate`
-
-Gửi tin nhắn yêu cầu tới AI Assistant và nhận về câu trả lời có cấu trúc dưới dạng JSON hoặc stream.
-
-**Request Headers:**
-```http
-Content-Type: application/json
-```
+### 1. `POST /api/v1/rag/ingest`
+Thực thi **Offline Ingestion Pipeline**: chia nhỏ văn bản, tạo vector embedding theo lô và lưu trữ vào cơ sở dữ liệu vector.
 
 **Request Body:**
 ```json
 {
-  "messages": [
+  "documents": [
     {
-      "role": "user",
-      "content": "Reset my password"
+      "id": "doc_vpn",
+      "content": "WireGuard VPN requires MFA verification every 12 hours. Download configuration from https://portal.internal/vpn.",
+      "metadata": {"category": "it", "author": "Infra Team"}
     }
   ],
-  "temperature": 0.2,
-  "stream": false
+  "chunk_size": 500,
+  "chunk_overlap": 50,
+  "strategy": "recursive"
 }
 ```
 
 **Response Body (200 OK):**
 ```json
 {
-  "answer": "Password reset link sent.",
+  "total_documents": 1,
+  "total_chunks": 1,
+  "chunk_ids": ["doc_vpn_rec_0"],
+  "processing_time_ms": 14.5
+}
+```
+
+---
+
+### 2. `POST /api/v1/rag/ask`
+Thực thi **Online Hybrid Retrieval & Generation Pipeline**: tìm kiếm kết hợp (Dense + FTS + RRF) và sinh câu trả lời có kèm trích dẫn nguồn.
+
+**Request Body:**
+```json
+{
+  "query": "How often is MFA required for VPN access?",
+  "top_k": 4,
+  "use_hybrid": true,
+  "temperature": 0.0
+}
+```
+
+**Response Body (200 OK):**
+```json
+{
+  "answer": "MFA verification is required every 12 hours when connecting via WireGuard VPN [Passage 1].",
   "confidence": "HIGH",
-  "prompt_tokens": 12,
-  "completion_tokens": 5
+  "sources": [
+    {
+      "chunk_id": "doc_vpn_rec_0",
+      "document_id": "doc_vpn",
+      "content": "WireGuard VPN requires MFA verification every 12 hours...",
+      "score": 0.9421,
+      "metadata": {"category": "it", "author": "Infra Team"}
+    }
+  ],
+  "prompt_tokens": 85,
+  "completion_tokens": 24,
+  "retrieved_count": 1
+}
+```
+
+---
+
+### 3. `POST /api/v1/rag/search`
+Tìm kiếm vector tương đồng thô hoặc hybrid search không gọi LLM.
+
+**Request Body:**
+```json
+{
+  "query": "VPN access policy",
+  "top_k": 3,
+  "use_hybrid": true
 }
 ```
 
@@ -170,7 +251,7 @@ Content-Type: application/json
 
 ## Roadmap
 
-- Slice 1 — LLM Foundation ✅ (Đã chuyển đổi độc lập sang Python FastAPI REST Service)
-- Slice 2 — Conversation State
-- Slice 3 — RAG
+- Slice 1 — LLM Foundation ✅ (Clean Architecture REST API)
+- Slice 2 — Conversation State ✅
+- Slice 3 — RAG & PostgreSQL pgvector Hybrid Pipeline ✅
 - Slice 4 — Agentic Tool Calling

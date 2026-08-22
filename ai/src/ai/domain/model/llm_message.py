@@ -1,5 +1,6 @@
 from ai.domain.model.llm_role import LlmRole
 
+
 class LlmMessage:
     def __init__(self, role: LlmRole, content: str) -> None:
         self.__role = role
