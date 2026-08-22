@@ -52,6 +52,11 @@ Cấu trúc phân tầng và luồng phụ thuộc (Dependency Inversion):
 ai/
 ├── src/ai/                                     # Thư mục mã nguồn chính của module AI
 │   ├── api/
+│   │   ├── dto/                                # API Data Transfer Objects (Pydantic Models & Enums)
+│   │   │   ├── chat_request.py
+│   │   │   ├── chat_response.py
+│   │   │   ├── enums.py
+│   │   │   └── message_model.py
 │   │   └── ai_controller.py                    # Inbound Adapter: HTTP Router & Endpoints
 │   ├── application/
 │   │   ├── port_in/
