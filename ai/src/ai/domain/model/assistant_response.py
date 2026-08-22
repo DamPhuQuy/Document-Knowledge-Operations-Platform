@@ -1,7 +1,10 @@
 from ai.domain.model.confidence import Confidence
 
+
 class AssistantResponse:
-    def __init__(self, answer: str, confidence: Confidence, prompt_tokens: int, completion_tokens: int) -> None:
+    def __init__(
+        self, answer: str, confidence: Confidence, prompt_tokens: int, completion_tokens: int
+    ) -> None:
         self.__answer = answer
         self.__confidence = confidence
         self.__prompt_tokens = prompt_tokens

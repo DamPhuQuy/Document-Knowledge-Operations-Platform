@@ -1,13 +1,4 @@
-from enum import Enum
+from ai.api.dto.response.confidence_enum import ConfidenceEnum
+from ai.api.dto.request.role_enum import RoleEnum
 
-
-class RoleEnum(str, Enum):
-    SYSTEM = "system"
-    USER = "user"
-    ASSISTANT = "assistant"
-
-
-class ConfidenceEnum(str, Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
+__all__ = ["ConfidenceEnum", "RoleEnum"]

@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from ai.domain.model.llm_message import LlmMessage
+
 from ai.domain.model.assistant_response import AssistantResponse
+from ai.domain.model.llm_message import LlmMessage
+
 
 class ChatUseCase(ABC):
     @abstractmethod

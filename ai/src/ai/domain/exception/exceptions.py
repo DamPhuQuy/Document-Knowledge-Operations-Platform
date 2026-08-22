@@ -1,17 +1,19 @@
-class LlmException(Exception):
-    """Base exception class for all LLM operations."""
-    def __init__(self, message: str, cause: Exception = None):
-        super().__init__(message)
-        self.cause = cause
+from ai.domain.exception.document_processing_exception import DocumentProcessingException
+from ai.domain.exception.embedding_exception import EmbeddingException
+from ai.domain.exception.llm_exception import LlmException
+from ai.domain.exception.llm_provider_exception import LlmProviderException
+from ai.domain.exception.llm_schema_validation_exception import LlmSchemaValidationException
+from ai.domain.exception.llm_timeout_exception import LlmTimeoutException
+from ai.domain.exception.rag_exception import RagException
+from ai.domain.exception.vector_store_exception import VectorStoreException
 
-class LlmTimeoutException(LlmException):
-    """Exception thrown when connection to LLM provider times out."""
-    pass
-
-class LlmProviderException(LlmException):
-    """Exception thrown when the LLM provider returns an API or server error."""
-    pass
-
-class LlmSchemaValidationException(LlmException):
-    """Exception thrown when the LLM output is not valid or doesn't conform to schema."""
-    pass
+__all__ = [
+    "DocumentProcessingException",
+    "EmbeddingException",
+    "LlmException",
+    "LlmProviderException",
+    "LlmSchemaValidationException",
+    "LlmTimeoutException",
+    "RagException",
+    "VectorStoreException",
+]

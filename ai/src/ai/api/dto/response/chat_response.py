@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from ai.api.dto.enums import ConfidenceEnum
+from ai.api.dto.response.confidence_enum import ConfidenceEnum
 
 
 class ChatResponse(BaseModel):

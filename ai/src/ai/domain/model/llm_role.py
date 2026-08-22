@@ -1,6 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
-class LlmRole(str, Enum):
+
+class LlmRole(StrEnum):
     SYSTEM = "SYSTEM"
     USER = "USER"
     ASSISTANT = "ASSISTANT"
