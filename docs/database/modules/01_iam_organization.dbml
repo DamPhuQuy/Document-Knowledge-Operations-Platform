@@ -1,0 +1,91 @@
+Table departments {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(255) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+  }
+}
+
+Table users {
+  id bigint [pk, increment]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  full_name varchar(255) [not null]
+  department_id bigint [ref: > departments.id]
+  enabled boolean [not null, default: true]
+  is_internal boolean [not null, default: true]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    email
+    department_id
+  }
+}
+
+Table roles {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+  }
+}
+
+Table permissions {
+  id bigint [pk, increment]
+  code varchar(100) [unique, not null]
+  name varchar(150) [not null]
+  module varchar(50) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+    module
+  }
+}
+
+Table user_roles {
+  user_id bigint [ref: > users.id, not null]
+  role_id bigint [ref: > roles.id, not null]
+  assigned_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, role_id) [pk]
+    role_id
+  }
+}
+
+Table role_permissions {
+  role_id bigint [ref: > roles.id, not null]
+  permission_id bigint [ref: > permissions.id, not null]
+  granted_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (role_id, permission_id) [pk]
+    permission_id
+  }
+}
+
+Table refresh_tokens {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  token varchar(512) [unique, not null]
+  expiry_date timestamptz [not null]
+  revoked boolean [not null, default: false]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id
+    token
+  }
+}

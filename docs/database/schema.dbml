@@ -1,540 +1,465 @@
-// =============================================================================
-// DATABASE MARKUP LANGUAGE (DBML) SCHEMA SPECIFICATION V1.0
-// Project: Document Knowledge & Operations Platform (PBL4)
-// Description: Complete database schema design independent of current codebase.
-// Compatible with: dbdiagram.io, dbdocs.io, @dbml/cli
-// Database Engine: PostgreSQL 16 + pgvector
-// =============================================================================
-
-// =============================================================================
-// ENUMS
-// =============================================================================
-
-Enum user_role {
-  ADMIN [note: 'Quản trị viên toàn hệ thống']
-  MANAGER [note: 'Quản lý phòng ban']
-  STAFF [note: 'Nhân viên nghiệp vụ']
-  CUSTOMER [note: 'Khách hàng / Người dùng ngoài']
-  SYSTEM [note: 'Tài khoản dịch vụ nội bộ hệ thống']
+enum document_file_type {
+  PDF
+  DOCX
+  TXT
+  XLSX
+  IMAGE
+  OTHER
 }
 
-Enum document_file_type {
-  PDF [note: 'Tài liệu định dạng PDF']
-  DOCX [note: 'Tài liệu Microsoft Word']
-  TXT [note: 'Tệp văn bản thuần']
-  XLSX [note: 'Bảng tính Excel']
-  IMAGE [note: 'Tệp hình ảnh / Quét scan']
-  OTHER [note: 'Định dạng khác']
+enum document_processing_status {
+  PENDING
+  PARSING
+  CHUNKED
+  INDEXED
+  FAILED
 }
 
-Enum document_processing_status {
-  PENDING [note: 'Mới tải lên, chờ đưa vào hàng đợi xử lý']
-  PARSING [note: 'Đang trích xuất cấu trúc và văn bản']
-  CHUNKED [note: 'Đã hoàn thành phân đoạn văn bản']
-  INDEXED [note: 'Đã tạo embedding vector và lập chỉ mục tìm kiếm']
-  FAILED [note: 'Xử lý thất bại, có kèm lỗi']
+enum access_level {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+  CONFIDENTIAL
 }
 
-Enum access_level {
-  PUBLIC [note: 'Công khai cho mọi người dùng']
-  INTERNAL [note: 'Nội bộ tổ chức / công ty']
-  RESTRICTED [note: 'Chỉ các phòng ban liên quan']
-  CONFIDENTIAL [note: 'Tối mật, chỉ người được cấp quyền chỉ định']
+enum permission_level {
+  VIEW
+  EDIT
+  ADMIN
 }
 
-Enum permission_subject_type {
-  USER [note: 'Phân quyền theo từng người dùng cá nhân']
-  DEPARTMENT [note: 'Phân quyền theo cả phòng ban']
-  ROLE [note: 'Phân quyền theo vai trò hệ thống']
+enum conversation_status {
+  ACTIVE
+  ARCHIVED
+  DELETED
 }
 
-Enum permission_level {
-  VIEW [note: 'Chỉ có quyền xem và tra cứu RAG']
-  EDIT [note: 'Có quyền chỉnh sửa metadata và tải phiên bản mới']
-  ADMIN [note: 'Toàn quyền quản trị, xóa và phân quyền tài liệu']
+enum message_role {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
 }
 
-Enum conversation_status {
-  ACTIVE [note: 'Phiên hội thoại đang hoạt động']
-  ARCHIVED [note: 'Đã lưu trữ vào lịch sử']
-  DELETED [note: 'Đã xóa bởi người dùng']
+enum confidence_level {
+  LOW
+  MEDIUM
+  HIGH
 }
 
-Enum message_role {
-  USER [note: 'Tin nhắn gửi từ người dùng']
-  ASSISTANT [note: 'Phản hồi từ AI Assistant']
-  SYSTEM [note: 'Chỉ dẫn hệ thống (System Prompt)']
-  TOOL [note: 'Kết quả trả về từ công cụ ngoài']
+enum workflow_trigger_event {
+  ON_DOCUMENT_UPLOADED
+  ON_DOCUMENT_INDEXED
+  MANUAL_TRIGGER
+  SCHEDULED
 }
 
-Enum confidence_level {
-  LOW [note: 'Độ tin cậy thấp / Có thể cần tra cứu thêm']
-  MEDIUM [note: 'Độ tin cậy trung bình']
-  HIGH [note: 'Độ tin cậy cao, có đầy đủ căn cứ tài liệu']
+enum workflow_execution_status {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
-Enum workflow_trigger_event {
-  ON_DOCUMENT_UPLOADED [note: 'Kích hoạt ngay khi tài liệu vừa tải lên S3']
-  ON_DOCUMENT_INDEXED [note: 'Kích hoạt sau khi tài liệu đã tạo vector RAG']
-  MANUAL_TRIGGER [note: 'Kích hoạt thủ công bởi người dùng hoặc API']
-  SCHEDULED [note: 'Kích hoạt định kỳ theo lịch cron']
+enum action_approval_status {
+  PENDING
+  APPROVED
+  REJECTED
+  COMMITTED
+  EXPIRED
 }
 
-Enum workflow_execution_status {
-  PENDING [note: 'Đang chờ tới lượt xử lý']
-  RUNNING [note: 'Đang thực thi các bước trong pipeline']
-  WAITING_APPROVAL [note: 'Tạm dừng chờ con người phê duyệt (HITL)']
-  COMPLETED [note: 'Hoàn thành toàn bộ các bước thành công']
-  FAILED [note: 'Thực thi thất bại']
-  CANCELLED [note: 'Bị hủy bỏ']
+enum task_status {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
-Enum action_approval_status {
-  PENDING [note: 'Đang chờ người có thẩm quyền xét duyệt']
-  APPROVED [note: 'Đã được duyệt, sẵn sàng commit']
-  REJECTED [note: 'Bị từ chối phê duyệt']
-  COMMITTED [note: 'Đã thực thi commit mutation thành công']
-  EXPIRED [note: 'Hết hạn phê duyệt']
+enum task_priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
-Enum ticket_status {
-  OPEN [note: 'Phiếu mới tạo, chưa có người tiếp nhận']
-  IN_PROGRESS [note: 'Đang trong quá trình xử lý']
-  RESOLVED [note: 'Đã giải quyết xong']
-  CLOSED [note: 'Đã đóng phiếu']
-  CANCELLED [note: 'Hủy bỏ phiếu']
+enum audit_status {
+  SUCCESS
+  FAILED
 }
 
-Enum ticket_priority {
-  LOW [note: 'Ưu tiên thấp']
-  MEDIUM [note: 'Ưu tiên tiêu chuẩn']
-  HIGH [note: 'Ưu tiên cao']
-  URGENT [note: 'Khẩn cấp cần xử lý ngay']
+enum notification_type {
+  INFO
+  SUCCESS
+  WARNING
+  ACTION_REQUIRED
 }
 
-Enum audit_status {
-  SUCCESS [note: 'Thao tác thực thi thành công']
-  FAILED [note: 'Thao tác thất bại hoặc bị từ chối']
-}
-
-Enum notification_type {
-  INFO [note: 'Thông tin chung']
-  SUCCESS [note: 'Thông báo hoàn thành nhiệm vụ']
-  WARNING [note: 'Cảnh báo hệ thống']
-  ACTION_REQUIRED [note: 'Yêu cầu người dùng hành động / duyệt tác vụ']
-}
-
-// =============================================================================
-// TABLES: BOUNDED CONTEXT 1 - IAM & ORGANIZATION
-// =============================================================================
-
-Table departments as D {
-  id bigint [pk, increment, note: 'Mã định danh phòng ban']
-  code varchar(50) [unique, not null, note: 'Mã viết tắt duy nhất (HR, FIN, IT, LEGAL)']
-  name varchar(255) [not null, note: 'Tên phòng ban đầy đủ']
-  description text [null, note: 'Mô tả chức năng nhiệm vụ phòng ban']
+Table departments {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(255) [not null]
+  description text
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    code [name: 'idx_departments_code']
+    code
   }
-  Note: 'Phòng ban và đơn vị tổ chức phục vụ kiểm soát phạm vi truy cập tài liệu'
 }
 
-Table users as U {
-  id bigint [pk, increment, note: 'Mã định danh người dùng']
-  email varchar(255) [unique, not null, note: 'Email tài khoản dùng đăng nhập']
-  password_hash varchar(255) [not null, note: 'Mật khẩu đã được mã hóa BCrypt']
-  full_name varchar(255) [not null, note: 'Họ và tên đầy đủ']
-  department_id bigint [null, note: 'Phòng ban trực thuộc']
-  enabled boolean [not null, default: true, note: 'Trạng thái hoạt động của tài khoản']
-  is_internal boolean [not null, default: true, note: 'Đánh dấu nhân viên nội bộ tổ chức (truy cập tài liệu INTERNAL)']
+Table users {
+  id bigint [pk, increment]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  full_name varchar(255) [not null]
+  department_id bigint [ref: > departments.id]
+  enabled boolean [not null, default: true]
+  is_internal boolean [not null, default: true]
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    email [name: 'idx_users_email']
-    department_id [name: 'idx_users_department']
+    email
+    department_id
   }
-  Note: 'Tài khoản người dùng và thông tin định danh hệ thống'
 }
 
-Table roles as R {
-  id bigint [pk, increment, note: 'Mã định danh vai trò']
-  code varchar(50) [unique, not null, note: 'Mã vai trò chuẩn RBAC (ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF, ROLE_AUDITOR)']
-  name varchar(100) [not null, note: 'Tên hiển thị của vai trò']
-  description text [null, note: 'Mô tả phạm vi trách nhiệm của vai trò']
+Table roles {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    code [name: 'idx_roles_code']
+    code
   }
-  Note: 'Danh mục vai trò hệ thống phục vụ RBAC đa tầng'
 }
 
-Table permissions as P {
-  id bigint [pk, increment, note: 'Mã định danh quyền hạn chức năng']
-  code varchar(100) [unique, not null, note: 'Mã quyền hạn chuẩn hạt mịn (read:documents, write:documents, delete:documents, approve:actions)']
-  name varchar(150) [not null, note: 'Tên hiển thị quyền hạn']
-  module varchar(50) [not null, note: 'Phân hệ chức năng (DOCUMENTS, WORKFLOWS, USERS, RAG, AUDIT)']
-  description text [null, note: 'Mô tả chi tiết tác vụ được phép thực thi']
+Table permissions {
+  id bigint [pk, increment]
+  code varchar(100) [unique, not null]
+  name varchar(150) [not null]
+  module varchar(50) [not null]
+  description text
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    code [name: 'idx_permissions_code']
-    module [name: 'idx_permissions_module']
+    code
+    module
   }
-  Note: 'Danh mục quyền hạn chức năng mức hạt mịn (Fine-grained Authorities)'
 }
 
-Table user_roles as UR {
-  user_id bigint [not null, note: 'ID người dùng']
-  role_id bigint [not null, note: 'ID vai trò được cấp (Multiple Roles per User)']
+Table user_roles {
+  user_id bigint [ref: > users.id, not null]
+  role_id bigint [ref: > roles.id, not null]
+  assigned_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
     (user_id, role_id) [pk]
-    user_id [name: 'idx_user_roles_user']
-    role_id [name: 'idx_user_roles_role']
+    role_id
   }
-  Note: 'Bảng gán nhiều vai trò cho người dùng (Quan hệ N - N)'
 }
 
-Table role_permissions as RP {
-  role_id bigint [not null, note: 'ID vai trò']
-  permission_id bigint [not null, note: 'ID quyền hạn chức năng']
+Table role_permissions {
+  role_id bigint [ref: > roles.id, not null]
+  permission_id bigint [ref: > permissions.id, not null]
+  granted_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
     (role_id, permission_id) [pk]
-    role_id [name: 'idx_role_permissions_role']
-    permission_id [name: 'idx_role_permissions_perm']
+    permission_id
   }
-  Note: 'Bảng gán danh sách quyền hạn cho từng vai trò (Quan hệ N - N)'
 }
 
-Table refresh_tokens as RT {
-  id bigint [pk, increment, note: 'Mã định danh token']
-  user_id bigint [not null, note: 'Người dùng sở hữu']
-  token varchar(512) [unique, not null, note: 'Chuỗi refresh token ngẫu nhiên an toàn']
-  expiry_date timestamptz [not null, note: 'Thời điểm hết hạn token']
-  revoked boolean [not null, default: false, note: 'Đánh dấu token đã bị thu hồi']
+Table refresh_tokens {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  token varchar(512) [unique, not null]
+  expiry_date timestamptz [not null]
+  revoked boolean [not null, default: false]
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    user_id [name: 'idx_refresh_tokens_user']
-    token [name: 'idx_refresh_tokens_token']
+    user_id
+    token
   }
-  Note: 'Quản lý vòng đời Refresh Token cho cơ chế xác thực JWT'
 }
 
-// =============================================================================
-// TABLES: BOUNDED CONTEXT 2 - DOCUMENT MANAGEMENT & S3 STORAGE
-// =============================================================================
-
-Table documents as DOC {
-  id varchar(64) [pk, note: 'Mã định danh tài liệu (UUID v4 / KSUID)']
-  original_file_name varchar(255) [not null, note: 'Tên tệp gốc khi tải lên']
-  title varchar(255) [not null, note: 'Tiêu đề quản lý của tài liệu']
-  description text [null, note: 'Mô tả nội dung tóm tắt']
-  file_type document_file_type [not null, note: 'Định dạng tài liệu (PDF, DOCX, TXT...)']
-  mime_type varchar(100) [not null, note: 'MIME type chuẩn (e.g. application/pdf)']
-  file_size_bytes bigint [not null, note: 'Dung lượng tệp tính bằng bytes']
-  checksum_sha256 varchar(64) [not null, note: 'Mã băm SHA-256 xác thực toàn vẹn']
-  storage_bucket varchar(128) [not null, note: 'Tên bucket trên S3 / Floci']
-  storage_key varchar(512) [not null, note: 'Đường dẫn Object Key lưu trữ trên S3 / Floci']
-  processing_status document_processing_status [not null, default: 'PENDING', note: 'Trạng thái xử lý nội dung & RAG']
-  current_version int [not null, default: 1, note: 'Phiên bản hiện tại của tài liệu']
-  department_id bigint [null, note: 'Phòng ban sở hữu tài liệu']
-  uploaded_by_user_id bigint [not null, note: 'Người dùng tải tệp lên']
-  access_level access_level [not null, default: 'INTERNAL', note: 'Cấp độ bảo mật truy cập tài liệu']
-  metadata jsonb [not null, default: `'{}'`, note: 'Metadata bổ sung (tác giả, tags, số trang, OCR, language)']
+Table documents {
+  id varchar(64) [pk]
+  original_file_name varchar(255) [not null]
+  title varchar(255) [not null]
+  description text
+  file_type document_file_type [not null]
+  mime_type varchar(100) [not null]
+  file_size_bytes bigint [not null]
+  checksum_sha256 varchar(64) [not null]
+  storage_bucket varchar(128) [not null]
+  storage_key varchar(512) [not null]
+  processing_status document_processing_status [not null, default: 'PENDING']
+  current_version int [not null, default: 1]
+  department_id bigint [ref: > departments.id]
+  uploaded_by_user_id bigint [ref: > users.id, not null]
+  access_level access_level [not null, default: 'INTERNAL']
+  metadata jsonb [not null, default: `'{}'`]
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  deleted_at timestamptz [null, note: 'Thời điểm xóa mềm (Soft delete)']
+  deleted_at timestamptz
 
   indexes {
-    processing_status [name: 'idx_documents_status']
-    uploaded_by_user_id [name: 'idx_documents_uploaded_by']
-    department_id [name: 'idx_documents_department']
-    checksum_sha256 [name: 'idx_documents_checksum']
-    metadata [type: gin, name: 'idx_documents_metadata']
-    (department_id, processing_status) [name: 'idx_documents_dept_status']
+    processing_status
+    uploaded_by_user_id
+    department_id
+    checksum_sha256
+    metadata [type: gin]
+    (department_id, processing_status)
+    deleted_at [name: 'idx_documents_deleted_at']
   }
-  Note: 'Bảng trung tâm quản lý metadata tài liệu và tham chiếu Object Storage S3'
 }
 
-Table document_versions as DV {
-  id bigint [pk, increment, note: 'Mã định danh bản ghi phiên bản']
-  document_id varchar(64) [not null, note: 'Mã tài liệu cha']
-  version_number int [not null, note: 'Số thứ tự phiên bản (1, 2, 3...)']
-  storage_key varchar(512) [not null, note: 'Đường dẫn S3 Key của phiên bản này']
-  file_size_bytes bigint [not null, note: 'Dung lượng tệp của phiên bản']
-  checksum_sha256 varchar(64) [not null, note: 'Mã băm SHA-256 của phiên bản']
-  change_summary varchar(500) [null, note: 'Ghi chú tóm tắt lý do cập nhật']
-  uploaded_by_user_id bigint [not null, note: 'Người thực hiện cập nhật phiên bản']
+Table document_versions {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  version_number int [not null]
+  storage_bucket varchar(128) [not null]
+  storage_key varchar(512) [not null]
+  file_size_bytes bigint [not null]
+  checksum_sha256 varchar(64) [not null]
+  change_summary varchar(500)
+  uploaded_by_user_id bigint [ref: > users.id, not null]
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    (document_id, version_number) [unique, name: 'uq_document_version']
+    (document_id, version_number) [unique]
+    uploaded_by_user_id
   }
-  Note: 'Lịch sử các phiên bản tệp tin được cập nhật theo thời gian'
 }
 
-Table document_permissions as DP {
-  id bigint [pk, increment, note: 'Mã định danh quyền']
-  document_id varchar(64) [not null, note: 'Tài liệu được phân quyền']
-  subject_type permission_subject_type [not null, note: 'Loại đối tượng (USER, DEPARTMENT, ROLE)']
-  subject_id bigint [not null, note: 'ID của user hoặc department được trao quyền']
-  permission_level permission_level [not null, default: 'VIEW', note: 'Mức quyền hạn (VIEW, EDIT, ADMIN)']
+Table document_user_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  user_id bigint [ref: > users.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    (document_id, subject_type, subject_id) [unique, name: 'uq_doc_permission']
-    (subject_type, subject_id) [name: 'idx_doc_perm_subject']
+    (document_id, user_id) [unique]
+    user_id
   }
-  Note: 'Danh sách kiểm soát quyền truy cập chi tiết (ACL) cho từng tài liệu'
 }
 
-// =============================================================================
-// TABLES: BOUNDED CONTEXT 3 - AI KNOWLEDGE & PGVECTOR RAG
-// =============================================================================
-
-Table document_chunks as DC {
-  id varchar(64) [pk, note: 'Mã định danh chunk (e.g. docId_chunkIdx)']
-  document_id varchar(64) [not null, note: 'Mã tài liệu gốc']
-  chunk_index int [not null, default: 0, note: 'Thứ tự xuất hiện của đoạn trong tài liệu']
-  page_number int [null, note: 'Số trang trong tài liệu gốc']
-  content text [not null, note: 'Nội dung văn bản thuần của đoạn']
-  metadata jsonb [not null, default: `'{}'`, note: 'Metadata phân vùng ACL, doc_title, token_count']
-  embedding "vector(1536)" [null, note: 'Vector embedding đa chiều (OpenAI/bge-m3)']
-  tsv tsvector [not null, note: 'Cột phát sinh tự động phục vụ Full-Text Search']
+Table document_department_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  department_id bigint [ref: > departments.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    document_id [name: 'idx_document_chunks_doc_id']
-    embedding [name: 'idx_document_chunks_embedding', note: 'HNSW vector_cosine_ops Index']
-    tsv [type: gin, name: 'idx_document_chunks_tsv']
-    metadata [type: gin, name: 'idx_document_chunks_metadata']
+    (document_id, department_id) [unique]
+    department_id
   }
-  Note: 'Lưu trữ các đoạn trích xuất tài liệu phục vụ tìm kiếm ngữ nghĩa Hybrid RAG (pgvector + FTS)'
 }
 
-// =============================================================================
-// TABLES: BOUNDED CONTEXT 4 - CONVERSATIONAL AI & CITATIONS
-// =============================================================================
-
-Table conversations as C {
-  id varchar(64) [pk, note: 'Mã định danh cuộc trò chuyện']
-  user_id bigint [not null, note: 'Người dùng sở hữu phiên hội thoại']
-  title varchar(255) [not null, default: 'Cuộc trò chuyện mới', note: 'Tiêu đề cuộc trò chuyện']
-  status conversation_status [not null, default: 'ACTIVE', note: 'Trạng thái phiên chat']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (user_id, updated_at) [name: 'idx_conversations_user']
-  }
-  Note: 'Phiên hỏi đáp tra cứu kiến thức tài liệu của người dùng'
-}
-
-Table conversation_messages as CM {
-  id varchar(64) [pk, note: 'Mã định danh tin nhắn']
-  conversation_id varchar(64) [not null, note: 'Cuộc trò chuyện chứa tin nhắn']
-  role message_role [not null, note: 'Vai trò người gửi (USER, ASSISTANT, SYSTEM, TOOL)']
-  content text [not null, note: 'Nội dung văn bản tin nhắn']
-  confidence confidence_level [null, note: 'Mức độ tự tin câu trả lời sinh bởi AI']
-  prompt_tokens int [not null, default: 0, note: 'Số lượng token đầu vào']
-  completion_tokens int [not null, default: 0, note: 'Số lượng token đầu ra']
-  citations jsonb [not null, default: `'[]'`, note: 'Danh sách bằng chứng trích dẫn [{doc_id, chunk_id, score, text}]']
+Table document_role_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  role_id bigint [ref: > roles.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    (conversation_id, created_at) [name: 'idx_messages_conversation']
+    (document_id, role_id) [unique]
+    role_id
   }
-  Note: 'Lịch sử từng tin nhắn trong phiên hội thoại kèm trích dẫn bằng chứng RAG'
 }
 
-// =============================================================================
-// TABLES: BOUNDED CONTEXT 5 - WORKFLOW AUTOMATION
-// =============================================================================
+Table document_chunks {
+  id varchar(64) [pk]
+  document_id varchar(64) [ref: > documents.id, not null]
+  document_version_id bigint [ref: > document_versions.id, not null]
+  chunk_index int [not null, default: 0]
+  page_number int
+  content text [not null]
+  token_count int [not null, default: 0]
+  metadata jsonb [not null, default: `'{}'`]
+  embedding "vector(1536)"
+  tsv tsvector [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
-Table workflows as WF {
-  id varchar(64) [pk, note: 'Mã định danh workflow']
-  name varchar(255) [not null, note: 'Tên quy trình tự động hóa']
-  description text [null, note: 'Mô tả chi tiết các bước trong quy trình']
-  trigger_event workflow_trigger_event [not null, note: 'Sự kiện kích hoạt workflow']
-  is_active boolean [not null, default: true, note: 'Trạng thái kích hoạt của quy trình']
-  config_schema jsonb [not null, default: `'{}'`, note: 'Cấu hình pipeline các bước và điều kiện']
+  indexes {
+    document_id
+    document_version_id
+    embedding [type: hnsw, name: 'idx_chunks_embedding_hnsw']
+    tsv [type: gin]
+    metadata [type: gin]
+  }
+}
+
+Table conversations {
+  id varchar(64) [pk]
+  user_id bigint [ref: > users.id, not null]
+  title varchar(255) [not null, default: 'New Conversation']
+  status conversation_status [not null, default: 'ACTIVE']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    trigger_event [name: 'idx_workflows_trigger']
-    is_active [name: 'idx_workflows_active']
+    (user_id, updated_at)
   }
-  Note: 'Định nghĩa các quy trình tự động hóa xử lý tài liệu và nghiệp vụ'
 }
 
-Table workflow_executions as WFE {
-  id varchar(64) [pk, note: 'Mã phiên thực thi (Execution Run ID)']
-  workflow_id varchar(64) [not null, note: 'Quy trình mẫu được thực thi']
-  document_id varchar(64) [null, note: 'Tài liệu liên quan trực tiếp đến phiên chạy']
-  status workflow_execution_status [not null, default: 'PENDING', note: 'Trạng thái phiên chạy']
-  current_step varchar(100) [null, note: 'Bước nghiệp vụ hiện đang xử lý']
-  input_payload jsonb [not null, default: `'{}'`, note: 'Dữ liệu đầu vào của lần chạy']
-  step_results jsonb [not null, default: `'{}'`, note: 'Kết quả trung gian của từng bước']
-  error_message text [null, note: 'Chi tiết thông báo lỗi nếu bước thực thi thất bại']
+Table conversation_messages {
+  id varchar(64) [pk]
+  conversation_id varchar(64) [ref: > conversations.id, not null]
+  role message_role [not null]
+  content text [not null]
+  confidence confidence_level
+  prompt_tokens int [not null, default: 0]
+  completion_tokens int [not null, default: 0]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (conversation_id, created_at)
+  }
+}
+
+Table message_citations {
+  id bigint [pk, increment]
+  message_id varchar(64) [ref: > conversation_messages.id, not null]
+  document_id varchar(64) [ref: > documents.id, not null]
+  chunk_id varchar(64) [ref: > document_chunks.id, not null]
+  relevance_score float [not null, default: 0.0]
+  snippet text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    message_id
+    document_id
+    chunk_id
+  }
+}
+
+Table workflows {
+  id varchar(64) [pk]
+  name varchar(255) [not null]
+  description text
+  trigger_event workflow_trigger_event [not null]
+  is_active boolean [not null, default: true]
+  config_schema jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    trigger_event
+    is_active
+  }
+}
+
+Table workflow_executions {
+  id varchar(64) [pk]
+  workflow_id varchar(64) [ref: > workflows.id, not null]
+  document_id varchar(64) [ref: > documents.id]
+  status workflow_execution_status [not null, default: 'PENDING']
+  current_step varchar(100)
+  input_payload jsonb [not null, default: `'{}'`]
+  step_results jsonb [not null, default: `'{}'`]
+  error_message text
   started_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  completed_at timestamptz [null, note: 'Thời điểm hoàn thành thực thi']
+  completed_at timestamptz
 
   indexes {
-    workflow_id [name: 'idx_executions_workflow']
-    document_id [name: 'idx_executions_document']
-    status [name: 'idx_executions_status']
-    started_at [name: 'idx_executions_started_at']
+    workflow_id
+    document_id
+    status
+    started_at
   }
-  Note: 'Lịch sử và trạng thái từng phiên chạy thực tế của các workflow tự động'
 }
 
-// =============================================================================
-// TABLES: BOUNDED CONTEXT 6 - OPERATIONS & HUMAN-IN-THE-LOOP (HITL)
-// =============================================================================
-
-Table action_approvals as AA {
-  id varchar(64) [pk, note: 'Mã định danh yêu cầu phê duyệt']
-  execution_id varchar(64) [null, note: 'Phiên workflow phát sinh yêu cầu']
-  action_type varchar(100) [not null, note: 'Tên hành động cần duyệt (UPDATE_DOC, CREATE_TICKET...)']
-  status action_approval_status [not null, default: 'PENDING', note: 'Trạng thái phê duyệt']
-  idempotency_key varchar(128) [unique, not null, note: 'Khóa ngăn chặn thực thi trùng lặp']
-  preview_payload jsonb [not null, default: `'{}'`, note: 'Bản xem trước dữ liệu thay đổi (Diff Preview / Dry-run)']
-  execution_result jsonb [not null, default: `'{}'`, note: 'Kết quả sau khi commit mutation']
-  requested_by_user_id bigint [null, note: 'Người dùng hoặc AI Agent đề xuất']
-  reviewed_by_user_id bigint [null, note: 'Người có thẩm quyền bấm duyệt hoặc từ chối']
-  review_notes text [null, note: 'Ghi chú lý do phê duyệt / từ chối']
+Table action_approvals {
+  id varchar(64) [pk]
+  execution_id varchar(64) [ref: > workflow_executions.id]
+  action_type varchar(100) [not null]
+  status action_approval_status [not null, default: 'PENDING']
+  idempotency_key varchar(128) [unique, not null]
+  preview_payload jsonb [not null, default: `'{}'`]
+  execution_result jsonb [not null, default: `'{}'`]
+  requested_by_user_id bigint [ref: > users.id]
+  reviewed_by_user_id bigint [ref: > users.id]
+  review_notes text
   requested_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  reviewed_at timestamptz [null, note: 'Thời điểm người phê duyệt ra quyết định']
-  committed_at timestamptz [null, note: 'Thời điểm hệ thống hoàn tất thay đổi vào CSDL']
+  reviewed_at timestamptz
+  committed_at timestamptz
 
   indexes {
-    status [name: 'idx_approvals_status']
-    idempotency_key [name: 'idx_approvals_idempotency']
-    (status, requested_at) [name: 'idx_approvals_status_req']
+    status
+    idempotency_key
+    (status, requested_at)
   }
-  Note: 'Chốt chặn Human-in-the-loop: Phê duyệt 2 pha an toàn trước khi thực hiện hành động thay đổi dữ liệu'
 }
 
-Table tickets as T {
-  id varchar(64) [pk, note: 'Mã định danh phiếu công việc']
-  title varchar(255) [not null, note: 'Tiêu đề yêu cầu / sự vụ']
-  description text [null, note: 'Chi tiết nội dung yêu cầu']
-  status ticket_status [not null, default: 'OPEN', note: 'Trạng thái xử lý phiếu']
-  priority ticket_priority [not null, default: 'MEDIUM', note: 'Mức độ ưu tiên']
-  requester_id bigint [not null, note: 'Người tạo yêu cầu']
-  assignee_id bigint [null, note: 'Nhân viên phụ trách xử lý']
-  document_id varchar(64) [null, note: 'Tài liệu liên quan']
-  execution_id varchar(64) [null, note: 'Workflow execution phát sinh ticket']
-  metadata jsonb [not null, default: `'{}'`, note: 'Dữ liệu tùy biến mở rộng']
+Table operation_tasks {
+  id varchar(64) [pk]
+  title varchar(255) [not null]
+  description text
+  status task_status [not null, default: 'PENDING']
+  priority task_priority [not null, default: 'MEDIUM']
+  creator_id bigint [ref: > users.id, not null]
+  assignee_id bigint [ref: > users.id]
+  document_id varchar(64) [ref: > documents.id]
+  execution_id varchar(64) [ref: > workflow_executions.id]
+  metadata jsonb [not null, default: `'{}'`]
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    status [name: 'idx_tickets_status']
-    requester_id [name: 'idx_tickets_requester']
-    assignee_id [name: 'idx_tickets_assignee']
-    (status, priority) [name: 'idx_tickets_status_priority']
+    status
+    creator_id
+    assignee_id
+    (status, priority)
   }
-  Note: 'Quản lý phiếu yêu cầu công việc hoặc sự vụ nội bộ được tạo tự động bởi AI hoặc thủ công'
 }
 
-// =============================================================================
-// TABLES: BOUNDED CONTEXT 7 - AUDIT TRAIL & NOTIFICATIONS
-// =============================================================================
-
-Table audit_logs as AL {
-  id bigint [pk, increment, note: 'Mã định danh bản ghi kiểm toán']
-  user_id bigint [null, note: 'Người thực hiện (NULL nếu do hệ thống)']
-  action varchar(100) [not null, note: 'Tên hành động (LOGIN, UPLOAD_DOC, APPROVE_ACTION...)']
-  resource_type varchar(100) [not null, note: 'Loại tài nguyên bị tác động (DOCUMENT, USER, WORKFLOW)']
-  resource_id varchar(64) [null, note: 'ID của tài nguyên bị tác động']
-  ip_address varchar(45) [null, note: 'Địa chỉ IP nguồn (IPv4 hoặc IPv6)']
-  user_agent text [null, note: 'Thông tin thiết bị và trình duyệt']
-  status audit_status [not null, default: 'SUCCESS', note: 'Kết quả thao tác']
-  details jsonb [not null, default: `'{}'`, note: 'Chi tiết dữ liệu thay đổi (Payload / Request parameters)']
+Table audit_logs {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id]
+  action varchar(100) [not null]
+  resource_type varchar(100) [not null]
+  resource_id varchar(64)
+  ip_address varchar(45)
+  user_agent text
+  status audit_status [not null, default: 'SUCCESS']
+  details jsonb [not null, default: `'{}'`]
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    user_id [name: 'idx_audit_logs_user']
-    (resource_type, resource_id) [name: 'idx_audit_logs_resource']
-    created_at [name: 'idx_audit_logs_created_at']
-    (user_id, created_at) [name: 'idx_audit_logs_user_time']
+    user_id
+    (resource_type, resource_id)
+    created_at
+    (user_id, created_at)
   }
-  Note: 'Nhật ký kiểm toán bất biến (Append-only) phục vụ giám sát bảo mật và giải trình'
 }
 
-Table notifications as N {
-  id bigint [pk, increment, note: 'Mã định danh thông báo']
-  user_id bigint [not null, note: 'Người nhận thông báo']
-  title varchar(255) [not null, note: 'Tiêu đề thông báo']
-  message text [not null, note: 'Nội dung thông báo chi tiết']
-  type notification_type [not null, default: 'INFO', note: 'Phân loại mức độ thông báo']
-  is_read boolean [not null, default: false, note: 'Đã đọc hay chưa']
-  reference_type varchar(100) [null, note: 'Loại đối tượng liên quan (DOCUMENT, TICKET, APPROVAL)']
-  reference_id varchar(64) [null, note: 'ID đối tượng liên quan']
+Table notifications {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  title varchar(255) [not null]
+  message text [not null]
+  type notification_type [not null, default: 'INFO']
+  is_read boolean [not null, default: false]
+  reference_type varchar(100)
+  reference_id varchar(64)
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
-    (user_id, is_read) [name: 'idx_notifications_user_read']
-    created_at [name: 'idx_notifications_created_at']
+    (user_id, is_read)
+    created_at
   }
-  Note: 'Thông báo đẩy gửi tới người dùng về tiến độ xử lý tài liệu, workflow và yêu cầu phê duyệt'
 }
-
-// =============================================================================
-// RELATIONSHIPS & FOREIGN KEYS
-// =============================================================================
-
-// IAM Relationships
-Ref: users.department_id > departments.id [delete: set null]
-Ref: refresh_tokens.user_id > users.id [delete: cascade]
-Ref: user_roles.user_id > users.id [delete: cascade]
-Ref: user_roles.role_id > roles.id [delete: cascade]
-Ref: role_permissions.role_id > roles.id [delete: cascade]
-Ref: role_permissions.permission_id > permissions.id [delete: cascade]
-
-// Document Relationships
-Ref: documents.department_id > departments.id [delete: set null]
-Ref: documents.uploaded_by_user_id > users.id [delete: restrict]
-Ref: document_versions.document_id > documents.id [delete: cascade]
-Ref: document_versions.uploaded_by_user_id > users.id [delete: restrict]
-Ref: document_permissions.document_id > documents.id [delete: cascade]
-
-// AI Knowledge / RAG Relationships
-Ref: document_chunks.document_id > documents.id [delete: cascade]
-
-// Conversation Relationships
-Ref: conversations.user_id > users.id [delete: cascade]
-Ref: conversation_messages.conversation_id > conversations.id [delete: cascade]
-
-// Workflow Relationships
-Ref: workflow_executions.workflow_id > workflows.id [delete: cascade]
-Ref: workflow_executions.document_id > documents.id [delete: set null]
-
-// Operations & HITL Relationships
-Ref: action_approvals.execution_id > workflow_executions.id [delete: set null]
-Ref: action_approvals.requested_by_user_id > users.id [delete: set null]
-Ref: action_approvals.reviewed_by_user_id > users.id [delete: set null]
-Ref: tickets.requester_id > users.id [delete: restrict]
-Ref: tickets.assignee_id > users.id [delete: set null]
-Ref: tickets.document_id > documents.id [delete: set null]
-Ref: tickets.execution_id > workflow_executions.id [delete: set null]
-
-// Audit & Notification Relationships
-Ref: audit_logs.user_id > users.id [delete: set null]
-Ref: notifications.user_id > users.id [delete: cascade]
-
-// =============================================================================
-// TABLE GROUPS (BOUNDED CONTEXTS VISUALIZATION)
-// =============================================================================
 
 TableGroup IAM_Organization {
   departments
@@ -549,7 +474,9 @@ TableGroup IAM_Organization {
 TableGroup Document_Management {
   documents
   document_versions
-  document_permissions
+  document_user_access
+  document_department_access
+  document_role_access
 }
 
 TableGroup AI_Knowledge_RAG {
@@ -559,6 +486,7 @@ TableGroup AI_Knowledge_RAG {
 TableGroup Conversational_AI {
   conversations
   conversation_messages
+  message_citations
 }
 
 TableGroup Workflow_Automation {
@@ -568,7 +496,7 @@ TableGroup Workflow_Automation {
 
 TableGroup Operations_HITL {
   action_approvals
-  tickets
+  operation_tasks
 }
 
 TableGroup Audit_System {
