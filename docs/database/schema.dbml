@@ -1,0 +1,505 @@
+enum document_file_type {
+  PDF
+  DOCX
+  TXT
+  XLSX
+  IMAGE
+  OTHER
+}
+
+enum document_processing_status {
+  PENDING
+  PARSING
+  CHUNKED
+  INDEXED
+  FAILED
+}
+
+enum access_level {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+  CONFIDENTIAL
+}
+
+enum permission_level {
+  VIEW
+  EDIT
+  ADMIN
+}
+
+enum conversation_status {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum message_role {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum confidence_level {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum workflow_trigger_event {
+  ON_DOCUMENT_UPLOADED
+  ON_DOCUMENT_INDEXED
+  MANUAL_TRIGGER
+  SCHEDULED
+}
+
+enum workflow_execution_status {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum action_approval_status {
+  PENDING
+  APPROVED
+  REJECTED
+  COMMITTED
+  EXPIRED
+}
+
+enum task_status {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum task_priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum audit_status {
+  SUCCESS
+  FAILED
+}
+
+enum notification_type {
+  INFO
+  SUCCESS
+  WARNING
+  ACTION_REQUIRED
+}
+
+Table departments {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(255) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+  }
+}
+
+Table users {
+  id bigint [pk, increment]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  full_name varchar(255) [not null]
+  department_id bigint [ref: > departments.id]
+  enabled boolean [not null, default: true]
+  is_internal boolean [not null, default: true]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    email
+    department_id
+  }
+}
+
+Table roles {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+  }
+}
+
+Table permissions {
+  id bigint [pk, increment]
+  code varchar(100) [unique, not null]
+  name varchar(150) [not null]
+  module varchar(50) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+    module
+  }
+}
+
+Table user_roles {
+  user_id bigint [ref: > users.id, not null]
+  role_id bigint [ref: > roles.id, not null]
+  assigned_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, role_id) [pk]
+    role_id
+  }
+}
+
+Table role_permissions {
+  role_id bigint [ref: > roles.id, not null]
+  permission_id bigint [ref: > permissions.id, not null]
+  granted_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (role_id, permission_id) [pk]
+    permission_id
+  }
+}
+
+Table refresh_tokens {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  token varchar(512) [unique, not null]
+  expiry_date timestamptz [not null]
+  revoked boolean [not null, default: false]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id
+    token
+  }
+}
+
+Table documents {
+  id varchar(64) [pk]
+  original_file_name varchar(255) [not null]
+  title varchar(255) [not null]
+  description text
+  file_type document_file_type [not null]
+  mime_type varchar(100) [not null]
+  file_size_bytes bigint [not null]
+  checksum_sha256 varchar(64) [not null]
+  storage_bucket varchar(128) [not null]
+  storage_key varchar(512) [not null]
+  processing_status document_processing_status [not null, default: 'PENDING']
+  current_version int [not null, default: 1]
+  department_id bigint [ref: > departments.id]
+  uploaded_by_user_id bigint [ref: > users.id, not null]
+  access_level access_level [not null, default: 'INTERNAL']
+  metadata jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  deleted_at timestamptz
+
+  indexes {
+    processing_status
+    uploaded_by_user_id
+    department_id
+    checksum_sha256
+    metadata [type: gin]
+    (department_id, processing_status)
+    deleted_at [name: 'idx_documents_deleted_at']
+  }
+}
+
+Table document_versions {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  version_number int [not null]
+  storage_bucket varchar(128) [not null]
+  storage_key varchar(512) [not null]
+  file_size_bytes bigint [not null]
+  checksum_sha256 varchar(64) [not null]
+  change_summary varchar(500)
+  uploaded_by_user_id bigint [ref: > users.id, not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, version_number) [unique]
+    uploaded_by_user_id
+  }
+}
+
+Table document_user_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  user_id bigint [ref: > users.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, user_id) [unique]
+    user_id
+  }
+}
+
+Table document_department_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  department_id bigint [ref: > departments.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, department_id) [unique]
+    department_id
+  }
+}
+
+Table document_role_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  role_id bigint [ref: > roles.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, role_id) [unique]
+    role_id
+  }
+}
+
+Table document_chunks {
+  id varchar(64) [pk]
+  document_id varchar(64) [ref: > documents.id, not null]
+  document_version_id bigint [ref: > document_versions.id, not null]
+  chunk_index int [not null, default: 0]
+  page_number int
+  content text [not null]
+  token_count int [not null, default: 0]
+  metadata jsonb [not null, default: `'{}'`]
+  embedding "vector(1536)"
+  tsv tsvector [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    document_id
+    document_version_id
+    embedding [type: hnsw, name: 'idx_chunks_embedding_hnsw']
+    tsv [type: gin]
+    metadata [type: gin]
+  }
+}
+
+Table conversations {
+  id varchar(64) [pk]
+  user_id bigint [ref: > users.id, not null]
+  title varchar(255) [not null, default: 'New Conversation']
+  status conversation_status [not null, default: 'ACTIVE']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, updated_at)
+  }
+}
+
+Table conversation_messages {
+  id varchar(64) [pk]
+  conversation_id varchar(64) [ref: > conversations.id, not null]
+  role message_role [not null]
+  content text [not null]
+  confidence confidence_level
+  prompt_tokens int [not null, default: 0]
+  completion_tokens int [not null, default: 0]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (conversation_id, created_at)
+  }
+}
+
+Table message_citations {
+  id bigint [pk, increment]
+  message_id varchar(64) [ref: > conversation_messages.id, not null]
+  document_id varchar(64) [ref: > documents.id, not null]
+  chunk_id varchar(64) [ref: > document_chunks.id, not null]
+  relevance_score float [not null, default: 0.0]
+  snippet text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    message_id
+    document_id
+    chunk_id
+  }
+}
+
+Table workflows {
+  id varchar(64) [pk]
+  name varchar(255) [not null]
+  description text
+  trigger_event workflow_trigger_event [not null]
+  is_active boolean [not null, default: true]
+  config_schema jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    trigger_event
+    is_active
+  }
+}
+
+Table workflow_executions {
+  id varchar(64) [pk]
+  workflow_id varchar(64) [ref: > workflows.id, not null]
+  document_id varchar(64) [ref: > documents.id]
+  status workflow_execution_status [not null, default: 'PENDING']
+  current_step varchar(100)
+  input_payload jsonb [not null, default: `'{}'`]
+  step_results jsonb [not null, default: `'{}'`]
+  error_message text
+  started_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  completed_at timestamptz
+
+  indexes {
+    workflow_id
+    document_id
+    status
+    started_at
+  }
+}
+
+Table action_approvals {
+  id varchar(64) [pk]
+  execution_id varchar(64) [ref: > workflow_executions.id]
+  action_type varchar(100) [not null]
+  status action_approval_status [not null, default: 'PENDING']
+  idempotency_key varchar(128) [unique, not null]
+  preview_payload jsonb [not null, default: `'{}'`]
+  execution_result jsonb [not null, default: `'{}'`]
+  requested_by_user_id bigint [ref: > users.id]
+  reviewed_by_user_id bigint [ref: > users.id]
+  review_notes text
+  requested_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  reviewed_at timestamptz
+  committed_at timestamptz
+
+  indexes {
+    status
+    idempotency_key
+    (status, requested_at)
+  }
+}
+
+Table operation_tasks {
+  id varchar(64) [pk]
+  title varchar(255) [not null]
+  description text
+  status task_status [not null, default: 'PENDING']
+  priority task_priority [not null, default: 'MEDIUM']
+  creator_id bigint [ref: > users.id, not null]
+  assignee_id bigint [ref: > users.id]
+  document_id varchar(64) [ref: > documents.id]
+  execution_id varchar(64) [ref: > workflow_executions.id]
+  metadata jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    status
+    creator_id
+    assignee_id
+    (status, priority)
+  }
+}
+
+Table audit_logs {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id]
+  action varchar(100) [not null]
+  resource_type varchar(100) [not null]
+  resource_id varchar(64)
+  ip_address varchar(45)
+  user_agent text
+  status audit_status [not null, default: 'SUCCESS']
+  details jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    user_id
+    (resource_type, resource_id)
+    created_at
+    (user_id, created_at)
+  }
+}
+
+Table notifications {
+  id bigint [pk, increment]
+  user_id bigint [ref: > users.id, not null]
+  title varchar(255) [not null]
+  message text [not null]
+  type notification_type [not null, default: 'INFO']
+  is_read boolean [not null, default: false]
+  reference_type varchar(100)
+  reference_id varchar(64)
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, is_read)
+    created_at
+  }
+}
+
+TableGroup IAM_Organization {
+  departments
+  users
+  roles
+  permissions
+  user_roles
+  role_permissions
+  refresh_tokens
+}
+
+TableGroup Document_Management {
+  documents
+  document_versions
+  document_user_access
+  document_department_access
+  document_role_access
+}
+
+TableGroup AI_Knowledge_RAG {
+  document_chunks
+}
+
+TableGroup Conversational_AI {
+  conversations
+  conversation_messages
+  message_citations
+}
+
+TableGroup Workflow_Automation {
+  workflows
+  workflow_executions
+}
+
+TableGroup Operations_HITL {
+  action_approvals
+  operation_tasks
+}
+
+TableGroup Audit_System {
+  audit_logs
+  notifications
+}

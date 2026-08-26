@@ -1,0 +1,203 @@
+enum document_file_type {
+  PDF
+  DOCX
+  TXT
+  XLSX
+  IMAGE
+  OTHER
+}
+
+enum document_processing_status {
+  PENDING
+  PARSING
+  CHUNKED
+  INDEXED
+  FAILED
+}
+
+enum access_level {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+  CONFIDENTIAL
+}
+
+enum workflow_trigger_event {
+  ON_DOCUMENT_UPLOADED
+  ON_DOCUMENT_INDEXED
+  MANUAL_TRIGGER
+  SCHEDULED
+}
+
+enum workflow_execution_status {
+  PENDING
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum action_approval_status {
+  PENDING
+  APPROVED
+  REJECTED
+  COMMITTED
+  EXPIRED
+}
+
+enum task_status {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum task_priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+Table departments {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(255) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+  }
+}
+
+Table users {
+  id bigint [pk, increment]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  full_name varchar(255) [not null]
+  department_id bigint [ref: > departments.id]
+  enabled boolean [not null, default: true]
+  is_internal boolean [not null, default: true]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    email
+    department_id
+  }
+}
+
+Table documents {
+  id varchar(64) [pk]
+  original_file_name varchar(255) [not null]
+  title varchar(255) [not null]
+  description text
+  file_type document_file_type [not null]
+  mime_type varchar(100) [not null]
+  file_size_bytes bigint [not null]
+  checksum_sha256 varchar(64) [not null]
+  storage_bucket varchar(128) [not null]
+  storage_key varchar(512) [not null]
+  processing_status document_processing_status [not null, default: 'PENDING']
+  current_version int [not null, default: 1]
+  department_id bigint [ref: > departments.id]
+  uploaded_by_user_id bigint [ref: > users.id, not null]
+  access_level access_level [not null, default: 'INTERNAL']
+  metadata jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  deleted_at timestamptz
+
+  indexes {
+    processing_status
+    uploaded_by_user_id
+    department_id
+    checksum_sha256
+    metadata [type: gin]
+    (department_id, processing_status)
+    deleted_at [name: 'idx_documents_deleted_at']
+  }
+}
+
+Table workflows {
+  id varchar(64) [pk]
+  name varchar(255) [not null]
+  description text
+  trigger_event workflow_trigger_event [not null]
+  is_active boolean [not null, default: true]
+  config_schema jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    trigger_event
+    is_active
+  }
+}
+
+Table workflow_executions {
+  id varchar(64) [pk]
+  workflow_id varchar(64) [ref: > workflows.id, not null]
+  document_id varchar(64) [ref: > documents.id]
+  status workflow_execution_status [not null, default: 'PENDING']
+  current_step varchar(100)
+  input_payload jsonb [not null, default: `'{}'`]
+  step_results jsonb [not null, default: `'{}'`]
+  error_message text
+  started_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  completed_at timestamptz
+
+  indexes {
+    workflow_id
+    document_id
+    status
+    started_at
+  }
+}
+
+Table action_approvals {
+  id varchar(64) [pk]
+  execution_id varchar(64) [ref: > workflow_executions.id]
+  action_type varchar(100) [not null]
+  status action_approval_status [not null, default: 'PENDING']
+  idempotency_key varchar(128) [unique, not null]
+  preview_payload jsonb [not null, default: `'{}'`]
+  execution_result jsonb [not null, default: `'{}'`]
+  requested_by_user_id bigint [ref: > users.id]
+  reviewed_by_user_id bigint [ref: > users.id]
+  review_notes text
+  requested_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  reviewed_at timestamptz
+  committed_at timestamptz
+
+  indexes {
+    status
+    idempotency_key
+    (status, requested_at)
+  }
+}
+
+Table operation_tasks {
+  id varchar(64) [pk]
+  title varchar(255) [not null]
+  description text
+  status task_status [not null, default: 'PENDING']
+  priority task_priority [not null, default: 'MEDIUM']
+  creator_id bigint [ref: > users.id, not null]
+  assignee_id bigint [ref: > users.id]
+  document_id varchar(64) [ref: > documents.id]
+  execution_id varchar(64) [ref: > workflow_executions.id]
+  metadata jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    status
+    creator_id
+    assignee_id
+    (status, priority)
+  }
+}

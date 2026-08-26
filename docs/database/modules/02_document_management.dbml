@@ -1,0 +1,160 @@
+enum document_file_type {
+  PDF
+  DOCX
+  TXT
+  XLSX
+  IMAGE
+  OTHER
+}
+
+enum document_processing_status {
+  PENDING
+  PARSING
+  CHUNKED
+  INDEXED
+  FAILED
+}
+
+enum access_level {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+  CONFIDENTIAL
+}
+
+enum permission_level {
+  VIEW
+  EDIT
+  ADMIN
+}
+
+Table departments {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(255) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+  }
+}
+
+Table users {
+  id bigint [pk, increment]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  full_name varchar(255) [not null]
+  department_id bigint [ref: > departments.id]
+  enabled boolean [not null, default: true]
+  is_internal boolean [not null, default: true]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    email
+    department_id
+  }
+}
+
+Table roles {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null]
+  name varchar(100) [not null]
+  description text
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    code
+  }
+}
+
+Table documents {
+  id varchar(64) [pk]
+  original_file_name varchar(255) [not null]
+  title varchar(255) [not null]
+  description text
+  file_type document_file_type [not null]
+  mime_type varchar(100) [not null]
+  file_size_bytes bigint [not null]
+  checksum_sha256 varchar(64) [not null]
+  storage_bucket varchar(128) [not null]
+  storage_key varchar(512) [not null]
+  processing_status document_processing_status [not null, default: 'PENDING']
+  current_version int [not null, default: 1]
+  department_id bigint [ref: > departments.id]
+  uploaded_by_user_id bigint [ref: > users.id, not null]
+  access_level access_level [not null, default: 'INTERNAL']
+  metadata jsonb [not null, default: `'{}'`]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+  deleted_at timestamptz
+
+  indexes {
+    processing_status
+    uploaded_by_user_id
+    department_id
+    checksum_sha256
+    metadata [type: gin]
+    (department_id, processing_status)
+    deleted_at [name: 'idx_documents_deleted_at']
+  }
+}
+
+Table document_versions {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  version_number int [not null]
+  storage_bucket varchar(128) [not null]
+  storage_key varchar(512) [not null]
+  file_size_bytes bigint [not null]
+  checksum_sha256 varchar(64) [not null]
+  change_summary varchar(500)
+  uploaded_by_user_id bigint [ref: > users.id, not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, version_number) [unique]
+    uploaded_by_user_id
+  }
+}
+
+Table document_user_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  user_id bigint [ref: > users.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, user_id) [unique]
+    user_id
+  }
+}
+
+Table document_department_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  department_id bigint [ref: > departments.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, department_id) [unique]
+    department_id
+  }
+}
+
+Table document_role_access {
+  id bigint [pk, increment]
+  document_id varchar(64) [ref: > documents.id, not null]
+  role_id bigint [ref: > roles.id, not null]
+  permission_level permission_level [not null, default: 'VIEW']
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (document_id, role_id) [unique]
+    role_id
+  }
+}
