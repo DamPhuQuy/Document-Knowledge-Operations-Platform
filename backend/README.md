@@ -77,7 +77,7 @@ cp .env.example .env
 | `SPRING_PROFILES_ACTIVE` | `local` | Active Spring profile (`local`, `dev`, `prod`) |
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_NAME` | `support_platform_db` | PostgreSQL database name |
+| `DB_NAME` | `doc_knowledge_db` | PostgreSQL database name |
 | `DB_USERNAME` | `postgres` | Database username |
 | `DB_PASSWORD` | `postgres` | Database password |
 | `JWT_SECRET` | *(secret)* | Secret key for signing JWT tokens (min 256 bits) |
@@ -92,23 +92,32 @@ cp .env.example .env
 
 ## Getting Started
 
-### 1. Start PostgreSQL Database
+### 1. Local Development (Standard)
 ```bash
+# Start local PostgreSQL
 docker compose up -d
-```
 
-### 2. Run Application
-```bash
-# Linux / macOS
+# Run application
 ./gradlew bootRun
-
-# Windows PowerShell / CMD
-.\gradlew.bat bootRun
 ```
 
-The application starts at `http://localhost:8080`.
+### 2. Development via Docker (with Hot-Reload & Remote Debugging)
+```bash
+# Start backend (dev target) + PostgreSQL
+docker compose -f docker-compose.dev.yaml up --build
+```
+- App: `http://localhost:8080`
+- JDWP Remote Debug: `localhost:5005`
 
-### 3. API Endpoints & Documentation
+### 3. Production via Docker (Multi-stage Slim Runner)
+```bash
+# Build & Run production container
+docker compose -f docker-compose.prod.yaml up --build -d
+```
+
+---
+
+## API Endpoints & Documentation
 - **Health Check**: [http://localhost:8080/api/v1/health](http://localhost:8080/api/v1/health)
 - **Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - **OpenAPI JSON**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
@@ -124,8 +133,8 @@ The application starts at `http://localhost:8080`.
 
 ### Build Production Artifact (bootJar)
 ```bash
-./gradlew build
+./gradlew bootJar
 ```
 
-Compiled JAR location: `build/libs/backend-0.0.1-SNAPSHOT.jar`
+Compiled JAR location: `build/libs/app-0.0.1-SNAPSHOT.jar`
 

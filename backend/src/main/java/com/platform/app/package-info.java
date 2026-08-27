@@ -1,5 +1,5 @@
 /**
- * <h1>Customer Support Platform - Backend Architecture Blueprint</h1>
+ * <h1>Document and Knowledge Operations Platform - Backend Architecture Blueprint</h1>
  *
  * <h2>Architectural Principles</h2>
  * <p>

@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: customer-support-platform
+    name: doc-knowledge-platform
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   config:
@@ -11,7 +11,7 @@ spring:
 
   # Database DataSource Configuration
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:support_platform_db}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:doc_knowledge_db}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -21,7 +21,7 @@ spring:
       idle-timeout: 300000
       max-lifetime: 1200000
       connection-timeout: 20000
-      pool-name: SupportPlatformHikariPool
+      pool-name: DocKnowledgeHikariPool
 
   # JPA & Hibernate Configuration
   jpa:
@@ -54,8 +54,8 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:4200}
   swagger:
     enabled: ${SWAGGER_ENABLED:true}
-    title: ${SWAGGER_TITLE:Customer Support Platform API}
-    description: ${SWAGGER_DESCRIPTION:RESTful API documentation for Customer Support Platform}
+    title: ${SWAGGER_TITLE:Document and Knowledge Operations Platform API}
+    description: ${SWAGGER_DESCRIPTION:RESTful API documentation for Document and Knowledge Operations Platform}
     version: ${SWAGGER_VERSION:1.0.0}
   ai:
     llm:

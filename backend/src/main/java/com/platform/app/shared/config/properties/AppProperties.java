@@ -31,8 +31,8 @@ public class AppProperties {
     @Data
     public static class Swagger {
         private boolean enabled = true;
-        private String title = "Customer Support Platform API";
-        private String description = "RESTful API documentation for Customer Support Platform";
+        private String title = "Document and Knowledge Operations Platform API";
+        private String description = "RESTful API documentation for Document and Knowledge Operations Platform";
         private String version = "1.0.0";
     }
 
