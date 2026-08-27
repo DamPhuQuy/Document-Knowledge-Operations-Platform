@@ -55,7 +55,7 @@ A concise architectural reference summarizing configuration design, rules, and d
 
 ### C. Dockerfile & Container Strategy
 
-| Feature                       | Development ([`Dockerfile.dev`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/backend/Dockerfile.dev)) | Production ([`Dockerfile.prod`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/backend/Dockerfile.prod))              |
+| Feature                       | Development ([`Dockerfile.dev`](../../../backend/Dockerfile.dev)) | Production ([`Dockerfile.prod`](../../../backend/Dockerfile.prod))              |
 | :---------------------------- | :------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
 | **Base Image**                | `eclipse-temurin:25-jdk-alpine` (Full JDK)                                                                                 | `eclipse-temurin:25-jre-alpine` (Minimal JRE Slim)                                                                                       |
 | **Build Strategy**            | Executes source code directly via Gradle Wrapper                                                                           | **Multi-stage Build** + **Layered JAR** (`jarmode=tools extract`)                                                                        |

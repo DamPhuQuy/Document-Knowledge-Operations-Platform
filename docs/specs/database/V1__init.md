@@ -1,9 +1,9 @@
 # Thiết Kế Cơ Sở Dữ Liệu Khởi Tạo (Database Schema Specification V1)
 
 > **Dự án:** Nền tảng quản lý tài liệu nội bộ và tự động hóa nghiệp vụ (*Document Knowledge & Operations Platform*)  
-> **Tài liệu tham chiếu:** Báo cáo đề tài PBL4 ([`report.docx`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/report/report.docx)), Kiến trúc hệ thống ([`architecture.md`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/architecture.md)), AI Engineering Roadmap ([`draft.md`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/draft.md)).  
-> **Tệp đặc tả DBML chính:** [`docs/database/schema.dbml`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/database/schema.dbml) *(Trực quan hóa trên [dbdiagram.io](https://dbdiagram.io))*.  
-> **Thư mục các module DBML tách rời:** [`docs/database/modules/`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/database/modules/)  
+> **Tài liệu tham chiếu:** Báo cáo đề tài PBL4 ([`report.docx`](../../reports/foundation_report.docx)), Kiến trúc hệ thống ([`architecture.md`](../architecture.md)), AI Engineering Roadmap ([`draft.md`](../../research/draft.md)).  
+> **Tệp đặc tả DBML chính:** [`schema.dbml`](schema.dbml) *(Trực quan hóa trên [dbdiagram.io](https://dbdiagram.io))*.  
+> **Thư mục các module DBML tách rời:** [`modules/`](modules/)  
 > **Hệ quản trị CSDL đích:** PostgreSQL 16 + Extension `pgvector`, `uuid-ossp`, `pg_trgm`.  
 > **Lưu trữ nhị phân (Object Storage):** Amazon S3 (mô phỏng cục bộ bởi Floci).  
 
