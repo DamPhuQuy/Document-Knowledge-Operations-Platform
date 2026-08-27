@@ -1,0 +1,115 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-document-chunks-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: document_chunks
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_document_chunks
+              - column:
+                  name: document_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_chunks_document
+                    references: documents(id)
+                    onDelete: CASCADE
+              - column:
+                  name: document_version_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_chunks_doc_version
+                    references: document_versions(id)
+                    onDelete: CASCADE
+              - column:
+                  name: chunk_index
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: page_number
+                  type: INT
+              - column:
+                  name: content
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: metadata
+                  type: JSONB
+                  defaultValueComputed: "'{}'::jsonb"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: embedding
+                  type: vector(1536)
+              - column:
+                  name: tsv
+                  type: tsvector
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_chunks_document_id
+            tableName: document_chunks
+            columns:
+              - column:
+                  name: document_id
+        - createIndex:
+            indexName: idx_chunks_doc_version_id
+            tableName: document_chunks
+            columns:
+              - column:
+                  name: document_version_id
+
+  - changeSet:
+      id: 004-create-rag-indexes-and-triggers
+      author: platform
+      preConditions:
+        - onFail: MARK_RAN
+          dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: |
+              -- HNSW Vector Index for Cosine Similarity Search
+              CREATE INDEX IF NOT EXISTS idx_chunks_embedding_hnsw 
+              ON document_chunks USING hnsw (embedding vector_cosine_ops);
+
+              -- GIN Index on Full-Text Search tsvector
+              CREATE INDEX IF NOT EXISTS idx_chunks_tsv 
+              ON document_chunks USING gin (tsv);
+
+              -- GIN Index on Chunk Metadata JSONB
+              CREATE INDEX IF NOT EXISTS idx_chunks_metadata 
+              ON document_chunks USING gin (metadata);
+
+              -- Trigger for automated Full-Text Search tsvector updates
+              CREATE OR REPLACE FUNCTION document_chunks_tsv_update() RETURNS trigger AS $$
+              BEGIN
+                NEW.tsv := to_tsvector('simple', COALESCE(NEW.content, ''));
+                RETURN NEW;
+              END
+              $$ LANGUAGE plpgsql;
+
+              DROP TRIGGER IF EXISTS trg_document_chunks_tsv_update ON document_chunks;
+              CREATE TRIGGER trg_document_chunks_tsv_update
+              BEFORE INSERT OR UPDATE OF content ON document_chunks
+              FOR EACH ROW EXECUTE FUNCTION document_chunks_tsv_update();

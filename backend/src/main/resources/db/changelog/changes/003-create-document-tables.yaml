@@ -1,0 +1,383 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-documents-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: documents
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_documents
+              - column:
+                  name: original_file_name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: file_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: mime_type
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_size_bytes
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: checksum_sha256
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: storage_bucket
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: storage_key
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: processing_status
+                  type: VARCHAR(50)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_version
+                  type: INT
+                  defaultValueNumeric: 1
+                  constraints:
+                    nullable: false
+              - column:
+                  name: department_id
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_documents_department
+                    references: departments(id)
+                    onDelete: SET NULL
+              - column:
+                  name: uploaded_by_user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_documents_uploaded_by
+                    references: users(id)
+                    onDelete: RESTRICT
+              - column:
+                  name: access_level
+                  type: VARCHAR(50)
+                  defaultValue: INTERNAL
+                  constraints:
+                    nullable: false
+              - column:
+                  name: metadata
+                  type: JSONB
+                  defaultValueComputed: "'{}'::jsonb"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMPTZ
+        - createIndex:
+            indexName: idx_documents_processing_status
+            tableName: documents
+            columns:
+              - column:
+                  name: processing_status
+        - createIndex:
+            indexName: idx_documents_uploaded_by_user_id
+            tableName: documents
+            columns:
+              - column:
+                  name: uploaded_by_user_id
+        - createIndex:
+            indexName: idx_documents_department_id
+            tableName: documents
+            columns:
+              - column:
+                  name: department_id
+        - createIndex:
+            indexName: idx_documents_checksum_sha256
+            tableName: documents
+            columns:
+              - column:
+                  name: checksum_sha256
+        - createIndex:
+            indexName: idx_documents_dept_status
+            tableName: documents
+            columns:
+              - column:
+                  name: department_id
+              - column:
+                  name: processing_status
+        - createIndex:
+            indexName: idx_documents_deleted_at
+            tableName: documents
+            columns:
+              - column:
+                  name: deleted_at
+
+  - changeSet:
+      id: 003-create-document-versions-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: document_versions
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_document_versions
+              - column:
+                  name: document_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_versions_document
+                    references: documents(id)
+                    onDelete: CASCADE
+              - column:
+                  name: version_number
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: storage_bucket
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: storage_key
+                  type: VARCHAR(512)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_size_bytes
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: checksum_sha256
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: change_summary
+                  type: VARCHAR(500)
+              - column:
+                  name: uploaded_by_user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_versions_uploaded_by
+                    references: users(id)
+                    onDelete: RESTRICT
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: document_versions
+            columnNames: document_id, version_number
+            constraintName: uk_doc_version_doc_num
+        - createIndex:
+            indexName: idx_doc_versions_uploaded_by
+            tableName: document_versions
+            columns:
+              - column:
+                  name: uploaded_by_user_id
+
+  - changeSet:
+      id: 003-create-document-user-access-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: document_user_access
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_document_user_access
+              - column:
+                  name: document_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_user_access_document
+                    references: documents(id)
+                    onDelete: CASCADE
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_user_access_user
+                    references: users(id)
+                    onDelete: CASCADE
+              - column:
+                  name: permission_level
+                  type: VARCHAR(50)
+                  defaultValue: VIEW
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: document_user_access
+            columnNames: document_id, user_id
+            constraintName: uk_doc_user_access
+        - createIndex:
+            indexName: idx_doc_user_access_user_id
+            tableName: document_user_access
+            columns:
+              - column:
+                  name: user_id
+
+  - changeSet:
+      id: 003-create-document-department-access-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: document_department_access
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_document_department_access
+              - column:
+                  name: document_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_dept_access_document
+                    references: documents(id)
+                    onDelete: CASCADE
+              - column:
+                  name: department_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_dept_access_department
+                    references: departments(id)
+                    onDelete: CASCADE
+              - column:
+                  name: permission_level
+                  type: VARCHAR(50)
+                  defaultValue: VIEW
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: document_department_access
+            columnNames: document_id, department_id
+            constraintName: uk_doc_dept_access
+        - createIndex:
+            indexName: idx_doc_dept_access_dept_id
+            tableName: document_department_access
+            columns:
+              - column:
+                  name: department_id
+
+  - changeSet:
+      id: 003-create-document-role-access-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: document_role_access
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_document_role_access
+              - column:
+                  name: document_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_role_access_document
+                    references: documents(id)
+                    onDelete: CASCADE
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_doc_role_access_role
+                    references: roles(id)
+                    onDelete: CASCADE
+              - column:
+                  name: permission_level
+                  type: VARCHAR(50)
+                  defaultValue: VIEW
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: document_role_access
+            columnNames: document_id, role_id
+            constraintName: uk_doc_role_access
+        - createIndex:
+            indexName: idx_doc_role_access_role_id
+            tableName: document_role_access
+            columns:
+              - column:
+                  name: role_id
