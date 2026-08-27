@@ -1,0 +1,149 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-workflows-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: workflows
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_workflows
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: trigger_event
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: config_schema
+                  type: JSONB
+                  defaultValueComputed: "'{}'::jsonb"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_workflows_trigger_event
+            tableName: workflows
+            columns:
+              - column:
+                  name: trigger_event
+        - createIndex:
+            indexName: idx_workflows_is_active
+            tableName: workflows
+            columns:
+              - column:
+                  name: is_active
+
+  - changeSet:
+      id: 006-create-workflow-executions-table
+      author: platform
+      changes:
+        - createTable:
+            tableName: workflow_executions
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(64)
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_workflow_executions
+              - column:
+                  name: workflow_id
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_wf_exec_workflow
+                    references: workflows(id)
+                    onDelete: CASCADE
+              - column:
+                  name: document_id
+                  type: VARCHAR(64)
+                  constraints:
+                    foreignKeyName: fk_wf_exec_document
+                    references: documents(id)
+                    onDelete: SET NULL
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_step
+                  type: VARCHAR(100)
+              - column:
+                  name: input_payload
+                  type: JSONB
+                  defaultValueComputed: "'{}'::jsonb"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: step_results
+                  type: JSONB
+                  defaultValueComputed: "'{}'::jsonb"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: error_message
+                  type: TEXT
+              - column:
+                  name: started_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: completed_at
+                  type: TIMESTAMPTZ
+        - createIndex:
+            indexName: idx_wf_exec_workflow_id
+            tableName: workflow_executions
+            columns:
+              - column:
+                  name: workflow_id
+        - createIndex:
+            indexName: idx_wf_exec_document_id
+            tableName: workflow_executions
+            columns:
+              - column:
+                  name: document_id
+        - createIndex:
+            indexName: idx_wf_exec_status
+            tableName: workflow_executions
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            indexName: idx_wf_exec_started_at
+            tableName: workflow_executions
+            columns:
+              - column:
+                  name: started_at
