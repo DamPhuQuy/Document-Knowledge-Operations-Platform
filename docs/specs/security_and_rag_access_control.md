@@ -1,7 +1,7 @@
 # Kiến Trúc Phân Quyền Đa Tầng & Kiểm Soát Truy Cập Tài Liệu Trong RAG
 
-> **Tài liệu tham chiếu:** [`docs/database/schema.dbml`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/database/schema.dbml), [`docs/database/V1__init.md`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/database/V1__init.md), [`docs/architecture.md`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/architecture.md).  
-> **Phạm vi áp dụng:** Phân hệ Định danh & Phân quyền (IAM Backend / Spring Boot 3) và Phân hệ Trí tuệ nhân tạo (AI Assistant & RAG Service / Python FastAPI + pgvector).
+> **Tài liệu tham chiếu:** [`database/schema.dbml`](database/schema.dbml), [`database/V1__init.md`](database/V1__init.md), [`architecture.md`](architecture.md).  
+> **Phạm vi áp dụng:** Phân hệ Định danh & Phân quyền (IAM Backend / Spring Boot 4 / Java 25) và Phân hệ Trí tuệ nhân tạo (AI Assistant & RAG Service / Python FastAPI + pgvector).
 
 ---
 
@@ -208,7 +208,7 @@ Khi Backend gọi sang AI Service (hoặc khi AI Service truy vấn trực tiế
 
 ### 4.2. Pre-filtered Hybrid Vector Search trong `PgVectorStore`
 
-Trong [`PgVectorStore`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/ai/src/ai/infrastructure/vector_store/pgvector_store.py), câu truy vấn kết hợp khoảng cách Vector Cosine (`<=>`) và lọc phân quyền tài liệu trong **duy nhất 1 câu SQL thực thi trên PostgreSQL**:
+Trong [`PgVectorStore`](../../ai/src/ai/infrastructure/vector_store/pgvector_store.py), câu truy vấn kết hợp khoảng cách Vector Cosine (`<=>`) và lọc phân quyền tài liệu trong **duy nhất 1 câu SQL thực thi trên PostgreSQL**:
 
 ```python
 from dataclasses import dataclass
@@ -343,7 +343,7 @@ ON document_chunks USING hnsw (embedding vector_cosine_ops);
 ## 6. Tổng Kết Danh Mục Kiểm Tra (Verification Checklist)
 
 - [x] Đã chuẩn hóa CSDL sang mô hình Multiple Roles (`users` $\leftrightarrow$ `user_roles` $\leftrightarrow$ `roles` $\leftrightarrow$ `role_permissions` $\leftrightarrow$ `permissions`).
-- [x] Đã cập nhật [`docs/database/schema.dbml`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/database/schema.dbml) và [`docs/database/V1__init.md`](file:///home/phuqy/Develop/Document-Knowledge-Operations-Platform/docs/database/V1__init.md).
+- [x] Đã cập nhật [`database/schema.dbml`](database/schema.dbml) và [`database/V1__init.md`](database/V1__init.md).
 - [x] Đã cấu hình phân quyền chức năng hạt mịn `read:documents` với Spring Security `@PreAuthorize`.
 - [x] Đã thiết kế cơ chế **Pre-filtered Retrieval** trên `pgvector`, loại bỏ hoàn toàn rủi ro rò rỉ dữ liệu hoặc lỗi Recall Collapse của Post-filtering.
 - [x] Đã định nghĩa cơ chế từ chối trả lời an toàn khi không tìm thấy tài liệu trong phạm vi quyền hạn.

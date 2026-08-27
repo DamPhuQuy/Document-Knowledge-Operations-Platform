@@ -2,89 +2,86 @@
 
 > An AI-assisted platform for managing documents, retrieving organizational knowledge, and executing controlled knowledge workflows.
 
-**Project Topic:** Infrastructure Deployment for an AI Document & Knowledge Operations Platform
+---
 
-## Overview
+## 1. Quick Start
 
-Organizations maintain knowledge across PDFs, policies, reports, specifications, notes, and internal documentation. Finding and utilizing this information requires searching multiple sources, comparing versions, understanding context, and converting findings into verified actions.
+### A. Prerequisites
+- **Java 25** (or Java 21+)
+- **Python 3.11+** & **`uv`**
+- **Node.js 20+** & **npm**
+- **Docker & Docker Compose**
 
-This platform provides an AI-native knowledge layer on top of document management:
+### B. Start Services
 
-```text
-Documents -> Ingestion -> Retrieval / RAG -> Context -> LLM / Agent -> Tools / Approval
+#### 1. Start Infrastructure (PostgreSQL 16 + pgvector)
+```bash
+docker compose up -d
 ```
 
-The core objective is **knowledge operations**: retrieving, reasoning, transforming, and acting on organizational knowledge while enforcing permissions, verifiable citations, auditability, and human-in-the-loop control.
-
-## Core Capabilities
-
-- Identity, multi-tenant workspace isolation, and RBAC document permissions.
-- Document upload, metadata tracking, versioning, and object storage.
-- Asynchronous parsing, chunking, embedding, and vector indexing.
-- Permission-aware hybrid RAG with source citations.
-- Conversational context, structured LLM responses, and tool calling.
-- Operational tasks, human approvals, audit logging, and AI evaluation.
-
-## Architecture
-
-```text
-                         Web Client
-                            |
-                            v
-                     Spring Boot API
-                +-----------+-----------+
-                |           |           |
-                v           v           v
-          PostgreSQL       S3       Python AI Service
-          + pgvector        |           |
-                            v           +-- RAG / Context
-                           SQS          +-- Agent / Tools
-                            |           +-- Evaluation
-                            v                |
-                     Ingestion Worker        v
-                    Parse / Chunk /       Bedrock
-                    Embed / Index
+#### 2. Start Backend API (Spring Boot)
+```bash
+cd backend
+./gradlew bootRun
+# Running at: http://localhost:8080 | Swagger: http://localhost:8080/swagger-ui.html
 ```
 
-- **Spring Boot API**: Handles core business logic, identity, access control, workspaces, document metadata, tasks, approvals, audit trails, and client APIs.
-- **Python AI Service**: Handles AI pipelines including chunking, embeddings, dense/sparse retrieval, reranking, context assembly, RAG, tool calling, and evaluation.
-- **PostgreSQL + pgvector**: Unified relational store and vector database.
-- **AWS S3 / SQS**: Object storage for documents and message queue for asynchronous ingestion.
+#### 3. Start AI Microservice (FastAPI + RAG)
+```bash
+cd ai
+source .venv/bin/activate # or: uv sync
+uv run python src/ai/main.py
+# Running at: http://localhost:8000 | Swagger: http://localhost:8000/docs
+```
 
-## Repository Structure
+#### 4. Start Frontend Web Client (React + Vite)
+```bash
+cd frontend
+npm install
+npm run dev
+# Running at: http://localhost:5173
+```
+
+---
+
+## 2. Repository Structure
 
 ```text
 Document-Knowledge-Operations-Platform/
-├── backend/              # Spring Boot application service
-├── ai/                   # Python AI & RAG microservice
-├── frontend/             # React + TypeScript web client
-├── docs/                 # Architecture, database schemas, and documentation
-├── docker-compose.yaml
-├── .env.example          # Local / default environment template
-├── .env.dev.example      # Development environment template
-├── .env.prod.example     # Production environment template
+├── backend/              # Spring Boot service (Java 25, Security, Liquibase, JPA)
+├── ai/                   # AI & Hybrid RAG microservice (Python 3.11+, FastAPI, pgvector)
+├── frontend/             # Web Client (React 19, TypeScript, Vite)
+├── docs/
+│   ├── specs/            # [Source of Truth] System specifications, architecture, and schemas
+│   │   ├── architecture.md
+│   │   ├── security_and_rag_access_control.md
+│   │   ├── configurations/note.md
+│   │   └── database/
+│   │       ├── schema.dbml
+│   │       └── V1__init.md
+│   ├── reports/          # Formal project and milestone reports
+│   └── research/         # Engineering drafts and vertical slice roadmaps
+├── docker-compose.yaml   # Infrastructure orchestration (PostgreSQL + pgvector)
 └── README.md
 ```
 
-## Technology Stack
+---
 
-| Area | Technology |
-|---|---|
-| Frontend | React, TypeScript, Vite |
-| Backend | Java 25, Spring Boot 4, Spring Security, Spring Data JPA, Liquibase |
-| AI Service | Python 3.11+, FastAPI, uv, pgvector, ChromaDB |
-| Database | PostgreSQL 16+, pgvector |
-| Infrastructure | Docker, Docker Compose, AWS (S3, SQS, Bedrock) |
+## 3. Technology Stack
 
-## Engineering Principles
+| Area | Technology | Role |
+| :--- | :--- | :--- |
+| **Frontend** | React 19, TypeScript, Vite | Document & Operations Web Interface |
+| **Backend** | Java 25, Spring Boot 4, Liquibase | Core Business Logic, Identity, ACL & Orchestration |
+| **AI Service** | Python 3.11+, FastAPI, `uv`, pgvector | Ingestion, Embeddings, Dense+FTS Hybrid RAG, Citations |
+| **Database** | PostgreSQL 16+, pgvector | Relational Store & High-Dimensional Vector Search |
+| **Container** | Docker, Multi-stage Builds | Multi-environment deployment |
 
-- Enforce authorization checks before retrieved document context reaches the model.
-- Treat ingested document content as untrusted input.
-- Route agent tools through backend authorization and validation; prevent direct, unrestricted database or cloud access.
-- Keep business domain boundaries explicit between deterministic services and AI pipelines.
-- Use measurable evaluation metrics (groundedness, relevance, faithfulness) rather than subjective output assessment.
+---
 
-## Non-Goals
+## 4. Documentation Map (Source of Truth)
 
-The platform is not intended as a generic chatbot, a full enterprise content management (ECM) suite, an unrestricted autonomous agent runner, or a foundation model training platform.
-
+- **System Architecture**: [`docs/specs/architecture.md`](docs/specs/architecture.md)
+- **Configuration & Environments**: [`docs/specs/configurations/note.md`](docs/specs/configurations/note.md)
+- **Database Schema & DDL**: [`docs/specs/database/schema.dbml`](docs/specs/database/schema.dbml) & [`docs/specs/database/V1__init.md`](docs/specs/database/V1__init.md)
+- **Security & RAG ACL Filtering**: [`docs/specs/security_and_rag_access_control.md`](docs/specs/security_and_rag_access_control.md)

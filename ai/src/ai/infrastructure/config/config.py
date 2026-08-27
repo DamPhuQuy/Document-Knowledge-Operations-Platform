@@ -21,7 +21,7 @@ class LlmConfig:
         # PostgreSQL & pgvector Settings
         self.__postgres_host: str = os.getenv("POSTGRES_HOST", "localhost")
         self.__postgres_port: int = int(os.getenv("POSTGRES_PORT", "5432"))
-        self.__postgres_db: str = os.getenv("POSTGRES_DB", "knowledge_ops")
+        self.__postgres_db: str = os.getenv("POSTGRES_DB", "doc_knowledge_db")
         self.__postgres_user: str = os.getenv("POSTGRES_USER", "postgres")
         self.__postgres_password: str = os.getenv("POSTGRES_PASSWORD", "postgres")
         self.__postgres_table: str = os.getenv("POSTGRES_RAG_TABLE", "document_chunks")

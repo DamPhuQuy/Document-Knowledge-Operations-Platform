@@ -12,7 +12,12 @@ backend/
 ├── .env.dev.example                           # Development environment template
 ├── .env.prod.example                          # Production environment template
 ├── .env                                       # Active local environment configuration
-├── docker-compose.yaml                        # PostgreSQL container
+├── Dockerfile                                 # Multi-stage Dockerfile (dev & prod targets)
+├── Dockerfile.dev                             # Dedicated development Dockerfile (debug port 5005)
+├── Dockerfile.prod                            # Dedicated production Dockerfile (JRE slim + layered JAR)
+├── docker-compose.yaml                        # Local PostgreSQL container
+├── docker-compose.dev.yaml                    # Full stack development compose (hot reload)
+├── docker-compose.prod.yaml                   # Production compose stack
 ├── build.gradle                               # Gradle build file & dependencies
 ├── settings.gradle
 └── src/
@@ -21,35 +26,41 @@ backend/
     │   │   ├── AppApplication.java            # Main application entry point
     │   │   ├── package-info.java              # Root architecture description
     │   │   │
-    │   │   ├── shared/                        # Shared Kernel & Global Infrastructure
-    │   │   │   ├── domain/                    # BaseEntity, AggregateRoot, DomainEvent
-    │   │   │   ├── dto/                       # ApiResponse, PageResponse
-    │   │   │   ├── exception/                 # ErrorCode, AppException, GlobalExceptionHandler
-    │   │   │   ├── config/                    # SecurityConfig, CorsConfig, OpenApiConfig, JacksonConfig
-    │   │   │   └── security/                  # JwtTokenProvider, JwtAuthenticationFilter, UserPrincipal
+    │   │   ├── iam/                           # Identity & Access Management
+    │   │   │   ├── package-info.java
+    │   │   │   ├── domain/package-info.java
+    │   │   │   ├── repository/package-info.java
+    │   │   │   ├── service/package-info.java
+    │   │   │   └── web/package-info.java
     │   │   │
-    │   │   ├── system/                        # System Capability
-    │   │   │   └── web/                       # HealthController, HealthCheckResponse
+    │   │   ├── system/                        # System & Health Capability
+    │   │   │   ├── package-info.java
+    │   │   │   └── web/package-info.java
     │   │   │
-    │   │   ├── iam/                           # IAM Capability
-    │   │   │   ├── domain/                    # User, Role
-    │   │   │   ├── repository/                # UserRepository
-    │   │   │   ├── service/                   # IamService, CustomUserDetailsService
-    │   │   │   └── web/                       # AuthController, Login/Register DTOs
-    │   │   │
-    │   │   └── [capability]/                  # Business Capabilities (Tactical DDD)
-    │   │       ├── domain/                    # Aggregate Roots, Entities, Value Objects, Repo Ports
-    │   │       ├── application/               # Application Services, Commands, Queries, Response DTOs
-    │   │       ├── infrastructure/            # Outbound Adapters (Spring Data JPA, External Clients)
-    │   │       └── api/                       # Inbound REST Adapters (Controllers, Request Payloads)
+    │   │   └── shared/                        # Shared Kernel & Global Infrastructure
+    │   │       ├── package-info.java
+    │   │       ├── config/package-info.java
+    │   │       ├── config/security/package-info.java
+    │   │       ├── domain/package-info.java
+    │   │       ├── dto/package-info.java
+    │   │       └── exception/package-info.java
     │   │
     │   └── resources/
     │       ├── application.yaml               # Application configuration (${ENV_VAR:default})
+    │       ├── application-dev.yaml           # Development profile overrides
+    │       ├── application-prod.yaml          # Production profile overrides
     │       └── db/changelog/                  # Liquibase database migrations
     │           ├── db.changelog-master.yaml
     │           └── changes/
-    │               └── 001-create-users-table.yaml
-    └── test/                                  # Unit, Controller, and Integration tests
+    │               ├── 001-initial-extensions.yaml
+    │               ├── 002-create-iam-tables.yaml
+    │               ├── 003-create-document-tables.yaml
+    │               ├── 004-create-rag-tables.yaml
+    │               ├── 005-create-conversation-tables.yaml
+    │               ├── 006-create-workflow-tables.yaml
+    │               ├── 007-create-operations-tables.yaml
+    │               └── 008-create-audit-and-notification-tables.yaml
+    └── test/                                  # Application tests
 ```
 
 ---
