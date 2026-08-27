@@ -17,7 +17,7 @@ import java.time.Instant;
 @Tag(name = "System", description = "System health and diagnostic endpoints")
 public class HealthController {
 
-    @Value("${spring.application.name:customer-support-platform}")
+    @Value("${spring.application.name:doc-knowledge-platform}")
     private String applicationName;
 
     @Value("${spring.profiles.active:local}")

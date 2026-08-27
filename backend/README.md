@@ -1,15 +1,17 @@
-# Backend Starter Template
+# Backend Service (Spring Boot)
 
-A production-ready Spring Boot backend starter template built with **Spring Boot 4**, **Java 25**, **Gradle**, **PostgreSQL**, **Liquibase**, and **Spring Security (JWT)**.
+Backend service built with **Spring Boot 4**, **Java 25**, **Gradle**, **PostgreSQL**, **Liquibase**, and **Spring Security (JWT)** for identity, access control, and document operations.
 
 ---
 
-## 📁 Template Structure
+## Project Structure
 
-```
+```text
 backend/
-├── .env.example                               # Environment variables template
-├── .env                                       # Local environment configuration
+├── .env.example                               # Local / default environment template
+├── .env.dev.example                           # Development environment template
+├── .env.prod.example                          # Production environment template
+├── .env                                       # Active local environment configuration
 ├── docker-compose.yaml                        # PostgreSQL container
 ├── build.gradle                               # Gradle build file & dependencies
 ├── settings.gradle
@@ -26,17 +28,17 @@ backend/
     │   │   │   ├── config/                    # SecurityConfig, CorsConfig, OpenApiConfig, JacksonConfig
     │   │   │   └── security/                  # JwtTokenProvider, JwtAuthenticationFilter, UserPrincipal
     │   │   │
-    │   │   ├── system/                        # System Capability (Lean Style Archetype)
+    │   │   ├── system/                        # System Capability
     │   │   │   └── web/                       # HealthController, HealthCheckResponse
     │   │   │
-    │   │   ├── iam/                           # IAM Capability (Pragmatic Layered Archetype)
+    │   │   ├── iam/                           # IAM Capability
     │   │   │   ├── domain/                    # User, Role
     │   │   │   ├── repository/                # UserRepository
     │   │   │   ├── service/                   # IamService, CustomUserDetailsService
     │   │   │   └── web/                       # AuthController, Login/Register DTOs
     │   │   │
-    │   │   └── [capability]/                  # Business Capability (Tactical DDD Archetype)
-    │   │       ├── domain/                    # Aggregate Roots, Entities, Value Objects, Domain Events, Repo Ports
+    │   │   └── [capability]/                  # Business Capabilities (Tactical DDD)
+    │   │       ├── domain/                    # Aggregate Roots, Entities, Value Objects, Repo Ports
     │   │       ├── application/               # Application Services, Commands, Queries, Response DTOs
     │   │       ├── infrastructure/            # Outbound Adapters (Spring Data JPA, External Clients)
     │   │       └── api/                       # Inbound REST Adapters (Controllers, Request Payloads)
@@ -52,16 +54,16 @@ backend/
 
 ---
 
-## 📋 Requirements
+## Requirements
 
-- **Java 21+** (JDK 25 recommended)
+- **Java 25** (Java 21+ supported)
 - **Docker & Docker Compose**
 
 ---
 
-## ⚙️ Environment Configuration
+## Environment Configuration
 
-Copy the example environment file and adjust variables as needed:
+Copy the example environment file for local development:
 
 ```bash
 cp .env.example .env
@@ -75,59 +77,64 @@ cp .env.example .env
 | `SPRING_PROFILES_ACTIVE` | `local` | Active Spring profile (`local`, `dev`, `prod`) |
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_NAME` | `support_platform_db` | PostgreSQL database name |
+| `DB_NAME` | `doc_knowledge_db` | PostgreSQL database name |
 | `DB_USERNAME` | `postgres` | Database username |
 | `DB_PASSWORD` | `postgres` | Database password |
 | `JWT_SECRET` | *(secret)* | Secret key for signing JWT tokens (min 256 bits) |
 | `JWT_EXPIRATION_MS` | `86400000` | Access token expiration in milliseconds (24h) |
 | `JWT_REFRESH_EXPIRATION_MS` | `604800000` | Refresh token expiration in milliseconds (7d) |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Allowed CORS origins (comma-separated) |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:5173,http://localhost:4200` | Allowed CORS origins (comma-separated) |
+| `AI_SERVICE_URL` | `http://localhost:8000` | Base URL for AI microservice |
+| `AI_GENERATE_PATH` | `/api/v1/ai/generate` | AI generation endpoint path |
+| `LLM_TIMEOUT` | `10s` | AI service HTTP timeout |
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
-### 1. Start PostgreSQL Database
+### 1. Local Development (Standard)
 ```bash
+# Start local PostgreSQL
 docker compose up -d
-```
 
-### 2. Run Application
-```powershell
-# Windows PowerShell / CMD
-.\gradlew.bat bootRun
-
-# Linux / macOS
+# Run application
 ./gradlew bootRun
 ```
 
-Application will start at: **http://localhost:8080**
+### 2. Development via Docker (with Hot-Reload & Remote Debugging)
+```bash
+# Start backend (dev target) + PostgreSQL
+docker compose -f docker-compose.dev.yaml up --build
+```
+- App: `http://localhost:8080`
+- JDWP Remote Debug: `localhost:5005`
 
-### 3. Quick Links
+### 3. Production via Docker (Multi-stage Slim Runner)
+```bash
+# Build & Run production container
+docker compose -f docker-compose.prod.yaml up --build -d
+```
+
+---
+
+## API Endpoints & Documentation
 - **Health Check**: [http://localhost:8080/api/v1/health](http://localhost:8080/api/v1/health)
 - **Swagger UI**: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 - **OpenAPI JSON**: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
 
 ---
 
-## 🧪 Testing & Building
+## Testing & Building
 
 ### Run Tests
-```powershell
-# Windows
-.\gradlew.bat test
-
-# Linux / macOS
+```bash
 ./gradlew test
 ```
 
 ### Build Production Artifact (bootJar)
-```powershell
-# Windows
-.\gradlew.bat build
-
-# Linux / macOS
-./gradlew build
+```bash
+./gradlew bootJar
 ```
 
-The compiled JAR will be located at: `build/libs/backend-0.0.1-SNAPSHOT.jar`
+Compiled JAR location: `build/libs/app-0.0.1-SNAPSHOT.jar`
+

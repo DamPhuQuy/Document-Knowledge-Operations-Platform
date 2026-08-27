@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+FROM eclipse-temurin:25-jdk-alpine
+
+WORKDIR /app
+
+# Install bash and curl for dev utilities
+RUN apk add --no-cache bash curl
+
+# Copy build descriptors and Gradle wrapper
+COPY gradlew gradlew.bat settings.gradle build.gradle ./
+COPY gradle/ gradle/
+
+# Cache Gradle dependencies
+RUN chmod +x gradlew && ./gradlew dependencies --no-daemon || true
+
+# Copy source code
+COPY src/ src/
+
+# 8080: HTTP API, 5005: JDWP Remote Debugging
+EXPOSE 8080 5005
+
+ENV SPRING_PROFILES_ACTIVE=dev \
+    JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+
+ENTRYPOINT ["./gradlew", "bootRun", "--no-daemon"]
