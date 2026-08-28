@@ -77,113 +77,15 @@ Một tài liệu $D$ được phép đọc bởi người dùng $U$ nếu thỏ
 
 ### 3.1. UserPrincipal & GrantedAuthority Mapping
 
-Khi người dùng đăng nhập hoặc gửi JWT Token, `CustomUserDetailsService` tổng hợp tất cả **Roles** và **Permissions** thành danh sách `GrantedAuthority`:
-
-```java
-package com.platform.app.shared.config.security;
-
-import com.platform.app.iam.domain.User;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
-
-public class UserPrincipal implements UserDetails {
-
-    private final Long userId;
-    private final String email;
-    private final String password;
-    private final Long departmentId;
-    private final boolean isInternal;
-    private final Set<Long> roleIds;
-    private final Collection<? extends GrantedAuthority> authorities;
-
-    public static UserPrincipal create(User user) {
-        Set<GrantedAuthority> authorities = new HashSet<>();
-        Set<Long> roleIds = new HashSet<>();
-
-        // 1. Thêm Roles (e.g. ROLE_STAFF, ROLE_MANAGER)
-        user.getRoles().forEach(role -> {
-            roleIds.add(role.getId());
-            authorities.add(new SimpleGrantedAuthority(role.getCode()));
-
-            // 2. Thêm Permissions hạt mịn từ Role (e.g. read:documents, write:documents)
-            role.getPermissions().forEach(permission -> {
-                authorities.add(new SimpleGrantedAuthority(permission.getCode()));
-            });
-        });
-
-        return new UserPrincipal(
-                user.getId(),
-                user.getEmail(),
-                user.getPassword(),
-                user.getDepartmentId(),
-                user.isInternal(),
-                roleIds,
-                authorities
-        );
-    }
-
-    // Getters và UserDetails methods...
-    public Long getUserId() { return userId; }
-    public Long getDepartmentId() { return departmentId; }
-    public boolean isInternal() { return isInternal; }
-    public Set<Long> getRoleIds() { return roleIds; }
-    @Override public Collection<? extends GrantedAuthority> getAuthorities() { return authorities; }
-    @Override public String getUsername() { return email; }
-    @Override public String getPassword() { return password; }
-    @Override public boolean isEnabled() { return true; }
-    @Override public boolean isAccountNonExpired() { return true; }
-    @Override public boolean isAccountNonLocked() { return true; }
-    @Override public boolean isCredentialsNonExpired() { return true; }
-}
-```
+Khi người dùng đăng nhập hoặc gửi JWT Token, hệ thống tổng hợp tất cả **Roles** và **Permissions** vào `UserPrincipal`:
+- **Roles** (ví dụ: `ROLE_STAFF`, `ROLE_MANAGER`) và **Permissions** hạt mịn (ví dụ: `read:documents`, `write:documents`) được nạp trực tiếp vào danh sách `GrantedAuthority`.
+- Thông tin định danh và ngữ cảnh phân quyền (`userId`, `departmentId`, `roleIds`, `isInternal`) được đóng gói thành `UserSecurityContext` để chuyển tiếp sang các tầng nghiệp vụ và phân hệ AI.
 
 ### 3.2. Bảo Vệ API Endpoint Bằng `@PreAuthorize`
 
-```java
-package com.platform.app.ai.api;
-
-import com.platform.app.ai.api.dto.AskRequest;
-import com.platform.app.ai.api.dto.AskResponse;
-import com.platform.app.ai.application.port.GenerateResponseUseCase;
-import com.platform.app.shared.config.security.UserPrincipal;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
-@RestController
-@RequestMapping("/api/v1/ai")
-@RequiredArgsConstructor
-public class AiRagController {
-
-    private final GenerateResponseUseCase generateResponseUseCase;
-
-    @PostMapping("/ask")
-    @PreAuthorize("hasAuthority('read:documents')")
-    public ResponseEntity<AskResponse> askRag(
-            @Valid @RequestBody AskRequest request,
-            @AuthenticationPrincipal UserPrincipal currentUser
-    ) {
-        // Đóng gói Context phân quyền của người dùng chuyển sang AI Service
-        UserSecurityContext securityContext = UserSecurityContext.builder()
-                .userId(currentUser.getUserId())
-                .departmentId(currentUser.getDepartmentId())
-                .roleIds(currentUser.getRoleIds())
-                .isInternal(currentUser.isInternal())
-                .build();
-
-        AskResponse response = generateResponseUseCase.handleAsk(request, securityContext);
-        return ResponseEntity.ok(response);
-    }
-}
-```
+Các endpoint được kiểm soát quyền hạn mức chức năng ngay tại tầng Controller thông qua Spring Security annotations:
+- Kiểm tra quyền truy cập API: `@PreAuthorize("hasAuthority('read:documents')")`.
+- Trích xuất `UserPrincipal` từ `@AuthenticationPrincipal` để chuyển `UserSecurityContext` xuống Use Case / AI Service.
 
 ---
 
@@ -206,107 +108,49 @@ Khi Backend gọi sang AI Service (hoặc khi AI Service truy vấn trực tiế
 }
 ```
 
-### 4.2. Pre-filtered Hybrid Vector Search trong `PgVectorStore`
+### 4.2. Pre-filtered Vector Search (Truy Vấn Lọc Quyền Đồng Thời)
 
-Trong [`PgVectorStore`](../../ai/src/ai/infrastructure/vector_store/pgvector_store.py), câu truy vấn kết hợp khoảng cách Vector Cosine (`<=>`) và lọc phân quyền tài liệu trong **duy nhất 1 câu SQL thực thi trên PostgreSQL**:
+Câu truy vấn kết hợp tính khoảng cách Vector Cosine (`<=>`) và kiểm tra điều kiện phân quyền tài liệu (ACL) trong **duy nhất 1 câu lệnh SQL thực thi trên PostgreSQL**:
 
-```python
-from dataclasses import dataclass
-from typing import Any
-import json
-import psycopg
-from ai.domain.model.chunk import Chunk
-from ai.domain.model.search_result import SearchResult
-
-@dataclass
-class UserSecurityContext:
-    user_id: int
-    department_id: int | None
-    role_ids: list[int]
-    is_internal: bool = True
-
-class SecurePgVectorStore:
-    def similarity_search_with_acl(
-        self,
-        query_vector: list[float],
-        user_context: UserSecurityContext,
-        top_k: int = 5,
-    ) -> list[SearchResult]:
-        """
-        Tìm kiếm vector có kiểm soát phân quyền tài liệu (Pre-filtered Retrieval).
-        Tuyệt đối không trả về chunk của tài liệu mà user không có quyền xem.
-        """
-        sql = """
-        SELECT 
-            c.id,
-            c.document_id,
-            c.chunk_index,
-            c.content,
-            c.metadata,
-            1 - (c.embedding <=> %s::vector) AS similarity_score
-        FROM document_chunks c
-        JOIN documents d ON c.document_id = d.id
-        WHERE d.deleted_at IS NULL
-          AND d.processing_status = 'INDEXED'
-          AND c.embedding IS NOT NULL
+```sql
+SELECT 
+    c.id,
+    c.document_id,
+    c.chunk_index,
+    c.content,
+    c.metadata,
+    1 - (c.embedding <=> :query_vector) AS similarity_score
+FROM document_chunks c
+JOIN documents d ON c.document_id = d.id
+WHERE d.deleted_at IS NULL
+  AND d.processing_status = 'INDEXED'
+  AND c.embedding IS NOT NULL
+  AND (
+    -- 1. Tài liệu Public: Ai có quyền đọc đều xem được
+    d.access_level = 'PUBLIC'
+    
+    -- 2. Tài liệu Nội bộ: User thuộc nội bộ công ty
+    OR (d.access_level = 'INTERNAL' AND :is_internal = TRUE)
+    
+    -- 3. Tài liệu Restricted theo phòng ban
+    OR (d.access_level = 'RESTRICTED' AND d.department_id = :department_id)
+    
+    -- 4. Người tạo tài liệu
+    OR (d.uploaded_by_user_id = :user_id)
+    
+    -- 5. Cấp quyền tường minh qua ACL document_permissions
+    OR EXISTS (
+        SELECT 1 FROM document_permissions dp
+        WHERE dp.document_id = d.id
           AND (
-            -- 1. Tài liệu Public: Ai có quyền đọc đều xem được
-            d.access_level = 'PUBLIC'
-            
-            -- 2. Tài liệu Nội bộ: User thuộc nội bộ công ty
-            OR (d.access_level = 'INTERNAL' AND %s = TRUE)
-            
-            -- 3. Tài liệu Restricted theo phòng ban
-            OR (d.access_level = 'RESTRICTED' AND d.department_id = %s)
-            
-            -- 4. Người tạo tài liệu
-            OR (d.uploaded_by_user_id = %s)
-            
-            -- 5. Cấp quyền tường minh qua ACL document_permissions
-            OR EXISTS (
-                SELECT 1 FROM document_permissions dp
-                WHERE dp.document_id = d.id
-                  AND (
-                    (dp.subject_type = 'USER' AND dp.subject_id = %s)
-                    OR (dp.subject_type = 'DEPARTMENT' AND dp.subject_id = %s)
-                    OR (dp.subject_type = 'ROLE' AND dp.subject_id = ANY(%s))
-                  )
-            )
+            (dp.subject_type = 'USER' AND dp.subject_id = :user_id)
+            OR (dp.subject_type = 'DEPARTMENT' AND dp.subject_id = :department_id)
+            OR (dp.subject_type = 'ROLE' AND dp.subject_id = ANY(:role_ids))
           )
-        ORDER BY c.embedding <=> %s::vector
-        LIMIT %s;
-        """
-
-        role_ids_array = user_context.role_ids if user_context.role_ids else [-1]
-
-        params = [
-            query_vector,
-            user_context.is_internal,
-            user_context.department_id,
-            user_context.user_id,
-            user_context.user_id,
-            user_context.department_id,
-            role_ids_array,
-            query_vector,
-            top_k,
-        ]
-
-        with self._get_connection() as conn, conn.cursor() as cur:
-            cur.execute(sql, params)
-            rows = cur.fetchall()
-
-            results = []
-            for row in rows:
-                chunk = Chunk(
-                    id=str(row[0]),
-                    document_id=str(row[1]),
-                    chunk_index=int(row[2]),
-                    content=str(row[3]),
-                    metadata=row[4] if isinstance(row[4], dict) else json.loads(row[4]),
-                )
-                score = max(0.0, float(row[5]))
-                results.append(SearchResult(chunk=chunk, score=score))
-            return results
+    )
+  )
+ORDER BY c.embedding <=> :query_vector
+LIMIT :top_k;
 ```
 
 ### 4.3. Xử Lý Phản Hồi Khi Không Có Tài Liệu Khả Dụng (Anti-Hallucination)
