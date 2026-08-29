@@ -4,10 +4,17 @@ services:
       context: .
       dockerfile: Dockerfile
       target: dev
-    container_name: doc_knowledge_frontend
+    container_name: doc_knowledge_frontend_dev
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
+    env_file:
+      - path: .env.development
+        required: false
+      - path: .env.dev
+        required: false
+      - path: .env
+        required: false
     volumes:
       - .:/app
       - /app/node_modules

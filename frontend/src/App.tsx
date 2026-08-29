@@ -2,10 +2,19 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
+import { config, logger } from './config'
 import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
+
+  const handleIncrement = () => {
+    setCount((prev) => {
+      const next = prev + 1
+      logger.debug(`Counter updated: ${next}`)
+      return next
+    })
+  }
 
   return (
     <>
@@ -16,15 +25,33 @@ function App() {
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
         <div>
-          <h1>Get started</h1>
+          <h1>{config.appTitle}</h1>
           <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+            Environment:{' '}
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                backgroundColor: config.isProd ? '#10b981' : '#3b82f6',
+                color: '#ffffff',
+                marginLeft: '6px',
+              }}
+            >
+              {config.appEnv} ({config.mode})
+            </span>
+          </p>
+          <p style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px' }}>
+            API Endpoint: <code>{config.apiBaseUrl}</code>
           </p>
         </div>
         <button
           type="button"
           className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={handleIncrement}
         >
           Count is {count}
         </button>
@@ -41,13 +68,13 @@ function App() {
           <p>Your questions, answered</p>
           <ul>
             <li>
-              <a href="https://vite.dev/" target="_blank">
+              <a href="https://vite.dev/" target="_blank" rel="noreferrer">
                 <img className="logo" src={viteLogo} alt="" />
                 Explore Vite
               </a>
             </li>
             <li>
-              <a href="https://react.dev/" target="_blank">
+              <a href="https://react.dev/" target="_blank" rel="noreferrer">
                 <img className="button-icon" src={reactLogo} alt="" />
                 Learn more
               </a>
@@ -62,7 +89,7 @@ function App() {
           <p>Join the Vite community</p>
           <ul>
             <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
+              <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
                 <svg
                   className="button-icon"
                   role="presentation"
@@ -74,7 +101,7 @@ function App() {
               </a>
             </li>
             <li>
-              <a href="https://chat.vite.dev/" target="_blank">
+              <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
                 <svg
                   className="button-icon"
                   role="presentation"
@@ -86,7 +113,7 @@ function App() {
               </a>
             </li>
             <li>
-              <a href="https://x.com/vite_js" target="_blank">
+              <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
                 <svg
                   className="button-icon"
                   role="presentation"
@@ -98,7 +125,7 @@ function App() {
               </a>
             </li>
             <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
+              <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
                 <svg
                   className="button-icon"
                   role="presentation"
