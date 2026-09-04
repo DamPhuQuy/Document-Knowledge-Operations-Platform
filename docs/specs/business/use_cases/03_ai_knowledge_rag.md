@@ -4,6 +4,9 @@
 > **Source of Truth:** Complete Specification for AI Ingestion & Hybrid RAG Retrieval Use Cases (`UC-RAG-01`, `UC-RAG-02`, `UC-RAG-03`).
 > **Orchestrated by:** [`../MVP.md`](../MVP.md)
 
+> [!NOTE]
+> **Delivery Phasing Notice:** Following MVP realignment to prioritize fastest AWS Cloud infrastructure deployment, Bounded Context 3 (`AI_Knowledge_RAG`) is scheduled as a **Phase 2 Pluggable Extension (Should Have)**. This enables the core platform (AWS infrastructure, S3 storage, IAM/RBAC, and HITL operations) to deploy and verify on AWS Cloud without blocking on vector index and embedding tuning.
+
 ---
 
 ### Use Case Specification: `UC-RAG-01`
@@ -13,7 +16,7 @@
 - **Includes:** None
 - **Extends / Extended By:** None (Included by `UC-WF-01`)
 - **Summary Description:** Asynchronously extracts textual content from uploaded document versions, partitions content into recursive semantic chunks with page metadata, computes 1536-dimensional embeddings, and writes HNSW vector and GIN tsvector indexes into PostgreSQL.
-- **Priority:** Must Have
+- **Priority:** Should Have (Phase 2 Extension)
 - **Status:** Complete Specification
 - **Pre-Condition:**
   1. Document version exists in `PENDING` state with binary file available on S3.
@@ -49,7 +52,7 @@
 - **Includes:** None
 - **Extended By:** `UC-RAG-03` (Anti-Hallucination Safe Abstention) at Extension Point `Zero Accessible Knowledge Found`
 - **Summary Description:** Executes unified hybrid retrieval combining Dense Vector Search (HNSW Cosine) and Sparse Lexical Search (BM25/FTS) with strict SQL-level pre-filtering against user security context, merging rankings via Reciprocal Rank Fusion (RRF).
-- **Priority:** Must Have
+- **Priority:** Should Have (Phase 2 Extension)
 - **Status:** Complete Specification
 - **Pre-Condition:**
   1. Incoming search request contains valid `query` and authenticated `user_context` (`user_id`, `department_id`, `role_ids`, `is_internal`).
@@ -85,7 +88,7 @@
 - **Condition:** Executed when Pre-filtered retrieval returns 0 accessible chunks or top chunk cosine similarity is $< 0.50$.
 - **Includes:** None
 - **Summary Description:** Intercepts out-of-scope or unauthorized queries when zero relevant accessible chunks are retrieved, returning a standardized abstention message rather than generating ungrounded responses.
-- **Priority:** Must Have
+- **Priority:** Should Have (Phase 2 Extension)
 - **Status:** Complete Specification
 - **Pre-Condition:**
   1. Pre-filtered retrieval returns 0 chunks or maximum similarity score $< 0.50$.

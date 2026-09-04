@@ -21,15 +21,18 @@
 
 ## 2. Machine & Supporting System Actors
 
-| Actor Code | System Actor Name | Technical Component | Automated Responsibilities |
-| :--- | :--- | :--- | :--- |
-| **SYS-01** | **AI Ingestion Worker** | `ai` (FastAPI Background Task) | Ingests uploaded files, extracts text, performs recursive chunking, computes 1536d embeddings, and writes HNSW vector & FTS indexes. |
-| **SYS-02** | **Hybrid RAG Engine** | `ai` (FastAPI + pgvector + BM25 FTS) | Executes Pre-filtered SQL hybrid retrieval, computes RRF rankings, and prompts LLMs for grounded answers with citation badges. |
-| **SYS-03** | **Workflow Orchestrator** | `backend` (Spring Boot App Service) | Coordinates multi-step document pipelines, handles event triggers, and transitions executions into `WAITING_APPROVAL` when required. |
-| **SYS-04** | **Audit Subsystem** | `backend` (`@EventListener` & Interceptor)| Immutably records all authentication, CRUD mutations, ACL updates, and HITL decisions into the `audit_logs` table. |
-| **SYS-05** | **Notification Subsystem**| `backend` (Notification Service) | Dispatches real-time in-app alerts and pending approval notifications to target users. |
-| **EXT-01** | **S3 Object Storage** | AWS S3 / MinIO / Floci Storage | Remote cloud blob storage for binary files (PDF, DOCX, XLSX) and presigned download URLs. |
-| **EXT-02** | **Embedding & LLM API** | OpenAI / Gemini API Provider | External AI foundation models for dense vector embeddings and conversational completions. |
+Supporting system actors are structured across the two implementation phases:
+
+| Actor Code | System Actor Name | Technical Component | Automated Responsibilities | Delivery Phase |
+| :--- | :--- | :--- | :--- | :--- |
+| **EXT-03** | **AWS Cloud & Edge Platform** | AWS EC2 / S3 / Cloudflare / GitHub Actions | Hosts Docker runtime, terminates HTTPS/TLS, manages security groups, and automates CI/CD deployment. | **Phase 1 (P0)** |
+| **EXT-01** | **AWS S3 Object Storage** | AWS S3 / Compatible Blob Storage | Remote cloud blob storage for binary files (PDF, DOCX, XLSX) with SSE-AES256 and presigned URLs. | **Phase 1 (P0)** |
+| **SYS-03** | **Workflow Orchestrator** | `backend` (Spring Boot App Service) | Coordinates multi-step document pipelines, handles event triggers, and transitions executions into `WAITING_APPROVAL`. | **Phase 1 (P1)** |
+| **SYS-04** | **Audit Subsystem** | `backend` (`@EventListener` & Interceptor)| Immutably records all authentication, CRUD mutations, ACL updates, and HITL decisions into the `audit_logs` table. | **Phase 1 (P0)** |
+| **SYS-05** | **Notification Subsystem**| `backend` (Notification Service) | Dispatches real-time in-app alerts and pending approval notifications to target users. | **Phase 1 (P1)** |
+| **SYS-01** | **AI Ingestion Worker** | `ai` (FastAPI Background Task) | *(Phase 2 Extension)* Ingests files, extracts text, performs chunking, computes 1536d embeddings, and indexes vectors. | **Phase 2 (P2)** |
+| **SYS-02** | **Hybrid RAG Engine** | `ai` (FastAPI + pgvector + BM25 FTS) | *(Phase 2 Extension)* Executes Pre-filtered SQL hybrid retrieval, computes RRF rankings, and formats grounded citations. | **Phase 2 (P2)** |
+| **EXT-02** | **Embedding & LLM API** | OpenAI / Gemini API Provider | External AI foundation models for dense vector embeddings and conversational completions. | **Phase 2 (P2)** |
 
 ---
 

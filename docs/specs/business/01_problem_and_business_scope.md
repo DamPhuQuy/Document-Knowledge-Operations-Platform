@@ -10,24 +10,24 @@
 
 ### 1.1. Industry Context & 4 Core Enterprise Bottlenecks
 
-In modern enterprises, the volume of internal documents—such as standard operating procedures (SOPs), policy manuals, technical specifications, financial reports, HR records, and legal contracts—is growing exponentially. However, extracting operational value from this knowledge base faces **4 critical bottlenecks**:
+In modern enterprises, the volume of internal documents—such as standard operating procedures (SOPs), policy manuals, technical specifications, financial reports, HR records, and legal contracts—is growing exponentially. However, extracting operational value from this knowledge base and deploying reliable solutions faces **4 critical bottlenecks**:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                 4 CRITICAL ENTERPRISE BOTTLENECKS                                │
 ├────────────────────────────────┬────────────────────────────────┬───────────────────────────────┤
-│ 1. FRAGMENTED INFORMATION      │ 2. DATA LEAKAGE & SECURITY     │ 3. AI HALLUCINATION           │
-│ - Scattered across silos       │ - Off-the-shelf AI lacks ACL   │ - Ungrounded responses        │
-│ - 20-30% work time lost        │ - High confidential leak risk  │ - Zero auditability/citation  │
+│ 1. FRAGMENTED INFORMATION      │ 2. CLOUD DEPLOYMENT & SECURITY │ 3. ACTIONLESS READ-ONLY GAP   │
+│ - Scattered across silos       │ - Absence of production AWS    │ - Static query-answering;     │
+│ - 20-30% work time lost        │   infrastructure & CI/CD       │   lacks governed 2-phase HITL │
 ├────────────────────────────────┴────────────────────────────────┴───────────────────────────────┤
-│ 4. ACTIONLESS READ-ONLY AI: AI is passive and read-only, lacking safe Human-in-the-Loop workflows │
+│ 4. AI FABRICATION & LEAKAGE: Naive RAG risks data leakage; requires governed, decoupled cloud architecture │
 └─────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 1. **Fragmented Information & Knowledge Silos:** Institutional knowledge is scattered across cloud drives, email threads, local file servers, and internal chat platforms. Employees spend an average of 1.8 to 2.5 hours per day searching for and verifying operational information.
-2. **Data Leakage & Missing Access Control (ACL) in AI:** Generic GenAI and LLM solutions lack document-level access control lists. When employees query an AI assistant, it risks retrieving and exposing confidential payroll, financial, or intellectual property data across organizational boundaries.
-3. **AI Hallucination & Zero Auditability:** Language models frequently generate confident yet incorrect statements when ungrounded. Enterprises cannot rely on AI answers without verifiable, verbatim citations and exact page references for legal and operational compliance.
-4. **Actionless Read-Only Bottleneck:** Existing AI assistants function purely as static question-answering engines. Enterprises lack an integrated mechanism to transform conversational insights into governed operational actions (e.g., publishing documents, executing approval workflows, modifying business records) with mandatory **Human-in-the-Loop (HITL)** safeguards.
+2. **Cloud Infrastructure & Production Deployment Bottleneck:** Many enterprise prototypes remain trapped on local developer laptops or unstable ad-hoc scripts. Enterprises and academic evaluation demand production-grade, reproducible **AWS Cloud Infrastructure** (VPC, EC2, S3, Docker, automated CI/CD) with zero hardcoded credentials and high cost awareness.
+3. **Actionless Read-Only Bottleneck:** Existing systems and AI assistants function purely as static question-answering engines. Enterprises lack an integrated mechanism to transform document knowledge into governed operational actions (e.g., publishing documents, executing approval workflows, modifying business records) with mandatory **Human-in-the-Loop (HITL)** safeguards.
+4. **Data Leakage & AI Fabrication Risks:** Uncontrolled GenAI solutions lack document-level access control lists (ACLs) and generate hallucinations. Mitigating this requires a disciplined, decoupled RAG architecture that does not block rapid cloud platform launch.
 
 ---
 
@@ -77,23 +77,24 @@ To guarantee rapid execution, architectural clarity, and production stability, t
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                     MVP PROBLEM BOUNDARIES                                       │
 ├─────────────────────────────────────────┬────────────────────────────────────────────────────────┤
-│ IN-SCOPE FOR MVP                        │ OUT-OF-SCOPE FOR MVP (DEFERRED TO FUTURE RELEASES)     │
+│ IN-SCOPE: PHASE 1 CORE CLOUD MVP        │ PHASE 2 EXTENSION & OUT-OF-SCOPE                       │
 ├─────────────────────────────────────────┼────────────────────────────────────────────────────────┤
-│ - Siloed office documents (PDF, DOCX,   │ - Multimodal non-text assets (Video, audio recordings,  │
-│   XLSX, TXT) with digital text.         │   live meeting streams, binary CAD models).            │
-│ - Departmental & Role-based data        │ - Federated enterprise Active Directory / LDAP         │
-│   leakage during AI search.             │   single-sign-on (SSO) synchronization.                │
-│ - AI hallucinations & ungrounded answers│ - Unbounded autonomous agent loops with self-directed  │
-│   lacking verifiable source citations.  │   unsupervised database mutations.                     │
-│ - Lack of governed Human-in-the-Loop    │ - Optical Character Recognition (OCR) for degraded,    │
-│   execution for sensitive operations.   │   handwritten physical paper scans.                    │
-│ - Manual document ingestion, parsing,   │ - Cross-region multi-cloud active-active data          │
-│   and vector indexing pipelines.        │   replication and multi-tenant billing engines.        │
+│ - Production AWS Cloud Infrastructure   │ [PHASE 2 FAST-FOLLOW EXTENSION]                        │
+│   (EC2, S3, Docker, Cloudflare, CI/CD). │ - Heavy recursive chunking & 1536d embeddings.         │
+│ - Secure binary storage on AWS S3 with  │ - pgvector HNSW + FTS Reciprocal Rank Fusion (RRF).    │
+│   SHA-256 integrity & SSE-AES256.       │ - Multi-turn conversational AI with citation badge     │
+│ - Departmental & Role-based Access      │   drill-down and PDF viewer integration.               │
+│   Control (4-Tier ACL Matrix).          │ ────────────────────────────────────────────────────── │
+│ - 2-Phase Human-in-the-Loop (HITL)      │ [OUT-OF-SCOPE FOR ALL MVP PHASES]                      │
+│   governance for operational mutations. │ - Multimodal non-text assets (Video, audio, CAD).      │
+│ - Immutable append-only audit trail.    │ - Enterprise Active Directory / LDAP / SCIM sync.      │
+│ - Automated GitHub Actions CI/CD.       │ - Optical Character Recognition (OCR) for handwriting. │
 └─────────────────────────────────────────┴────────────────────────────────────────────────────────┘
 ```
 
-- **In-Scope Problem Statement:** The MVP specifically solves the challenge of securely ingesting, indexing, querying, and acting upon enterprise text-based documents (PDF, DOCX, XLSX, TXT) across organizational departments without data leakage, without ungrounded hallucinations, and with strict Human-in-the-Loop operational governance.
-- **Out-of-Scope Problem Statement:** The MVP intentionally excludes raw handwriting OCR, audio/video transcription, unconstrained autonomous agents, and enterprise federated directory sync, deferring these to post-MVP roadmap phases.
+- **In-Scope Problem Statement:** The primary objective of the MVP is achieving the **Fastest Path to Production on AWS Cloud**: deploying a secure, durable, and governed Document Knowledge & Operations Platform on AWS (EC2, S3, Docker, CI/CD) that enforces multi-role RBAC, 4-tier document ACLs, 2-phase HITL approvals, and immutable audit logs.
+- **Phased AI Problem Statement:** To prevent technical risk and timeline slippage, advanced AI Knowledge & Hybrid RAG (pgvector HNSW, RRF re-ranking, conversational citations) is decoupled and delivered as a **Phase 2 Fast-Follow Extension**, ensuring the cloud foundation is solid, stable, and evaluated first.
+- **Out-of-Scope Problem Statement:** The MVP intentionally excludes raw handwriting OCR, audio/video transcription, unconstrained autonomous agents, and enterprise federated directory sync, deferring these to future roadmap iterations.
 
 ---
 
@@ -198,36 +199,44 @@ mindmap
 
 ---
 
-### 3.3. Core Business Value Streams & Capabilities in Scope
+#### 3.3. Core Business Value Streams & Capabilities in Scope
 
-The MVP encompasses **5 integrated Business Value Streams**:
+The platform aligns around **6 integrated Business Value Streams**, structured into two delivery milestones:
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   5 CORE BUSINESS VALUE STREAMS                                  │
+│                                   6 CORE BUSINESS VALUE STREAMS                                  │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ VALUE STREAM 1: GOVERNED DOCUMENT LIFECYCLE MANAGEMENT                                           │
+│ [PHASE 1 CORE CLOUD MVP BASELINE - FASTEST PATH TO PRODUCTION]                                   │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ VALUE STREAM 1: PRODUCTION AWS CLOUD INFRASTRUCTURE & AUTOMATED CI/CD                           │
+│ GitHub Actions Push → Automated Test/Build → Docker Container Push → AWS EC2 Zero-Downtime Deploy │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ VALUE STREAM 2: GOVERNED DOCUMENT LIFECYCLE MANAGEMENT (AWS S3)                                  │
 │ Raw File Upload (PDF/DOCX/XLSX) → S3 Pointer Storage → Checksum Verification → Version Snapshot │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ VALUE STREAM 2: ZERO-LEAKAGE HYBRID KNOWLEDGE INGESTION & RETRIEVAL                             │
-│ Recursive Chunking → 1536d Embeddings → pgvector HNSW Index → Pre-filtered SQL Hybrid Search     │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ VALUE STREAM 3: GROUNDED CONVERSATIONAL AI WITH CITATION DRILL-DOWN                              │
-│ Multi-Turn Chat → Prompt Contract → Verbatim Citations [Doc, Page] → PDF Viewer Drill-Down       │
-├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ VALUE STREAM 4: GOVERNED OPERATIONS & 2-PHASE HUMAN-IN-THE-LOOP (HITL) WORKFLOWS                 │
+│ VALUE STREAM 3: GOVERNED OPERATIONS & 2-PHASE HUMAN-IN-THE-LOOP (HITL) WORKFLOWS                 │
 │ Action Request → Staged Diff Preview → Pending Manager Sign-off → Idempotent Commit Execution   │
 ├──────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ VALUE STREAM 5: ENTERPRISE AUDITABILITY & REAL-TIME COLLABORATION                                │
-│ Append-Only Audit Logging (User, IP, Action, Timestamp) → Real-Time In-App Notifications         │
+│ VALUE STREAM 4: ENTERPRISE AUDITABILITY & REAL-TIME NOTIFICATIONS                                │
+│ Append-Only Audit Logging (User, IP, Action, Timestamp) → Real-Time In-App Alerts                │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ [PHASE 2 PLUGGABLE FAST-FOLLOW EXTENSION]                                                        │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ VALUE STREAM 5: ZERO-LEAKAGE HYBRID KNOWLEDGE INGESTION & RETRIEVAL                             │
+│ Recursive Chunking → 1536d Embeddings → pgvector HNSW Index → Pre-filtered SQL Hybrid Search     │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ VALUE STREAM 6: GROUNDED CONVERSATIONAL AI WITH CITATION DRILL-DOWN                              │
+│ Multi-Turn Chat → Prompt Contract → Verbatim Citations [Doc, Page] → PDF Viewer Drill-Down       │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Governed Document Lifecycle Management:** Secure multi-format document ingestion, AWS S3 object storage pointer persistence, SHA-256 integrity checks, immutable version history, and soft deletion.
-2. **Zero-Leakage Hybrid Knowledge Ingestion & Retrieval:** Automated text extraction, recursive semantic chunking, dense vector embeddings ($1536\text{d}$), and unified Pre-filtered SQL Hybrid Search combining dense vector cosine similarity and full-text search (BM25) via Reciprocal Rank Fusion (RRF).
-3. **Grounded Conversational AI with Citation Verification:** Multi-turn conversational interface backed by strict prompt contracts, inline citation badges (Document ID, Version, Page Number, Verbatim Snippet), PDF page viewer drill-down, and automatic Safe Abstention for missing evidence.
-4. **Governed Operations & 2-Phase HITL Workflow Execution:** Trigger-based automated document pipelines, 2-phase action approval state machine (Prepare / Diff Preview $\rightarrow$ Waiting Approval $\rightarrow$ Idempotent Commit), and operational exception task handling.
-5. **Enterprise Auditability & Real-Time Collaboration:** Append-only immutable audit trail capturing all authentication, CRUD, ACL, and HITL actions, accompanied by real-time in-app notifications.
+1. **Production AWS Cloud Infrastructure & Automated CI/CD:** Complete IaC/Docker setup for Ubuntu EC2, AWS S3 integration with Server-Side Encryption (AES256), Cloudflare Edge SSL termination, zero-secret environment configuration, and end-to-end GitHub Actions continuous delivery.
+2. **Governed Document Lifecycle Management:** Secure multi-format document ingestion, AWS S3 binary persistence, SHA-256 integrity verification, immutable version history, and 4-tier document ACL matrix.
+3. **Governed Operations & 2-Phase HITL Workflow Execution:** Trigger-based operational workflows, 2-phase action approval state machine (Prepare / Diff Preview $\rightarrow$ Waiting Approval $\rightarrow$ Idempotent Commit), and operational exception handling.
+4. **Enterprise Auditability & Real-Time Collaboration:** Append-only immutable audit trail capturing 100% of authentication, CRUD, ACL, and HITL actions, accompanied by real-time in-app notifications.
+5. **Zero-Leakage Hybrid Knowledge Ingestion & Retrieval (Phase 2):** Decoupled text extraction, recursive chunking, dense vector embeddings ($1536\text{d}$), and unified Pre-filtered SQL Hybrid Search combining dense vector cosine similarity and full-text search (BM25) via Reciprocal Rank Fusion (RRF).
+6. **Grounded Conversational AI with Citation Verification (Phase 2):** Multi-turn conversational interface backed by strict prompt contracts, inline citation badges (Document ID, Version, Page Number, Verbatim Snippet), PDF page viewer drill-down, and automatic Safe Abstention for missing evidence.
 
 ---
 
@@ -235,14 +244,15 @@ The MVP encompasses **5 integrated Business Value Streams**:
 
 The following matrix delineates business capabilities included in the MVP versus post-MVP and long-term roadmap phases:
 
-| Business Domain | In-Scope (MVP Baseline) | Post-MVP Enhancements | Out-of-Scope (Future Roadmap) |
+| Business Domain | In-Scope (Phase 1 Core Cloud MVP) | Phase 2 Pluggable Extension | Out-of-Scope (Future Roadmap) |
 | :--- | :--- | :--- | :--- |
+| **AWS Cloud & DevOps** | AWS EC2 Ubuntu container stack, S3 with SSE-AES256, Cloudflare SSL/DNS, GitHub Actions CI/CD. | AWS CloudWatch custom alarms, Automated database snapshot backups. | Multi-region active-active cluster, Auto-scaling Kubernetes (EKS). |
 | **Identity & Access** | Email/Password JWT auth, Multi-Role RBAC, Department scoping, `is_internal` flag. | OAuth2/OIDC social login (Google, GitHub), MFA/2FA. | Enterprise Active Directory / LDAP sync, SCIM provisioning. |
-| **Document Management** | PDF, DOCX, XLSX, TXT uploads; S3 binary storage; Versioning; 4-tier ACL Matrix. | Bulk ZIP upload, Tag management, Document expiration policies. | Real-time collaborative document editing, Watermarking. |
-| **AI Knowledge & RAG** | Offline ingestion, Recursive chunking, pgvector HNSW, Pre-filtered Hybrid RRF Search. | Contextual query rewriting, Re-ranking model (Cohere Rerank). | Multimodal video/audio search, GraphRAG knowledge graphs. |
-| **Conversational AI** | Multi-turn chat session, Inline citations `[1]`, PDF preview drill-down, Safe Abstention. | Conversation export to PDF/Excel, Follow-up question generator. | Voice-to-text / Text-to-voice interactive voice agent. |
+| **Document Management** | PDF, DOCX, XLSX, TXT uploads; AWS S3 storage; Versioning; 4-tier ACL Matrix. | Bulk ZIP upload, Tag management, Document expiration policies. | Real-time collaborative document editing, Watermarking. |
 | **Workflows & HITL** | Trigger-based pipeline execution, 2-Phase Action Approvals, Idempotent Commits, Task management. | Visual workflow builder (Drag-and-Drop), Scheduled cron triggers. | Unconstrained autonomous multi-agent reasoning loops. |
-| **Governance & Audit** | Append-only immutable audit logs, In-app real-time alerts, Token usage tracking. | Exportable compliance audit reports (CSV/PDF), Daily summary digest. | Automated regulatory compliance certification scanning. |
+| **Governance & Audit** | Append-only immutable audit logs, In-app real-time alerts. | Exportable compliance audit reports (CSV/PDF), Daily summary digest. | Automated regulatory compliance certification scanning. |
+| **AI Knowledge & RAG** | *Decoupled/Mocked interface (Non-blocking).* | Recursive chunking, pgvector HNSW, Pre-filtered Hybrid RRF Search. | Multimodal video/audio search, GraphRAG knowledge graphs. |
+| **Conversational AI** | *Direct LLM API completion (Optional baseline).* | Multi-turn chat session, Inline citations `[1]`, PDF preview drill-down, Safe Abstention. | Voice-to-text / Text-to-voice interactive voice agent. |
 
 ---
 
@@ -256,52 +266,61 @@ The success of the MVP deployment is evaluated against clear quantitative busine
 ├─────────────────────────────────────────┬───────────────────────────┬────────────────────────────┤
 │ Business KPI                            │ Industry Baseline         │ MVP Target & Guarantee     │
 ├─────────────────────────────────────────┼───────────────────────────┼────────────────────────────┤
-│ Mean Time to Retrieve Information       │ 15--30 minutes per lookup │ < 10 seconds (via AI RAG)  │
+│ Cloud CI/CD Deployment Duration         │ Manual (hours/days)       │ < 5 minutes (Automated)    │
+│ Cloud Infrastructure Uptime SLA (AWS)   │ Unmonitored / Local       │ > 99.5% Availability       │
+│ Cloud Secret Exposure Violations        │ High (Hardcoded tokens)   │ 0 Violations (Zero Secret) │
+│ Cloud Infrastructure Monthly Cost       │ High ($100-$300+/mo)      │ ~$0.00-$15.00/mo (Free T.) │
+│ Mean Time to Upload & Secure Document   │ 2-5 minutes               │ < 3 seconds (AWS S3)       │
 │ Unauthorized Data Leakage Rate          │ > 15% (Generic AI / RAG)  │ 0.0% (Zero Data Leakage)   │
-│ AI Citation Verification Accuracy       │ < 50% (Unlinked answers)  │ 100% Verifiable Citations  │
-│ Anti-Hallucination Abstention Rate      │ < 40% (Often fabricates)  │ > 99% Safe Abstention Rate │
 │ Operational Action Turnaround Time      │ 24--72 hours (Email/Jira) │ < 5 minutes (via HITL)     │
 │ Audit Trail Completeness                │ Partial / Fragmented      │ 100% Append-Only Coverage  │
+│ [Phase 2] Mean Time to Retrieve Info    │ 15--30 minutes per lookup │ < 10 seconds (via RAG)     │
+│ [Phase 2] AI Citation Accuracy          │ < 50% (Unlinked answers)  │ 100% Verifiable Citations  │
 └─────────────────────────────────────────┴───────────────────────────┴────────────────────────────┘
 ```
 
-- **Knowledge Discovery Speed:** Employees locate verified policy information in seconds rather than searching file shares for 20+ minutes.
+- **Rapid Cloud Delivery & Deployment Frequency:** Engineering can deliver continuous updates to live AWS infrastructure within minutes via GitHub Actions.
+- **Production Infrastructure Security:** Complete isolation of sensitive resources, zero plaintext credentials in git, and full TLS encryption from Cloudflare Edge to AWS EC2.
 - **Zero-Trust Security Barrier:** Under no scenario does an unauthorized employee view or retrieve context from a `RESTRICTED` or `CONFIDENTIAL` document outside their department or explicit ACL grants.
 - **Operational Risk Reduction:** 100% of high-risk mutations pass through mandatory Manager Approval with Diff Previews and Idempotency guarantees, eliminating rogue or duplicate actions.
-- **Audit Defensibility:** Compliance officers can reconstruct any AI interaction, document revision, or approval decision down to the millisecond with user identity, client IP, and before/after state diffs.
+- **Audit Defensibility:** Compliance officers can reconstruct any action, document revision, or approval decision down to the millisecond with user identity, client IP, and before/after state diffs.
 
 ---
 
 ### 3.6. Business Guardrails & Operating Invariants
 
-The MVP enforces **4 non-negotiable Business Invariants**:
+The MVP enforces **6 non-negotiable Business Invariants**:
 
 > [!IMPORTANT]
-> **Business Invariant 1: Pre-filtered Zero-Trust Data Retrieval**
-> Under no circumstances may application code perform post-filtering of AI context. All document ACLs must be evaluated directly at the SQL database layer within the vector retrieval query before chunks are exposed to the AI microservice.
-
-> [!IMPORTANT]
-> **Business Invariant 2: Evidence-Backed Anti-Hallucination & Safe Abstention**
-> The AI Assistant must never generate answers from general pre-trained weights when internal document evidence is missing or below the relevance threshold ($< 0.50$). It must return a standardized refusal code (`NO_ACCESSIBLE_KNOWLEDGE`).
-
-> [!IMPORTANT]
-> **Business Invariant 3: Human-in-the-Loop Operational Approval**
-> The AI Assistant and automated workflows cannot unilaterally execute sensitive mutations (e.g., publishing documents, deleting records, altering permissions). All sensitive mutations must pause in `WAITING_APPROVAL` with a staged Diff Preview until explicitly approved by an authorized manager.
-
-> [!IMPORTANT]
-> **Business Invariant 4: Append-Only Audit Immutability**
+> **Business Invariant 1: Cloud Security & Zero Plaintext Secrets**
+> Static AWS root keys, database passwords, or JWT secrets must NEVER be committed to version control. Infrastructure must rely on AWS IAM Instance Profiles, Docker secret files, or GitHub Actions injected environment variables.
+>
+> **Business Invariant 2: Production Binary Storage via AWS S3**
+> Uploaded document binaries must be stored durably in AWS S3 with Server-Side Encryption (AES256) and validated via SHA-256 integrity checksums. Documents must never reside solely on ephemeral container disk storage.
+>
+> **Business Invariant 3: Pre-filtered Zero-Trust Data Retrieval**
+> Under no circumstances may application code perform post-filtering of document access. All document ACLs must be evaluated directly at the SQL database layer before records or text chunks are returned.
+>
+> **Business Invariant 4: Human-in-the-Loop Operational Approval**
+> Automated workflows cannot unilaterally execute sensitive mutations (e.g., publishing documents, deleting records, altering permissions). All sensitive mutations must pause in `WAITING_APPROVAL` with a staged Diff Preview until explicitly approved by an authorized manager.
+>
+> **Business Invariant 5: Append-Only Audit Immutability**
 > Security audit logs are immutable. The system architecture strictly prohibits `UPDATE`, `DELETE`, `DROP`, or `TRUNCATE` operations on the `audit_logs` table across all application database roles.
+>
+> **Business Invariant 6: Automated Verifiable Deployment**
+> Every merge to production-ready branches (`develop`/`main`) must trigger an automated CI/CD pipeline verifying code compilation, database migrations, unit tests, and remote deployment.
 
 ---
 
 ## 4. Value Proposition
 
-The **Document Knowledge & Operations Platform** is an **AI-powered Knowledge Operating System and Workflow Automation Platform** delivering the following core capabilities:
+The **Document Knowledge & Operations Platform** is a **Cloud-Native Knowledge Operating System and Workflow Automation Platform** delivering:
 
-- **Zero Data Leakage:** Two-tier authorization enforcement. **Pre-filtered Retrieval** filters document permissions directly at the SQL database layer before context is passed to the AI model.
-- **100% Grounded & Verifiable Citations:** Every AI response is backed by exact evidence citations (Document ID, Version Number, Page Number, Verbatim Snippet, and Semantic Similarity Score).
-- **Sub-25ms Hybrid Search:** Combines Dense Semantic Search (HNSW Vector Cosine) and Sparse Lexical Search (BM25 / Full-Text Search) via Reciprocal Rank Fusion (RRF), achieving high recall with retrieval latency $< 25\text{ ms}$.
+- **Production-Ready AWS Cloud Deployment:** Rapid, reproducible, and secure cloud deployment leveraging AWS EC2, S3, Docker Compose v2, and GitHub Actions CI/CD.
+- **Durable Enterprise Document Lifecycle:** Multi-format document ingestion, version control, and instant presigned download URLs backed by AWS S3.
+- **Zero Data Leakage:** Two-tier authorization enforcement evaluating document permissions directly at the SQL database layer before data is returned.
 - **Controlled Human-in-the-Loop Operations:** A 2-phase approval state machine (Prepare / Diff Preview $\rightarrow$ Waiting Approval $\rightarrow$ Idempotent Commit) ensures high-risk actions are executed safely and idempotently.
+- **Decoupled Pluggable AI Service:** Clean hexagonal architecture allowing AI & Hybrid RAG to plug in seamlessly as a Phase 2 extension without disrupting core cloud operations.
 
 ---
 
@@ -311,15 +330,16 @@ The **Document Knowledge & Operations Platform** is an **AI-powered Knowledge Op
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                   MVP SCOPE BY MOSCOW CATEGORY                                   │
 ├─────────────────────────────────────────┬────────────────────────────────────────────────────────┤
-│ MUST HAVE (Core MVP Baseline)           │ SHOULD HAVE (Post-MVP Enhancements)                    │
-│ - JWT Authentication & Multi-Role RBAC  │ - Contextual follow-up question suggestions            │
-│ - S3 File Storage Pointer & Versioning  │ - Export conversation transcript to PDF / Excel        │
-│ - 4-Tier Document ACL Matrix            │ - Advanced metadata filtering (date range, tags)       │
-│ - Ingestion Pipeline & pgvector Hybrid  │ - Responsive Dark/Light UI theme toggle                │
-│ - Conversational RAG with Citations     ├────────────────────────────────────────────────────────┤
-│ - Safe Abstention Guardrail             │ COULD / WONT HAVE (Future Roadmap)                     │
-│ - 2-Phase HITL Action Approvals         │ - Advanced OCR for scanned tables and handwritten text │
-│ - Immutable Audit Logging               │ - Distributed Tracing (OpenTelemetry) & Token Budgeting│
-│ - Real-time In-App Notifications        │ - Auto-scaling Kubernetes deployment on AWS ECS/Fargate│
+│ MUST HAVE (Phase 1 Core Cloud MVP)      │ SHOULD HAVE (Phase 2 Pluggable AI Extension)           │
+│ - AWS Cloud Infrastructure (EC2, S3,    │ - AI Ingestion Pipeline (chunking & 1536d embeddings)  │
+│   Docker Compose, Cloudflare SSL, VPC)  │ - pgvector HNSW + FTS Reciprocal Rank Fusion (RRF)     │
+│ - Automated GitHub Actions CI/CD        │ - Conversational RAG with Verbatim Citation Drill-Down │
+│ - JWT Authentication & Multi-Role RBAC  │ - Evidence-Backed Safe Abstention Guardrail            │
+│ - AWS S3 File Storage & Versioning      │ - Conversation transcript export to PDF / Excel        │
+│ - 4-Tier Document ACL Matrix            ├────────────────────────────────────────────────────────┤
+│ - 2-Phase HITL Action Approvals         │ COULD / WONT HAVE (Future Roadmap)                     │
+│ - Immutable Audit Logging               │ - Advanced OCR for scanned tables and handwriting      │
+│ - Real-time In-App Notifications        │ - Auto-scaling Kubernetes deployment on AWS EKS        │
+│ - Health & Diagnostic Endpoint          │ - Unconstrained autonomous multi-agent reasoning       │
 └─────────────────────────────────────────┴────────────────────────────────────────────────────────┘
 ```
