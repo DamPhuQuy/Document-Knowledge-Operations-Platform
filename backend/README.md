@@ -15,9 +15,6 @@ backend/
 ├── Dockerfile                                 # Multi-stage Dockerfile (dev & prod targets)
 ├── Dockerfile.dev                             # Dedicated development Dockerfile (debug port 5005)
 ├── Dockerfile.prod                            # Dedicated production Dockerfile (JRE slim + layered JAR)
-├── docker-compose.yaml                        # Local PostgreSQL container
-├── docker-compose.dev.yaml                    # Full stack development compose (hot reload)
-├── docker-compose.prod.yaml                   # Production compose stack
 ├── build.gradle                               # Gradle build file & dependencies
 ├── settings.gradle
 └── src/
@@ -112,18 +109,23 @@ docker compose up -d
 ./gradlew bootRun
 ```
 
-### 2. Development via Docker (with Hot-Reload & Remote Debugging)
+### 2. Development via Root Docker Compose (with Hot-Reload & Compose Watch)
 ```bash
-# Start backend (dev target) + PostgreSQL
-docker compose -f docker-compose.dev.yaml up --build
+# Run from repository root:
+make dev-watch
+# or:
+docker compose up -d backend
+docker compose watch backend
 ```
 - App: `http://localhost:8080`
 - JDWP Remote Debug: `localhost:5005`
 
-### 3. Production via Docker (Multi-stage Slim Runner)
+### 3. Production via Root Docker Compose (Multi-stage Slim Runner)
 ```bash
-# Build & Run production container
-docker compose -f docker-compose.prod.yaml up --build -d
+# Run from repository root:
+make prod
+# or:
+docker compose -f docker-compose.prod.yaml --env-file .env.prod up -d backend
 ```
 
 ---

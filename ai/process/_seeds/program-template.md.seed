@@ -25,21 +25,21 @@
 <phase_breakdown>
   <phase number="1" id="phase-01">
     <title>[Domain Models & Port Interfaces]</title>
-    <scope>`src/ai/domain/`, `src/ai/application/port_*`</scope>
+    <scope>`src/domain/`, `src/application/port_*`</scope>
     <blast_radius level="LOW">Zero external dependency impacts</blast_radius>
     <status>NOT_STARTED</status>
   </phase>
 
   <phase number="2" id="phase-02">
     <title>[Infrastructure Adapters & Persistence]</title>
-    <scope>`src/ai/infrastructure/`</scope>
+    <scope>`src/infrastructure/`</scope>
     <blast_radius level="MEDIUM">Depends on Phase 01 domain contracts</blast_radius>
     <status>NOT_STARTED</status>
   </phase>
 
   <phase number="3" id="phase-03">
     <title>[API Exposure & End-to-End Integration]</title>
-    <scope>`src/ai/api/`</scope>
+    <scope>`src/api/`</scope>
     <blast_radius level="HIGH">Exposes public HTTP endpoints and DTO contracts</blast_radius>
     <status>NOT_STARTED</status>
   </phase>

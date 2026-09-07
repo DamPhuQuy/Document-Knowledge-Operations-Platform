@@ -4,6 +4,9 @@
 > **Source of Truth:** Complete Specification for Conversational AI & Citation Verification Use Cases (`UC-CHAT-01`, `UC-CHAT-02`, `UC-CHAT-03`).
 > **Orchestrated by:** [`../MVP.md`](../MVP.md)
 
+> [!NOTE]
+> **Delivery Phasing Notice:** Following MVP realignment to prioritize fastest AWS Cloud infrastructure deployment, Bounded Context 4 (`Conversational_AI`) is scheduled as a **Phase 2 Pluggable Extension (Should Have)**. This allows the core document platform and AWS cloud infrastructure to launch and be validated first.
+
 ---
 
 ### Use Case Specification: `UC-CHAT-01`
@@ -13,7 +16,7 @@
 - **Includes:** `UC-RAG-02` (Pre-filtered Hybrid Search), `UC-CHAT-03` (Token Usage & Confidence Tracking)
 - **Extended By:** `UC-CHAT-02` (Evidence Citation Drill-Down) at Extension Point `User Clicks Citation Badge`
 - **Summary Description:** Manages conversational sessions, maintaining multi-turn context and generating grounded, factual responses with inline citations using verified retrieved document chunks.
-- **Priority:** Must Have
+- **Priority:** Should Have (Phase 2 Extension)
 - **Status:** Complete Specification
 - **Pre-Condition:**
   1. User has `read:documents` permission and an active conversation session.
@@ -52,7 +55,7 @@
 - **Condition:** Executed on-demand when a user clicks on an inline citation badge `[1]` in the chat UI to inspect evidence.
 - **Includes:** None
 - **Summary Description:** Allows users to inspect citation badges attached to AI answers, viewing verbatim text snippets, document title, page numbers, similarity score, and opening the original PDF page.
-- **Priority:** Must Have
+- **Priority:** Should Have (Phase 2 Extension)
 - **Status:** Complete Specification
 - **Pre-Condition:**
   1. User is viewing an AI response containing citations.

@@ -15,7 +15,7 @@
 
   <protocol name="Implementation & Testing Standards">
     <path>[`implementation-standards.md`](implementation-standards.md)</path>
-    <description>Strict typing (mypy), code hygiene (ruff), and test harness standards</description>
+    <description>Strict typing, code hygiene, and test harness standards</description>
   </protocol>
 
   <protocol name="System Agent Guidelines & RIPER-5">

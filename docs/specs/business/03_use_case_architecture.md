@@ -50,7 +50,7 @@ The context use case diagram captures the high-level system boundary, primary hu
 flowchart LR
     %% Primary Human Actors (Left)
     subgraph Human_Actors ["Primary Human Stakeholders"]
-        Admin(["System Administrator"]):::actor
+        Admin(["System & DevOps Admin"]):::actor
         Manager(["Department Manager"]):::actor
         Staff(["Knowledge Worker / Staff"]):::actor
         Auditor(["Compliance Auditor"]):::actor
@@ -60,18 +60,24 @@ flowchart LR
     %% System Boundary & Macro Use Cases
     subgraph System_Boundary ["Document Knowledge & Operations Platform Boundary"]
         direction TB
-        M_IAM(["UC-MACRO-01: Authenticate & Manage Identity"]):::macro
-        M_DOC(["UC-MACRO-02: Manage Document Lifecycle & Storage"]):::macro
-        M_RAG(["UC-MACRO-03: Ingest Knowledge & Index Vectors"]):::macro
-        M_CHAT(["UC-MACRO-04: Grounded Conversational AI & Citations"]):::macro
-        M_WF(["UC-MACRO-05: Automate Document Processing Workflows"]):::macro
-        M_HITL(["UC-MACRO-06: Govern Operational Approvals (HITL)"]):::macro
-        M_AUDIT(["UC-MACRO-07: Track Security Audit Trail & Notifications"]):::macro
+        subgraph Phase1_Core ["Phase 1: Core Cloud Operations Platform (Must Have)"]
+            M_IAM(["UC-MACRO-01: Authenticate & Manage Identity"]):::macro
+            M_DOC(["UC-MACRO-02: Manage Document Lifecycle & Storage"]):::macro
+            M_WF(["UC-MACRO-05: Automate Document Processing Workflows"]):::macro
+            M_HITL(["UC-MACRO-06: Govern Operational Approvals (HITL)"]):::macro
+            M_AUDIT(["UC-MACRO-07: Track Security Audit Trail & Notifications"]):::macro
+        end
+
+        subgraph Phase2_AI ["Phase 2: Pluggable AI Knowledge & RAG (Should Have)"]
+            M_RAG(["UC-MACRO-03: Ingest Knowledge & Index Vectors"]):::macroAi
+            M_CHAT(["UC-MACRO-04: Grounded Conversational AI & Citations"]):::macroAi
+        end
     end
 
     %% Secondary Supporting System Actors (Right)
-    subgraph Supporting_Systems ["Secondary External Systems"]
-        S3[("S3 Object Storage\n(EXT-01)")]:::system
+    subgraph Supporting_Systems ["Secondary Cloud & External Systems"]
+        AWS_CLOUD[("AWS Cloud & Edge Platform\nEC2 / VPC / Cloudflare\n(EXT-03)")]:::cloudSystem
+        S3[("AWS S3 Object Storage\n(EXT-01)")]:::system
         LLM[("Embedding & LLM API\n(EXT-02)")]:::system
     end
 
@@ -99,6 +105,7 @@ flowchart LR
     Customer --- M_CHAT
 
     %% Secondary Actor Associations
+    System_Boundary --- AWS_CLOUD
     M_DOC --- S3
     M_RAG --- LLM
     M_CHAT --- LLM
@@ -111,7 +118,9 @@ flowchart LR
 
     classDef actor fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529;
     classDef macro fill:#e7f5ff,stroke:#1c7ed6,stroke-width:2px,color:#1864ab;
-    classDef system fill:#f3f0ff,stroke:#7950f2,stroke-width:2px,color:#5f3dc4;
+    classDef macroAi fill:#f3f0ff,stroke:#7950f2,stroke-width:2px,stroke-dasharray: 4 4,color:#5f3dc4;
+    classDef system fill:#fff4e6,stroke:#fd7e14,stroke-width:2px,color:#d9480f;
+    classDef cloudSystem fill:#e6fcf5,stroke:#0ca678,stroke-width:2px,color:#099268;
 ```
 
 ---
