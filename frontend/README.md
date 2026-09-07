@@ -15,9 +15,6 @@ frontend/
 ├── Dockerfile                                 # Multi-stage Dockerfile (dev & prod targets)
 ├── Dockerfile.dev                             # Dedicated development Dockerfile (hot reload)
 ├── Dockerfile.prod                            # Dedicated production Dockerfile (Nginx + static build)
-├── docker-compose.yaml                        # Standalone frontend container
-├── docker-compose.dev.yaml                    # Full stack dev compose (source mounting + hot reload)
-├── docker-compose.prod.yaml                   # Production compose stack (hardened Nginx)
 ├── nginx.conf                                 # Production Nginx reverse proxy & SPA routing config
 ├── package.json                               # Dependencies and multi-environment scripts
 ├── tsconfig.json                              # TypeScript project configuration
@@ -112,17 +109,16 @@ npm install
 
 ## 4. Docker & Containerization
 
-### A. Development Mode (Hot Reloading)
+### A. Development Mode (Hot Reloading with Compose Watch)
 
-Runs the Node.js development server with file watching and HMR:
+Runs the Node.js development server with file watching, Compose Watch, and HMR:
 
 ```bash
-# Run standalone frontend dev container
-docker compose -f docker-compose.dev.yaml up --build
-
-# Or build via multi-stage target:
-docker build --target dev -t frontend:dev .
-docker run -p 5173:5173 -v $(pwd):/app -v /app/node_modules frontend:dev
+# Run from repository root:
+make dev-watch
+# or:
+docker compose up -d frontend
+docker compose watch frontend
 ```
 
 ### B. Production Mode (Hardened Nginx)
@@ -130,9 +126,11 @@ docker run -p 5173:5173 -v $(pwd):/app -v /app/node_modules frontend:dev
 Builds the static bundle and serves it via an optimized, secure Nginx container with SPA routing (`try_files $uri $uri/ /index.html;`), gzip compression, and caching headers:
 
 ```bash
-# Run production container stack
-docker compose -f docker-compose.prod.yaml up --build -d
-
+# Run from repository root:
+make prod
+# Or using compose directly:
+docker compose -f docker-compose.prod.yaml --env-file .env.prod up -d frontend
+```
 # Or build via multi-stage target with build arguments:
 docker build \
   --target prod \

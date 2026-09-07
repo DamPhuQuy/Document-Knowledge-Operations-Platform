@@ -1,59 +1,145 @@
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: support_platform_postgres
-    restart: unless-stopped
+    image: pgvector/pgvector:pg16
+    container_name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_dev}_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-support_platform_db}
+      POSTGRES_DB: ${POSTGRES_DB:-doc_knowledge_dev}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-support_platform_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-doc_knowledge_dev}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - app_network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: support_platform_backend
-    restart: unless-stopped
+      target: dev
+    container_name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_dev}_backend
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+      - "5005:5005"
     environment:
-      SERVER_PORT: 8080
-      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB:-support_platform_db}
+      DB_NAME: ${POSTGRES_DB:-doc_knowledge_dev}
       DB_USERNAME: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80}
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:8080}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai:8000}
+    volumes:
+      - ./backend/src:/app/src
+      - backend_gradle_cache:/root/.gradle
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/src
+          target: /app/src
+        - action: rebuild
+          path: ./backend/build.gradle
+        - action: rebuild
+          path: ./backend/settings.gradle
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app_network
+
+  ai:
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+      target: dev
+    container_name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_dev}_ai
+    ports:
+      - "${AI_PORT:-8000}:8000"
+    environment:
+      AI_HTTP_PORT: 8000
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-doc_knowledge_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      LLM_API_KEY: ${LLM_API_KEY:-your-openai-api-key-here}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+    volumes:
+      - ./ai/src:/app/src
+    develop:
+      watch:
+        - action: sync
+          path: ./ai/src
+          target: /app/src
+        - action: rebuild
+          path: ./ai/pyproject.toml
+        - action: rebuild
+          path: ./ai/uv.lock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app_network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: prod
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
-        VITE_APP_TITLE: ${VITE_APP_TITLE:-Document & Knowledge Operations Platform}
-    container_name: support_platform_frontend
-    restart: unless-stopped
+      target: dev
+    container_name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_dev}_frontend
+    command: npm run dev -- --host 0.0.0.0 --port 5173
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-5173}:5173"
+    environment:
+      NODE_ENV: development
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api/v1}
+      VITE_APP_ENV: development
+      VITE_ENABLE_DEBUG: "true"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: sync
+          path: ./frontend/public
+          target: /app/public
+        - action: rebuild
+          path: ./frontend/package.json
+        - action: rebuild
+          path: ./frontend/package-lock.json
     depends_on:
       - backend
+    restart: unless-stopped
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_dev}_network
+    driver: bridge
 
 volumes:
   postgres_data:
+    name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_dev}_postgres_data
+    driver: local
+  backend_gradle_cache:
+    name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_dev}_gradle_cache
     driver: local

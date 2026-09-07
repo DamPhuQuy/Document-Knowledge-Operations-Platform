@@ -1,37 +1,10 @@
-// ============================================================================
+
 // PROJECT DEFINITION & ARCHITECTURAL METADATA
-// ============================================================================
 Project document_knowledge_operations_platform {
   database_type: 'PostgreSQL 16'
-  Note: '''
-    # Document Knowledge & Operations Platform - Database Specification
-    
-    ## 1. Architectural Strategy & Phased Delivery Model
-    Hệ thống được thiết kế theo mô hình **Domain-Driven Design (DDD)** và phân rã thành hai giai đoạn triển khai:
-    
-    - **PHASE 1 (Must Have - Core Cloud MVP Baseline):**
-      - Ưu tiên cao nhất: Triển khai hạ tầng sản phẩm thực tế trên AWS Cloud (EC2, S3, Docker Compose v2, GitHub Actions CI/CD, Cloudflare SSL/Edge).
-      - Core Document Management: Quản lý vòng đời tài liệu đa định dạng (PDF, DOCX, TXT, XLSX), lưu trữ nhị phân bền vững trên AWS S3 với mã hóa SSE-AES256 và presigned URLs (<= 15 phút).
-      - Multi-Role RBAC & Department Data Isolation: Phân quyền đa cấp độ (User, Department, Role) và kiểm soát truy cập phân loại (Public, Internal, Restricted, Confidential).
-      - 2-Phase HITL Action Approvals: Chốt chặn phê duyệt con người 2 pha (Prepare/Diff Preview -> Waiting Approval -> Commit) kèm khóa chống lặp `idempotency_key`.
-      - Immutable Audit Logging: Ghi vết kiểm toán bất biến (Append-Only) phục vụ tuân thủ và bảo mật.
-    
-    - **PHASE 2 (Should Have - Pluggable AI Knowledge & RAG Extension):**
-      - Microservice AI độc lập (FastAPI) kết nối qua Clean Architecture Ports & Adapters.
-      - Phân đoạn ngữ nghĩa (Semantic Chunks) lưu tại `document_chunks` với vector embedding 1536 chiều và chỉ mục HNSW cosine distance (`pgvector`).
-      - Tìm kiếm kết hợp (Hybrid Search) tích hợp pgvector và PostgreSQL Full-Text Search (tsvector GIN index) xếp hạng qua Reciprocal Rank Fusion (RRF).
-      - Hội thoại AI đa lượt (`conversations`, `conversation_messages`) có đối chiếu trích dẫn chính xác (`message_citations`) và cơ chế Safe Abstention chống ảo giác.
-    
-    ## 2. Invariants & Storage Principles
-    - **Zero BLOBs in PostgreSQL:** Toàn bộ tệp nhị phân lưu trữ trên AWS S3. Cơ sở dữ liệu chỉ lưu trữ metadata, S3 bucket/key, checksum SHA-256 và trạng thái đồng bộ (`is_s3_synced`).
-    - **Soft Delete Compliance:** Tài liệu sử dụng trường `deleted_at` có đánh chỉ mục, không xóa vật lý trực tiếp nhằm bảo toàn tính toàn vẹn kiểm toán.
-  '''
 }
 
-// ============================================================================
 // ENUMERATIONS
-// ============================================================================
-
 enum document_file_type {
   PDF   [note: 'Portable Document Format']
   DOCX  [note: 'Microsoft Word Document']
@@ -132,10 +105,7 @@ enum notification_type {
   ACTION_REQUIRED  [note: 'Action required: e.g., pending HITL approval ticket']
 }
 
-// ============================================================================
 // PHASE 1: IDENTITY & ACCESS MANAGEMENT (IAM) BOUNDED CONTEXT
-// ============================================================================
-
 Table departments {
   id bigint [pk, increment]
   code varchar(50) [unique, not null, note: 'Unique business identifier: e.g. FIN, HR, IT, LEGAL']
@@ -242,9 +212,7 @@ Table refresh_tokens {
   Note: 'Phase 1 Core Table: Long-lived session management for secure JWT renewal.'
 }
 
-// ============================================================================
 // PHASE 1: DOCUMENT MANAGEMENT SYSTEM (DMS) & S3 STORAGE CONTEXT
-// ============================================================================
 
 Table documents {
   id varchar(64) [pk, note: 'Globally unique document identifier (UUIDv4/ULID)']

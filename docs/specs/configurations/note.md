@@ -31,20 +31,20 @@ A concise architectural reference summarizing configuration design, rules, and d
 
 ### A. Environment Variables (`.env`)
 
-| Variable | Local (`.env.example`) | Dev (`.env.dev.example`) | Prod (`.env.prod.example`) | Description & Security Principle |
+| Variable | Local / Dev (`.env.example`) | Staging (`.env.staging.example`) | Prod (`.env.prod.example`) | Description & Security Principle |
 | :--- | :--- | :--- | :--- | :--- |
 | **Backend** | | | | |
-| `SPRING_PROFILES_ACTIVE` | `local` | `dev` | `prod` | Activates target Spring Boot profile |
-| `DB_HOST` | `localhost` | `postgres-dev.internal` | `postgres-primary.prod.internal` | PostgreSQL host (Local / Staging / Cloud Managed RDS) |
-| `DB_NAME` | `doc_knowledge_db` | `doc_knowledge_dev` | `doc_knowledge_prod` | Environment database schema segregation |
-| `JWT_SECRET` | Dummy 256-bit | Dev Secret 256-bit | KMS / Vault 512-bit | **Prod must inject via KMS / K8s Secret**, never plaintext |
-| `JWT_EXPIRATION_MS` | `86400000` (24h) | `43200000` (12h) | `3600000` (1h) | Prod uses short TTL + Refresh Token Rotation |
-| `CORS_ALLOWED_ORIGINS` | `localhost:3000, 5173` | `https://dev.docknowledge...` | `https://docknowledge.company.com` | Strict domain whitelisting on production |
-| `AI_SERVICE_URL` | `http://localhost:8000` | `http://ai-service-dev:8000` | `http://ai-service.prod.internal` | Internal VPC endpoint for AI microservice |
+| `SPRING_PROFILES_ACTIVE` | `dev` | `staging` | `prod` | Activates target Spring Boot profile |
+| `DB_HOST` | `postgres` (or `localhost`) | `postgres` (or internal RDS) | `postgres-primary.prod.internal` | PostgreSQL host (Local / Staging / Cloud Managed RDS) |
+| `DB_NAME` | `doc_knowledge_dev` | `doc_knowledge_staging` | `doc_knowledge_prod` | Environment database schema segregation |
+| `JWT_SECRET` | Dev Secret 256-bit | Staging Secret 256-bit | KMS / Vault 512-bit | **Prod must inject via KMS / K8s Secret**, never plaintext |
+| `JWT_EXPIRATION_MS` | `86400000` (24h) | `14400000` (4h) | `3600000` (1h) | Prod uses short TTL + Refresh Token Rotation |
+| `CORS_ALLOWED_ORIGINS` | `localhost:3000, 5173` | `https://staging.docknowledge...` | `https://docknowledge.company.com` | Strict domain whitelisting on production |
+| `AI_SERVICE_URL` | `http://localhost:8000` | `http://ai-service-staging:8000` | `http://ai-service.prod.internal` | Internal VPC endpoint for AI microservice |
 | **Frontend** | | | | |
-| `VITE_API_BASE_URL` | `http://localhost:8080/api/v1` | `https://dev-api.docknowledge...` | `https://api.docknowledge.company.com/api/v1` | Backend API gateway endpoint |
-| `VITE_APP_TITLE` | `Document & Knowledge...` | `Document & Knowledge... (Dev)` | `Document & Knowledge Platform` | Application title display |
-| `VITE_APP_ENV` | `development` | `development` | `production` | Active runtime tier badge |
+| `VITE_API_BASE_URL` | `http://localhost:8080/api/v1` | `https://staging-api.docknowledge...` | `https://api.docknowledge.company.com/api/v1` | Backend API gateway endpoint |
+| `VITE_APP_TITLE` | `Document & Knowledge... (Dev)` | `Document & Knowledge... (Staging)` | `Document & Knowledge Platform` | Application title display |
+| `VITE_APP_ENV` | `development` | `staging` | `production` | Active runtime tier badge |
 | `VITE_ENABLE_DEBUG` | `true` | `true` | `false` | Client-side console debug logging |
 
 ---
@@ -85,3 +85,39 @@ A concise architectural reference summarizing configuration design, rules, and d
 | **Performance** | Unminified + Inline/External Source Maps | Gzip compression + Cache-Control (`max-age=1y` for hashed assets, `no-cache` for HTML) |
 | **Health Check Probe** | Optional | `HEALTHCHECK --interval=30s CMD curl -f http://localhost:80/health` |
 | **Port Exposure** | `5173` | `80` (mapped to `3000` via Compose) |
+
+---
+
+## 3. Root Docker Compose Orchestration & Override Architecture
+
+To eliminate configuration sprawl across subfolders and enforce **Twelve-Factor App (Factors III, IV, X)**, all Docker Compose definitions are unified at the repository root:
+
+```text
+Document-Knowledge-Operations-Platform/
+├── docker-compose.yaml         # Local / Dev: target dev, host mounts, debug port 5005, Compose Watch
+├── docker-compose.staging.yaml # Staging: target prod, pre-prod configs, ports
+└── docker-compose.prod.yaml    # Production: target prod, hardened, internal DB network, log rotation
+```
+
+### A. Execution Commands per Environment
+
+```bash
+# 1. Local / Dev inner loop with Compose Watch (HMR + auto sync & rebuild)
+cp .env.example .env
+docker compose up -d
+docker compose watch
+
+# 2. Staging integration verification
+cp .env.staging.example .env.staging
+docker compose -f docker-compose.staging.yaml --env-file .env.staging up -d --build
+
+# 3. Production deployment
+cp .env.prod.example .env.prod
+docker compose -f docker-compose.prod.yaml --env-file .env.prod up -d --build
+```
+
+### B. Docker Compose Watch Mechanism
+
+In `docker-compose.yaml`, each service defines a `develop.watch` block:
+- **`sync`**: Real-time mirror of source directories (`./backend/src`, `./frontend/src`) into containers without container restarts, leveraging native Vite HMR and build tools.
+- **`rebuild`**: Automatically triggers image recompilation when dependencies change (`package.json`, `build.gradle`).
