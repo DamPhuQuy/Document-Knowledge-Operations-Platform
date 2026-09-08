@@ -59,7 +59,48 @@ In continuous autonomous execution (DELEGATED / Fast-Track), the agent opens wit
 
 ---
 
-## 3. Session Startup Protocol
+## 3. Prompt-Driven Task Initialization Protocol
+
+<prompt_task_initialization>
+  When the user requests a new task via prompt (without an existing task folder or `task.md` in `active/`), the Agent **MUST NOT** ask the user to run terminal commands or manually copy seed files. Instead, the Agent automatically recognizes prompt keywords, routes the directory, and initializes `task.md`:
+
+  ### Keyword & Pseudo-Slash Command Routing Table:
+
+  Users may specify tasks using natural language keywords OR handy prefix commands (**Pseudo-Slash Commands**) at the start of the prompt:
+
+  | Target Directory | Slash Command (Recommended) | Natural Keywords | Scope & Working Mode |
+  |---|---|---|---|
+  | **`process/features/active/{task-slug}/`** | `/feature`<br>`/big-task`<br>`/epic` | `big task`, `feature`, `big changes`, `epic` | Major features, domain subsystems, architectural refactors (≥ 5 files, multiple phases). Default mode: **PAIR**. |
+  | **`process/general-plans/active/{task-slug}/`** | `/task`<br>`/small-task`<br>`/bug`<br>`/quick-fix` | `small task`, `general changes`, `small changes`, `bug fix`, `quick fix` | Standalone tasks, quick bug fixes, general adjustments (< 5 files). Default mode: **PAIR**. |
+  | **`process/general-plans/active/{task-slug}/`** | `/hotfix` | `hotfix`, `emergency fix`, `production bug` | Emergency production fix. Auto-activates **DELEGATED / Fast-Track** mode (auto-certifies G0–G2, pauses only at G3). |
+  | *(Scope-derived)* | `/fast-track`<br>`/delegated`<br>`/auto` | `fast-track`, `autonomous`, `auto-advance`, `skip permissions` | Full autonomous execution. Sets `<working_mode>DELEGATED</working_mode>` and runs continuously through all phases. |
+  | *(Framework Maintenance)* | `/update`<br>`/upgrade` | `update instructions`, `upgrade framework`, `check updates` | Maintenance protocol: queries remote registry for a newer framework version. If a newer version exists, updates the instructions framework while preserving user configs (`preserveUserFiles`) and updates `instruction-version.json`. If already on the latest version, outputs `"nothing changed"`. |
+
+  *Fallback Rule:* If no explicit keyword or slash command is found in the prompt, infer from scope (< 5 files or localized fix $\rightarrow$ `general-plans/`; new capability or multi-module impact $\rightarrow$ `features/`).
+
+  ### Framework Update Protocol (`/update`):
+  When the prompt begins with `/update` or `/upgrade` (or user asks to update instructions/framework):
+  1. **Inspect Local Version:** Read `instruction-version.json` at workspace root to inspect current `version`, `language`, and `updateStrategy`.
+  2. **Query Latest Version:** Query the registry (e.g. `npm view @damphuquy/agent-init version` or execute `npx @damphuquy/agent-init update`).
+  3. **Conditional Update:**
+     - **If newer version found:** Execute framework update (e.g. `npx @damphuquy/agent-init update` or `npx @damphuquy/agent-init@latest . --force`), preserving project-specific files defined in `preserveUserFiles` (`AGENTS.md#validation_commands`, active tasks). Update `instruction-version.json` timestamp and version. Report upgrade details.
+     - **If no newer version (already up to date):** Respond directly with `"nothing changed"` (e.g. `nothing changed: instruction framework is already at the latest version vX.Y.Z`) and make no file changes.
+
+  ### Automated Scaffolding & Activation Steps:
+  1. **Derive Slug:** Generate a concise, kebab-case `{task-slug}` from the prompt (e.g., `CHG-001-change-password`, `AUTH-002-rate-limiting`, or `{TICKET-ID}-{slug}`).
+  2. **Create Directory:** Create `process/features/active/{task-slug}` or `process/general-plans/active/{task-slug}`.
+  3. **Instantiate Seed:** Copy `process/_seeds/task-template.md.seed` to `{task-dir}/task.md`.
+  4. **Hydrate Specification:**
+     - Extract task goal into `<goal>`.
+     - Convert user criteria and requirements into actionable markdown checkboxes `- [ ]` under `<acceptance_criteria>`.
+     - Set `<working_mode>` (`PAIR` by default, or `DELEGATED` if prompt indicates fast-track / autonomous execution).
+     - Set `<status>ACTIVE</status>` and `<current_phase>RESEARCH</current_phase>`.
+  5. **Declare Mode & Execute Immediately:** Output `[MODE: RESEARCH]`, announce the initialized `task.md` path, and immediately proceed with the RESEARCH phase without requiring manual user setup.
+</prompt_task_initialization>
+
+---
+
+## 4. Session Startup Protocol
 
 Before continuing any in-progress task, reload persistent state in this order:
 
@@ -77,7 +118,7 @@ file-based artifacts listed above.
 
 ---
 
-## 4. Context Navigation Rules
+## 5. Context Navigation Rules
 
 <context_rules>
   <rule id="minimum_context">

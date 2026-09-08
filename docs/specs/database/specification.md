@@ -342,3 +342,240 @@ Lịch sử tin nhắn, số lượng token tiêu thụ và đánh giá độ ti
 | `relevance_score` | `FLOAT` | **NOT NULL, DEFAULT 0.0** | Điểm số tương đồng ngữ nghĩa / thứ hạng RRF |
 | `snippet` | `TEXT` | | Đoạn trích dẫn nguyên văn hiển thị trên giao diện |
 | `created_at` | `TIMESTAMPTZ` | **NOT NULL** | Thời điểm ghi nhận trích dẫn |
+
+---
+
+## 3. Chuyên Đề Thiết Kế Cơ Sở Dữ Liệu Cho Cơ Chế RAG & Conversational AI (Deep Dive: How, Why & Insights)
+
+Phân hệ RAG (Retrieval-Augmented Generation) và Conversational AI là trái tim tri thức của nền tảng. Khác với các hệ thống chatbot phổ thông, RAG trong môi trường doanh nghiệp và cơ quan hành chính đòi hỏi **tính bảo mật tuyệt đối (Zero Data Leakage)**, **khả năng truy nguyên chứng cứ (Full Traceability)**, **tính chính xác thuật ngữ (High Precision on Exact Codes)** và **chống ảo giác (Anti-Hallucination Guardrails)**. 
+
+Phần này phân tích toàn diện kiến trúc cơ sở dữ liệu chuyên biệt cho RAG: cách thức dữ liệu vận hành (**HOW**), lý do đằng sau các quyết định thiết kế (**WHY**), và những **INSIGHTS** giá trị rút ra cho bài toán Enterprise Knowledge Operations.
+
+---
+
+### 3.1. Sơ Đồ Thực Thể & Tô-pô Dữ Liệu RAG (RAG Data Topology & Schema Relationships)
+
+Mô hình dữ liệu RAG được thiết kế tối ưu hóa cho mối liên kết giữa Quản lý tài liệu (DMS), Không gian vector ngữ nghĩa (Vector Store), Phân quyền tài nguyên (Resource ACL) và Lịch sử hội thoại (Conversational Audit):
+
+```mermaid
+erDiagram
+    departments ||--o{ documents : "sở hữu (ownership)"
+    users ||--o{ documents : "tải lên (uploaded_by)"
+    documents ||--o{ document_versions : "quản lý phiên bản (1-N)"
+    document_versions ||--o{ document_chunks : "phân đoạn nội dung (1-N)"
+    documents ||--o{ document_chunks : "con trỏ tài liệu gốc"
+    
+    users ||--o{ conversations : "sở hữu phiên chat"
+    conversations ||--o{ conversation_messages : "chuỗi tin nhắn (1-N)"
+    conversation_messages ||--o{ message_citations : "chứng minh bằng chứng (1-N)"
+    document_chunks ||--o{ message_citations : "được trích dẫn (N-1)"
+    documents ||--o{ message_citations : "đối chiếu tài liệu gốc (N-1)"
+
+    documents ||--o{ document_user_access : "ACL User"
+    documents ||--o{ document_department_access : "ACL Dept"
+    documents ||--o{ document_role_access : "ACL Role"
+```
+
+#### Các Ràng Buộc Bất Biến (Schema Invariants)
+1. **Phân cấp 3 tầng dữ liệu tài liệu:** `documents` (Định danh thực thể kinh doanh) $\rightarrow$ `document_versions` (Ảnh chụp tệp nhị phân trên S3) $\rightarrow$ `document_chunks` (Đơn vị ngữ nghĩa nhỏ nhất phục vụ Retrieval).
+2. **Khóa liên kết trích dẫn kép (Dual-pointer Citation):** Bảng `message_citations` lưu trữ đồng thời cả `chunk_id` và `document_id`. Điều này đảm bảo khi hiển thị trên giao diện, người dùng có thể nhảy thẳng đến trang tài liệu gốc (`page_number`) trên S3 thông qua URL presigned mà không cần thực hiện thêm các câu truy vấn JOIN phức tạp.
+3. **Bất biến phiên bản (Version Immutability):** Khi một tài liệu được cập nhật phiên bản mới $v+1$, các đoạn `document_chunks` của phiên bản cũ $v$ **vẫn được giữ nguyên** trong CSDL nếu các tin nhắn cũ trong `message_citations` còn tham chiếu tới, đảm bảo tính toàn vẹn của bằng chứng pháp lý trong quá khứ.
+
+---
+
+### 3.2. Cơ Chế Vận Hành Dữ Liệu RAG (HOW: The Database Execution Lifecycle)
+
+Quy trình dữ liệu RAG tại tầng CSDL diễn ra qua 3 pha khép kín, được bảo vệ bằng các giao dịch và chỉ mục chuyên dụng:
+
+```text
+[Tài liệu S3] ──(1. Ingestion Worker)──> [document_chunks: Embedding (HNSW) + FTS (GIN)]
+                                                        │
+[User Query + Security Context] ────────> [2. SQL-Layer Pre-filtered Hybrid RRF Search]
+                                                        │
+                                          ┌─────────────┴─────────────┐
+                         (Similarity >= 0.50)                     (Similarity < 0.50 / 0 chunks)
+                                  │                                           │
+                                  ▼                                           ▼
+             [Prompt Augmentation + LLM Inference]             [Anti-Hallucination Safe Abstention]
+                                  │                                           │
+                                  ▼                                           ▼
+               [Persist: conversation_messages                   [Persist: conversation_messages
+                + message_citations (Audit)]                      with 'NO_ACCESSIBLE_KNOWLEDGE']
+```
+
+#### Bước 1: Phân Đoạn & Tạo Chỉ Mục Kép (Dual Index Ingestion)
+1. Worker tải tệp nhị phân từ S3, trích xuất cấu trúc văn bản và chia đoạn theo thuật ngữ:
+   - Cỡ đoạn (Chunk size): $500 - 1000$ tokens.
+   - Độ gối đầu (Overlap): $50 - 100$ tokens nhằm duy trì ngữ cảnh biên giữa các đoạn liền kề.
+2. Với mỗi đoạn, hệ thống tính toán và nạp đồng thời vào bảng `document_chunks`:
+   - **Vector nhúng (Dense Embedding):** Mảng vector 1536 chiều (tương thích OpenAI `text-embedding-3-small` hoặc mô hình open-source tương đương), đánh chỉ mục **HNSW** (`vector_cosine_ops`).
+   - **Chỉ mục toàn văn (Sparse Lexical):** Cột `tsv` kiểu `tsvector` sinh tự động qua hàm `to_tsvector('simple', content)`, đánh chỉ mục **GIN**.
+   - **Metadata ngữ cảnh:** Lưu dưới dạng `jsonb` gồm `page_number`, vị trí khối chữ, tiêu đề mục cha (`header_path`), đánh chỉ mục **GIN**.
+3. Cập nhật `documents.processing_status = 'INDEXED'`.
+
+#### Bước 2: Truy Vấn Lai Pre-filtered Tại Tầng SQL (The Hybrid RRF Retrieval Engine)
+Toàn bộ quá trình lọc quyền truy cập (Security Pre-filtering), so khớp vector tương đồng (Dense Retrieval), so khớp từ khóa chính xác (Sparse FTS) và kết hợp thứ hạng (Reciprocal Rank Fusion) được cô đọng trong **duy nhất một câu lệnh SQL hiệu năng cao**:
+
+```sql
+WITH 
+-- 1. Tập hợp các tài liệu hợp lệ trong phạm vi quyền hạn của User
+accessible_docs AS (
+    SELECT d.id
+    FROM documents d
+    WHERE d.deleted_at IS NULL
+      AND d.processing_status = 'INDEXED'
+      AND (
+          d.access_level = 'PUBLIC'
+          OR (d.access_level = 'INTERNAL' AND :is_internal = TRUE)
+          OR (d.access_level = 'RESTRICTED' AND d.department_id = :department_id)
+          OR (d.uploaded_by_user_id = :user_id)
+          OR EXISTS (
+              SELECT 1 FROM document_user_access dua 
+              WHERE dua.document_id = d.id AND dua.user_id = :user_id
+          )
+          OR EXISTS (
+              SELECT 1 FROM document_department_access dda 
+              WHERE dda.document_id = d.id AND dda.department_id = :department_id
+          )
+          OR EXISTS (
+              SELECT 1 FROM document_role_access dra 
+              WHERE dra.document_id = d.id AND dra.role_id = ANY(:role_ids)
+          )
+      )
+),
+-- 2. Tìm kiếm Dense Vector (Ngữ nghĩa tương đồng bằng khoảng cách Cosine HNSW)
+dense_candidates AS (
+    SELECT 
+        c.id,
+        c.document_id,
+        c.content,
+        c.page_number,
+        c.metadata,
+        1 - (c.embedding <=> :query_vector) AS cosine_sim,
+        ROW_NUMBER() OVER (ORDER BY c.embedding <=> :query_vector ASC) AS dense_rank
+    FROM document_chunks c
+    JOIN accessible_docs ad ON c.document_id = ad.id
+    WHERE c.embedding IS NOT NULL
+    LIMIT 30
+),
+-- 3. Tìm kiếm Sparse Lexical (So khớp từ khóa chính xác bằng Full-Text Search)
+sparse_candidates AS (
+    SELECT 
+        c.id,
+        c.document_id,
+        c.content,
+        c.page_number,
+        c.metadata,
+        ts_rank_cd(c.tsv, plainto_tsquery('simple', :query_text)) AS fts_score,
+        ROW_NUMBER() OVER (ORDER BY ts_rank_cd(c.tsv, plainto_tsquery('simple', :query_text)) DESC) AS sparse_rank
+    FROM document_chunks c
+    JOIN accessible_docs ad ON c.document_id = ad.id
+    WHERE c.tsv @@ plainto_tsquery('simple', :query_text)
+    LIMIT 30
+),
+-- 4. Hợp nhất thứ hạng bằng thuật toán Reciprocal Rank Fusion (RRF k = 60)
+fused_ranks AS (
+    SELECT 
+        COALESCE(d.id, s.id) AS chunk_id,
+        COALESCE(d.document_id, s.document_id) AS document_id,
+        COALESCE(d.content, s.content) AS content,
+        COALESCE(d.page_number, s.page_number) AS page_number,
+        COALESCE(d.metadata, s.metadata) AS metadata,
+        COALESCE(d.cosine_sim, 0.0) AS cosine_sim,
+        (COALESCE(1.0 / (60 + d.dense_rank), 0.0) + COALESCE(1.0 / (60 + s.sparse_rank), 0.0)) AS rrf_score
+    FROM dense_candidates d
+    FULL OUTER JOIN sparse_candidates s ON d.id = s.id
+)
+SELECT chunk_id, document_id, content, page_number, metadata, cosine_sim, rrf_score
+FROM fused_ranks
+ORDER BY rrf_score DESC
+LIMIT :top_k;
+```
+
+#### Bước 3: Kiểm Soát Độ Tin Cậy & Lưu Vết Trích Dẫn (Persistence & Anti-Hallucination)
+1. **Chốt chặn an toàn (Safe Abstention Guard):**
+   - Nếu truy vấn trả về $0$ chunks hoặc đoạn có điểm `cosine_sim` cao nhất nhỏ hơn ngưỡng tin cậy cơ sở ($< 0.50$): Hệ thống **không gửi dữ liệu cho LLM suy diễn**, lập tức trả về phản hồi từ chối an toàn: `"Hệ thống không tìm thấy tài liệu phù hợp trong phạm vi quyền hạn được cấp của bạn để trả lời câu hỏi này."`
+   - Ghi nhận bản ghi `conversation_messages` với `confidence = 'LOW'` và không tạo bản ghi trích dẫn.
+2. **Lưu vết bằng chứng trích dẫn (Citation Persistence):**
+   - Khi câu trả lời được sinh ra kèm các nhãn dẫn chứng (e.g. `[1]`, `[2]`), hệ thống ghi nhận từng trích dẫn vào bảng `message_citations` chứa `message_id`, `document_id`, `chunk_id`, `relevance_score` và trích văn `snippet`.
+   - Giúp người dùng khi bấm vào huy hiệu trích dẫn có thể mở ngay thanh xem nhanh (drawer) kèm số trang chính xác của tài liệu trên S3.
+
+---
+
+### 3.3. Phân Tích Cơ Sở Thiết Kế (WHY: Architectural Rationale & Trade-offs)
+
+Tại sao lại lựa chọn mô hình CSDL này mà không phải các giải pháp phổ biến khác trên thị trường?
+
+#### 1. Tại sao chọn PostgreSQL + `pgvector` thay vì cơ sở dữ liệu Vector chuyên biệt (Dedicated Vector DB)?
+
+Trong giai đoạn thiết kế, các Vector DB chuyên dụng như Pinecone, Weaviate, Qdrant hay Milvus thường được cân nhắc. Tuy nhiên, đối với hệ thống doanh nghiệp, việc tích hợp `pgvector` trực tiếp trong PostgreSQL mang lại 4 lợi thế áp đảo:
+
+| Tiêu Chí So Sánh | PostgreSQL + `pgvector` (Được Lựa Chọn) | Dedicated Vector DB (Pinecone / Qdrant) |
+| :--- | :--- | :--- |
+| **Tính Nhất Quán Dữ Liệu (ACID)** | **Tuyệt đối (Strong Consistency):** Chunks, Vector và Document Metadata nằm trong cùng một cơ sở dữ liệu và cùng giao dịch (Transaction). Xóa tài liệu là xóa sạch vector tức thì. | **Nhất quán sau (Eventual Consistency):** Rất dễ gặp lỗi **Dual-Write Hazard**; khi tài liệu bị xóa ở SQL nhưng vector vẫn tồn tại ở Vector DB gây rò rỉ dữ liệu. |
+| **Bảo Mật & Lọc Quyền (ACL Filter)** | **Nguyên tử (Atomic In-Engine JOIN):** Kiểm tra quyền truy cập của User dựa trên bảng `documents` và các bảng `ACL` ngay trong quá trình duyệt đồ thị vector. | **Phức tạp & Rủi ro cao:** Phải sao chép metadata quyền người dùng sang Vector DB, vừa chậm trễ đồng bộ vừa khó biểu diễn ma trận ACL phức tạp. |
+| **Độ Phức Tạp Vận Hành (Ops Overhead)** | **Đơn giản hóa hạ tầng:** Tái sử dụng cụm PostgreSQL RDS duy nhất, tận dụng sẵn cơ chế Backup PITR, Replication và Monitoring. | **Phình to hạ tầng (Infra Sprawl):** Phải quản lý, cấu hình, cấp tài khoản và giám sát thêm một cụm cơ sở dữ liệu phân tán mới. |
+| **Chi Phí Tài Nguyên (Cloud Cost)** | **Tối ưu chi phí tối đa:** Nằm trọn vẹn trong cấu hình RDS hiện hữu, không phát sinh chi phí duy trì cụm cluster chuyên biệt. | Tốn kém chi phí định kỳ (SaaS subscription) hoặc chi phí RAM lớn cho các node máy chủ độc lập. |
+
+#### 2. Tại sao chọn chỉ mục HNSW (Hierarchical Navigable Small World) thay vì IVFFlat?
+
+PostgreSQL `pgvector` hỗ trợ 2 loại chỉ mục chính: `ivfflat` (Inverted File Flat) và `hnsw`. Hệ thống lựa chọn **HNSW** vì các lý do kỹ thuật sau:
+- **Khả năng mở rộng không cần Re-indexing:** `ivfflat` chia không gian thành các danh sách cụm (voronoi cells), bắt buộc phải có một tập dữ liệu đủ lớn từ trước để "huấn luyện" (train). Khi số lượng tài liệu tăng nhanh hoặc phân phối embedding thay đổi, `ivfflat` đòi hỏi phải chạy lại lệnh `REINDEX` tốn kém. Ngược lại, HNSW xây dựng đồ thị nhiều tầng theo thời gian thực, cho phép chèn dữ liệu liên tục mà không suy giảm chất lượng tìm kiếm.
+- **Tương thích hoàn hảo với Pre-filtering:** Khi kết hợp mệnh đề `WHERE` khắt khe (lọc theo phòng ban và quyền người dùng), `ivfflat` dễ gặp tình trạng các tâm cụm gần nhất không chứa vector nào thỏa mãn bộ lọc, dẫn đến kết quả rỗng giả tạo. HNSW duy trì đường đi đồ thị ổn định, cho Recall vượt trội (>98%) ngay cả khi bộ lọc triệt tiêu phần lớn không gian dữ liệu.
+- **Độ trễ truy vấn cực thấp:** Độ trễ tìm kiếm của HNSW là $O(\log N)$, đáp ứng hoàn hảo tiêu chuẩn phi chức năng tìm kiếm $< 25\text{ ms}$ trên tập dữ liệu hàng trăm ngàn chunks.
+
+#### 3. Tại sao bắt buộc dùng Hybrid Search (Dense + Sparse) kết hợp Reciprocal Rank Fusion (RRF)?
+
+Nhiều giải pháp RAG sơ khai chỉ sử dụng thuần túy Dense Vector Search. Điều này dẫn đến sự thất bại nặng nề trong ngữ cảnh doanh nghiệp:
+- **Lỗ hổng của Dense Vector (The Semantic Gap vs. Exact Keyword):** Mô hình Embedding hiểu rất tốt sự tương đồng ý nghĩa (ví dụ: *"chế độ nghỉ phép"* tương đồng với *"quy chế thôi việc"*), nhưng lại **hoàn toàn mù quáng trước các định danh chính xác, số hiệu công văn và thuật ngữ kỹ thuật** (ví dụ: *"Thông tư 15/2023/TT-BTTTT"*, *"Hợp đồng số 88/HĐ-VNPT"*, mã sản phẩm *"PKG-990"*).
+- **Sức mạnh bù trừ của Sparse Lexical (FTS):** Full-Text Search bằng `tsvector` và `ts_rank_cd` giải quyết triệt để bài toán tìm chính xác các ký hiệu, mã văn bản và định danh duy nhất.
+- **Ưu thế của thuật toán RRF so với Weighted Sum:** Điểm số Cosine nằm trong khoảng $[-1, 1]$ (hoặc $[0, 2]$ đối với khoảng cách), trong khi điểm số BM25/FTS nằm trong khoảng $[0, \infty)$. Nếu dùng phép cộng trọng số $S = \alpha S_{\text{dense}} + (1-\alpha) S_{\text{sparse}}$, hệ thống buộc phải chuẩn hóa phân phối điểm số và tinh chỉnh siêu tham số $\alpha$ thủ công cho từng loại văn bản. RRF sử dụng nghịch đảo thứ hạng:
+  $$\text{RRF}(d) = \sum_{m \in \{\text{dense}, \text{sparse}\}} \frac{1}{k + r_m(d)}$$
+  (với hằng số làm mượt tiêu chuẩn $k = 60$). RRF hoàn toàn không phụ thuộc vào biên độ điểm số thô của từng thuật toán, đảm bảo thứ hạng hợp nhất luôn khách quan, ổn định và kháng nhiễu cực tốt.
+
+#### 4. Tại sao Pre-filtering là tiêu chuẩn bắt buộc và nghiêm cấm Post-filtering?
+
+Trong RAG doanh nghiệp, việc lọc quyền người dùng có thể thực hiện theo 2 cách:
+1. **Post-filtering (Lọc sau - Phản mẫu thiết kế):** Hệ thống tìm Top 50 vector gần nhất trong toàn bộ CSDL, sau đó tải về ứng dụng và lọc bỏ các đoạn văn bản mà người dùng không có quyền truy cập.
+   - *Hậu quả (Recall Collapse):* Nếu một người dùng cấp thấp đặt câu hỏi về một chủ đề mà 50 tài liệu liên quan nhất đều là tài liệu Tuyệt mật (`CONFIDENTIAL`), thuật toán Post-filter sẽ gạt bỏ toàn bộ 50 kết quả này. Người dùng nhận được kết quả rỗng, mặc dù trong CSDL vẫn có các tài liệu Nội bộ (`INTERNAL`) xếp hạng từ 51 đến 60 có thể trả lời câu hỏi.
+   - *Rủi ro an toàn:* Tăng nguy cơ rò rỉ thông tin trong log ứng dụng và phung phí tài nguyên tính toán cho những vector không được phép đọc.
+2. **Pre-filtering (Lọc trước tại CSDL - Kiến trúc chuẩn):** Mệnh đề kiểm tra quyền được tích hợp trực tiếp vào câu lệnh SQL duyệt vector. Bộ lập lịch truy vấn của PostgreSQL áp dụng bộ lọc ACL trước hoặc đồng thời với quá trình duyệt đồ thị HNSW, đảm bảo 100% Top-K trả về là tài liệu người dùng **được phép xem**, loại bỏ triệt để hiện tượng Recall Collapse và đảm bảo Zero Data Leakage.
+
+---
+
+### 3.4. Đúc Kết & Bài Học Giá Trị Về RAG Doanh Nghiệp (Key Insights for Enterprise RAG)
+
+Từ kiến trúc cơ sở dữ liệu trên, 5 bài học thực tiễn cốt lõi được đúc kết làm kim chỉ nam cho việc vận hành hệ thống:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              5 NGUYÊN TẮC CỐT LÕI CHO ENTERPRISE RAG                               │
+├────────────────────────────────┬───────────────────────────────────────────────────────────────────┤
+│ 1. Security First (SQL Guard)  │ Phân quyền tài nguyên phải là điều kiện tiên quyết tại tầng CSDL;  │
+│                                │ không bao giờ giao phó an toàn dữ liệu cho tầng LLM hay app code.  │
+├────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+│ 2. Hybrid Search is Mandatory  │ Dense Vector hiểu ý niệm; Sparse FTS bắt chính xác mã hiệu; RRF   │
+│                                │ dung hòa cả hai mà không cần can thiệp trọng số thủ công.          │
+├────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+│ 3. Co-location beats Sprawl    │ Tích hợp pgvector cạnh bảng nghiệp vụ loại bỏ hoàn toàn lỗi        │
+│                                │ bất đồng bộ phân tán (Dual-Write) và tiết kiệm chi phí hạ tầng.   │
+├────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+│ 4. Granular Source Provenance  │ Lưu vết trích dẫn tới tận số trang (page_number) và chunk nguyên bản│
+│                                │ là điều kiện bắt buộc để hệ thống có giá trị pháp lý và kiểm toán.│
+├────────────────────────────────┼───────────────────────────────────────────────────────────────────┤
+│ 5. Safe Abstention over Guess  │ Từ chối trả lời khi thiếu dữ kiện là một tính năng thượng thặng,  │
+│                                │ không phải lỗi; giúp triệt tiêu hoàn toàn ảo giác AI (Hallucination).│
+└────────────────────────────────┴───────────────────────────────────────────────────────────────────┘
+```
+
+1. **Bảo mật là nguyên thủy tầng dữ liệu (Security as a Data-Layer Primitive):**
+   Trong hệ thống thông tin quy mô lớn, an toàn dữ liệu không thể trông chờ vào lời nhắc hệ thống (System Prompt) của LLM hay bộ lọc ở tầng ứng dụng. Bảo mật chỉ thực sự được đảm bảo khi nó được thực thi bằng chỉ mục và mệnh đề ràng buộc tại tầng lưu trữ dữ liệu (Database Engine).
+2. **Tìm kiếm lai là tiêu chuẩn vàng cho tài liệu quản trị (Hybrid Retrieval as the Standard):**
+   Văn bản quy phạm pháp luật, hồ sơ kỹ thuật và hợp đồng kinh tế chứa mật độ mã hiệu, số liệu và từ khóa đặc thù rất cao. Bất kỳ kiến trúc RAG nào chỉ dựa vào vector embedding thuần túy đều sẽ thất bại trong các bài toán đối chiếu thực tế. Kết hợp FTS và Vector qua RRF là giải pháp tối ưu toàn diện.
+3. **Sự gắn kết dữ liệu vượt trội hơn phân tán phân tán (Co-location vs. Architectural Sprawl):**
+   Việc lưu trữ vector cùng chỗ với dữ liệu quan hệ (ACID RDBMS) giải quyết bài toán lớn nhất của các kỹ sư dữ liệu: **Tính toàn vẹn tham chiếu**. Khi xóa một phòng ban, đổi quyền một người dùng hoặc xóa mềm một tài liệu, các trigger và cascade của PostgreSQL xử lý triệt để trong vài mili-giây, ngăn chặn hoàn toàn hiện tượng "bóng ma vector" (Orphan Vectors) tồn tại trong các Vector DB rời rạc.
+4. **Minh bạch dẫn chứng là nền tảng của sự tin cậy (Traceability Breeds Trust):**
+   Người dùng doanh nghiệp không tin vào câu trả lời của AI nếu họ không thể tự mình kiểm chứng. Cấu trúc `message_citations` liên kết trực tiếp với `document_chunks` và con trỏ trang `page_number` biến câu trả lời của AI thành một bản tóm lược có giá trị chứng cứ, cho phép người dùng kiểm tra tài liệu gốc trên S3 chỉ bằng một cú nhấp chuột.
+5. **Từ chối an toàn là năng lực thượng thặng (Safe Abstention as a Core Capability):**
+   Ảo giác (Hallucination) là rủi ro lớn nhất làm sụp đổ độ tin cậy của AI trong vận hành tác nghiệp. Việc thiết lập ngưỡng chặn khoảng cách tương đồng tại tầng truy vấn CSDL để kích hoạt cơ chế từ chối an toàn (`Safe Abstention`) giúp bảo vệ uy tín nghiệp vụ của doanh nghiệp và tiết kiệm tối đa chi phí gọi API suy luận LLM không cần thiết.
+

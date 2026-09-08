@@ -8,13 +8,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_action_approvals
               - column:
                   name: execution_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_action_approvals_execution
                     references: workflow_executions(id)
@@ -51,14 +51,14 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: requested_by_user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_action_approvals_requested_by
                     references: users(id)
                     onDelete: SET NULL
               - column:
                   name: reviewed_by_user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_action_approvals_reviewed_by
                     references: users(id)
@@ -108,7 +108,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_operation_tasks
@@ -134,7 +134,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: creator_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_op_tasks_creator
@@ -142,21 +142,21 @@ databaseChangeLog:
                     onDelete: RESTRICT
               - column:
                   name: assignee_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_op_tasks_assignee
                     references: users(id)
                     onDelete: SET NULL
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_op_tasks_document
                     references: documents(id)
                     onDelete: SET NULL
               - column:
                   name: execution_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_op_tasks_execution
                     references: workflow_executions(id)

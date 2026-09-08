@@ -10,6 +10,7 @@
 
   This file ONLY contains what is unique to this project: toolchain commands,
   architecture guardrail calibration, and path references.
+  Framework versioning and update procedures are managed via [`instruction-version.json`](instruction-version.json).
 </overview>
 
 ---
@@ -21,6 +22,7 @@
 
   | File | What it governs |
   |------|----------------|
+  | [`instruction-version.json`](instruction-version.json) | Framework version manifest, compatibility, and update strategy |
   | [`.agents/behavior.md`](.agents/behavior.md) | Mode declaration, session startup, context priority |
   | [`.agents/guardrails.md`](.agents/guardrails.md) | Retry budget, escalation triggers, completion gate |
   | [`.agents/conventions/naming.md`](.agents/conventions/naming.md) | Naming and structural hygiene |
@@ -36,6 +38,13 @@
   <!-- Pillar 1: Task & Specification -->
   <pillar id="task_spec" title="Task & Specification">
     <rule>Single Source of Truth: Active task file in [`process/features/active/{feature}/task.md`](process/features/) or [`process/general-plans/active/{task}/task.md`](process/general-plans/) (instantiated from [`process/_seeds/task-template.md.seed`](process/_seeds/task-template.md.seed)).</rule>
+    <rule>Prompt & Slash Command Initialization: Users can request and run tasks directly via prompt or pseudo-slash command prefixes. The Agent automatically routes the folder and instantiates `task.md` from [`process/_seeds/task-template.md.seed`](process/_seeds/task-template.md.seed):
+      - Commands `/feature`, `/big-task`, `/epic` or keywords `big task`, `feature`, `big changes`: routes to `process/features/active/{task-slug}/task.md` (PAIR mode).
+      - Commands `/task`, `/small-task`, `/bug` or keywords `small task`, `general changes`, `small changes`: routes to `process/general-plans/active/{task-slug}/task.md` (PAIR mode).
+      - Command `/hotfix`: routes to `process/general-plans/active/{task-slug}/task.md` and runs in DELEGATED mode.
+      - Commands `/fast-track`, `/delegated`: executes autonomously through all phases.
+      - Command `/update`: checks for a new framework version (via `instruction-version.json` and registry); updates instructions if a newer version exists, or outputs "nothing changed" if already on the latest version.
+      The Agent creates the directory, hydrates `<goal>` and `<acceptance_criteria>` from the prompt, and initiates the RESEARCH phase immediately.</rule>
     <rule>Define changes via Goal, Current Behavior, Expected Behavior, Invariants, and `<out_of_scope>`.</rule>
     <rule>Acceptance Criteria (AC) must be unambiguous, verifiable markdown checkboxes (`- [ ]`).</rule>
     <rule>Every task has a master contract (`task.md`) and a full artifact chain: `research.md → decision.md → plan.md → state.md → review.md → handoff.md`.</rule>

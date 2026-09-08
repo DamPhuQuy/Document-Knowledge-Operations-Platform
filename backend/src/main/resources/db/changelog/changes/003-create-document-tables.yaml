@@ -8,7 +8,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_documents
@@ -56,9 +56,15 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: is_s3_synced
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
                   name: processing_status
                   type: VARCHAR(50)
-                  defaultValue: PENDING
+                  defaultValue: UPLOADED
                   constraints:
                     nullable: false
               - column:
@@ -69,14 +75,14 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: department_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_documents_department
                     references: departments(id)
                     onDelete: SET NULL
               - column:
                   name: uploaded_by_user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_documents_uploaded_by
@@ -149,6 +155,18 @@ databaseChangeLog:
                   name: deleted_at
 
   - changeSet:
+      id: 003-create-documents-metadata-gin-index
+      author: platform
+      preConditions:
+        - onFail: MARK_RAN
+          dbms:
+            type: postgresql
+      changes:
+        - sql:
+            sql: |
+              CREATE INDEX IF NOT EXISTS idx_documents_metadata ON documents USING gin (metadata);
+
+  - changeSet:
       id: 003-create-document-versions-table
       author: platform
       changes:
@@ -157,14 +175,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_document_versions
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_versions_document
@@ -196,11 +213,17 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: is_s3_synced
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
                   name: change_summary
                   type: VARCHAR(500)
               - column:
                   name: uploaded_by_user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_versions_uploaded_by
@@ -232,14 +255,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_document_user_access
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_user_access_document
@@ -247,7 +269,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_user_access_user
@@ -285,14 +307,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_document_department_access
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_dept_access_document
@@ -300,7 +321,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: department_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_dept_access_department
@@ -338,14 +359,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_document_role_access
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_role_access_document
@@ -353,7 +373,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: role_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_doc_role_access_role

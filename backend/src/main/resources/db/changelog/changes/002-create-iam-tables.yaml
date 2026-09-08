@@ -8,8 +8,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_departments
@@ -56,8 +55,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_users
@@ -80,7 +78,7 @@ databaseChangeLog:
                     nullable: false
               - column:
                   name: department_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_users_department
                     references: departments(id)
@@ -131,8 +129,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_roles
@@ -173,8 +170,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_permissions
@@ -226,7 +222,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_user_roles_user
@@ -234,7 +230,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: role_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_user_roles_role
@@ -266,7 +262,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: role_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_role_permissions_role
@@ -274,7 +270,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: permission_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_role_permissions_permission
@@ -306,14 +302,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_refresh_tokens
               - column:
                   name: user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_refresh_tokens_user

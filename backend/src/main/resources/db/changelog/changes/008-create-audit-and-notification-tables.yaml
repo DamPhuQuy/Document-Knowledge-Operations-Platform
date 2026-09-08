@@ -8,14 +8,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_audit_logs
               - column:
                   name: user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_audit_logs_user
                     references: users(id)
@@ -95,14 +94,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_notifications
               - column:
                   name: user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_notifications_user

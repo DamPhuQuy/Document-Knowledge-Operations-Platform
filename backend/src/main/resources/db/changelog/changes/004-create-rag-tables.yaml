@@ -8,13 +8,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_document_chunks
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_chunks_document
@@ -22,7 +22,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: document_version_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_chunks_doc_version
@@ -60,6 +60,8 @@ databaseChangeLog:
               - column:
                   name: tsv
                   type: tsvector
+                  constraints:
+                    nullable: false
               - column:
                   name: created_at
                   type: TIMESTAMPTZ
