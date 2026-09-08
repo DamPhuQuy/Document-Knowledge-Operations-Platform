@@ -36,6 +36,7 @@ process/
 │   ├── orchestration.md              # Subagent delegation rules
 │   └── implementation-standards.md  # Typing, linting, and testing standards
 ├── features/                         # Domain features (≥5 files / ≥3 phases)
+│                                     # Prompt keywords: "big task", "feature", "big changes", "epic"...
 │   ├── active/                       # Active task workspaces: {CHG-ID}-{task-slug}/
 │   │   └── CHG-XXX-example/          # One folder per task
 │   │       ├── task.md               # Master contract & state record
@@ -50,7 +51,8 @@ process/
 │   │       └── cancelled.md          # (If aborted) Cancellation findings & rollback status
 │   ├── completed/                    # Archived task workspaces
 │   └── backlog/                      # Backlog notes: {note_slug}_NOTE_{dd-mm-yy}.md
-└── general-plans/                    # Cross-cutting & standalone tasks
+└── general-plans/                    # Cross-cutting & standalone tasks (<5 files)
+                                      # Prompt keywords: "small task", "general changes", "small changes", "bug fix"...
     ├── active/
     ├── completed/
     └── backlog/
@@ -96,6 +98,15 @@ state.md         ← (Execute) Per-slice progress, failure memory, retry budget
 review.md        ← (Review) Findings, verification matrix, Gate 3 (PASS)
 handoff.md       ← (Complete) Short final projection
 ```
+
+### Task Initialization: Prompt-Driven vs Manual
+
+Users can initiate tasks through two methods:
+1. **Prompt & Slash Command Initialization (Recommended):** Provide your task requirements directly in the prompt using pseudo-slash commands or natural keywords. The Agent automatically scaffolds the workspace under `active/`, instantiates `task-template.md.seed` $\rightarrow$ `task.md`, hydrates specification tags, and immediately kicks off `RESEARCH`:
+   - **`process/features/active/{task-slug}/`**: Triggered by commands `/feature`, `/big-task`, `/epic` or keywords `big task`, `feature`, `big changes`. For large, domain-specific features (≥5 files, multiple phases).
+   - **`process/general-plans/active/{task-slug}/`**: Triggered by commands `/task`, `/small-task`, `/bug`, `/quick-fix` or keywords `small task`, `general changes`, `small changes`. For standalone tasks and quick fixes (<5 files).
+   - **Special Commands**: `/hotfix` (emergency bugfix, runs in DELEGATED mode), `/fast-track` (runs autonomously across all phases).
+2. **Manual Terminal Setup:** Manually run `mkdir -p process/.../active/{slug}` and `cp process/_seeds/task-template.md.seed process/.../active/{slug}/task.md` before prompting the Agent.
 
 ### Concept → Artifact mapping
 
@@ -170,6 +181,7 @@ To prevent mechanical, cargo-cult usage of the framework, the template architect
   * Machine-Readable Contract: Enforces unambiguous semantic boundaries that LLMs parse reliably, strictly constraining AI write access.
 
 ### 2. The Operational "HOW" — Execution Principles
+* **Prompt-Driven Task Initialization:** Eliminates the friction of running terminal commands or manual file copies. Users simply specify task prompts with keywords (`big task`, `feature`, `big changes` for `features/active/`; `small task`, `general changes`, `small changes` for `general-plans/active/`). The Agent detects the scope, scaffolds the folder, instantiates `task-template.md.seed`, populates `task.md`, and initiates execution immediately.
 * **Copy-On-Demand:** Never bulk-copy all seeds into a task folder upfront. Start with `task.md`, then instantiate `research.md` $\rightarrow$ `decision.md` $\rightarrow$ `plan.md` $\rightarrow$ `state.md` $\rightarrow$ `review.md` $\rightarrow$ `handoff.md` sequentially as phases advance.
 * **Stateless Chat, Stateful Workspace:** Sessions can reset and chats can close. All operational progress and error memory (`<failure_memory>`) are recorded on disk (`state.md`), allowing any new session to resume with 100% fidelity.
 * **Selective Knowledge Crystallization:** Upon completion, summarize the task in `handoff.md`. Only promote reusable architectural standards or schema contracts into `process/context/` and `all-context.md`.

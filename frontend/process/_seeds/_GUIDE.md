@@ -13,6 +13,7 @@
   * **Why the `.seed` extension? (Why):** The `.seed` suffix acts as an immutable boundary. It prevents automated AI discovery tools (`find`, `grep`) from confusing archetype templates with active `*.md` task files. This guarantees agents will never accidentally overwrite master blueprints during execution.
   * **Why separate seeds per phase? (Why):** Each phase of RIPER-5 requires a distinct cognitive posture and permission boundary (Research vs Innovate vs Plan vs Execute vs Review). Splitting archetypes prevents context window bloat (Anti-Context Saturation), avoids hallucinations, and anchors each Quality Gate (G1–G3) to an auditable physical artifact.
   * **Copy-On-Demand Protocol (How):** Never bulk-copy all seeds into a task directory. Start exclusively with `task.md`. Sequentially instantiate subsequent artifacts (`research.md` $\rightarrow$ `decision.md` $\rightarrow$ `plan.md` $\rightarrow$ `state.md` $\rightarrow$ `review.md` $\rightarrow$ `handoff.md`) only as the task progresses into each phase. In PAIR mode, the agent pauses for human gate approvals; in DELEGATED / Fast-Track mode, the agent auto-instantiates subsequent seeds, auto-certifies gates, and executes continuously without interruptions.
+  * **Prompt-Driven Task Initialization (How):** Eliminates the friction of manual terminal commands. Users simply issue a prompt containing routing keywords: `big task`, `feature`, `big changes` (for `features/active/`) or `small task`, `general changes`, `small changes` (for `general-plans/active/`). The Agent automatically creates the directory, copies the seed blueprint, hydrates `<goal>` and criteria, and kicks off execution.
 </architectural_rationale>
 
 ---
@@ -162,7 +163,17 @@ Not all artifacts are required at start. Create them progressively as the task a
 
 ---
 
-## 4. Instantiation Commands
+## 4. Instantiation Methods: Prompt-Driven vs Manual Commands
+
+### Method 1: Prompt & Slash Command Initialization (Recommended)
+Instead of manually executing terminal commands, you can initiate a task directly through your prompt using convenient slash prefixes (**Pseudo-Slash Commands**) or natural keywords:
+- **`process/features/active/{task-slug}/`**: Use commands `/feature`, `/big-task`, `/epic` or keywords `big task`, `feature`, `big changes`, `epic`.
+- **`process/general-plans/active/{task-slug}/`**: Use commands `/task`, `/small-task`, `/bug`, `/quick-fix` or keywords `small task`, `general changes`, `small changes`.
+- **Special Command**: `/hotfix` (emergency production bugfix, automatically triggers DELEGATED mode).
+
+The Agent will automatically create the required directory, copy `task-template.md.seed` $\rightarrow$ `task.md`, hydrate `<goal>` and `<acceptance_criteria>` from your prompt, and begin the Research phase immediately.
+
+### Method 2: Manual Terminal Commands (Copy Commands)
 
 ```bash
 # Create a new task workspace
