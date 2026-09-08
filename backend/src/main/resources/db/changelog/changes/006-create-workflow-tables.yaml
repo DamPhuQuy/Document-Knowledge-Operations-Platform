@@ -8,7 +8,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_workflows
@@ -71,13 +71,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_workflow_executions
               - column:
                   name: workflow_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_wf_exec_workflow
@@ -85,7 +85,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     foreignKeyName: fk_wf_exec_document
                     references: documents(id)

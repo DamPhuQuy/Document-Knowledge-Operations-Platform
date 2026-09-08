@@ -8,13 +8,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_conversations
               - column:
                   name: user_id
-                  type: BIGINT
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_conversations_user
@@ -62,13 +62,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_conversation_messages
               - column:
                   name: conversation_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_conv_messages_conversation
@@ -123,14 +123,13 @@ databaseChangeLog:
             columns:
               - column:
                   name: id
-                  type: BIGINT
-                  autoIncrement: true
+                  type: UUID
                   constraints:
                     primaryKey: true
                     primaryKeyName: pk_message_citations
               - column:
                   name: message_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_citations_message
@@ -138,7 +137,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: document_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_citations_document
@@ -146,7 +145,7 @@ databaseChangeLog:
                     onDelete: CASCADE
               - column:
                   name: chunk_id
-                  type: VARCHAR(64)
+                  type: UUID
                   constraints:
                     nullable: false
                     foreignKeyName: fk_citations_chunk
