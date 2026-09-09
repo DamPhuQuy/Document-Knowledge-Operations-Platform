@@ -44,7 +44,6 @@ backend/
     │   │
     │   └── resources/
     │       ├── application.yaml               # Application configuration (${ENV_VAR:default})
-    │       ├── application-dev.yaml           # Development profile overrides
     │       ├── application-prod.yaml          # Production profile overrides
     │       └── db/changelog/                  # Liquibase database migrations
     │           ├── db.changelog-master.yaml

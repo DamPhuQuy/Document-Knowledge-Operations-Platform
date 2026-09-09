@@ -1,4 +1,5 @@
 # Use Case Specifications: Audit Subsystem & Notifications (`Audit_System`)
+
 ## Bounded Context 7
 
 > **Source of Truth:** Complete Specification for Immutable Audit Logging & Notification Use Cases (`UC-AUDIT-01`, `UC-AUDIT-02`).
@@ -7,6 +8,7 @@
 ---
 
 ### Use Case Specification: `UC-AUDIT-01`
+
 - **Use Case Name:** Immutable Audit Trail Logging
 - **Stereotype:** Base / Included Use Case
 - **Actor(s):** Audit Subsystem (`SYS-04`) (primary), Legal / Compliance Auditor (secondary)
@@ -37,6 +39,7 @@
 ---
 
 ### Use Case Specification: `UC-AUDIT-02`
+
 - **Use Case Name:** Real-time In-App Notifications
 - **Stereotype:** Base / Included Use Case
 - **Actor(s):** End User (primary), Notification Subsystem (`SYS-05`) (secondary)

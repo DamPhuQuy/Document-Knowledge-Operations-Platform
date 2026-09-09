@@ -8,6 +8,7 @@ module_DDD/
 ## Module Architecture
 
 <module_template version="1.0" architecture="clean_hexagonal">
+
 ```
 module_DDD/
 │
@@ -16,15 +17,11 @@ module_DDD/
 │   └── exception/
 │
 ├── application/
-│   ├── use_cases/
-│   │   ├── commands/
-│   │   ├── queries/
-│   │   └── handlers/
-│   │
 │   ├── ports/
 │   │   ├── inbound/
 │   │   └── outbound/
 │   │
+│   ├── services/
 │   └── dto/
 │
 └── infrastructure/
@@ -41,6 +38,7 @@ module_DDD/
     │       ├── messaging/ <!-- optional -->
     │       └── external_services/ <!-- optional -->
 ```
+
 </module_template>
 
 ## Property of architecture
@@ -57,18 +55,19 @@ module_DDD/
                       └──────┬───────┘
                              │
                              ▼
-                 ┌────────────────────────┐
-                 │      APPLICATION       │
-                 │       USE CASES        │
-                 └───────────┬────────────┘
-                             │
-                      Outbound Port
-                             │
-                             ▼
-                    ┌──────────────────┐
-                    │ Secondary Adapter│
-                    │ DB / Kafka / HTTP│
-                    └──────────────────┘
+                  ┌────────────────────────┐
+                  │  APPLICATION SERVICES  │
+                  │ (Implement Inbound Port│
+                  │   & Coordinate Domain) │
+                  └───────────┬────────────┘
+                              │
+                       Outbound Port
+                              │
+                              ▼
+                     ┌──────────────────┐
+                     │ Secondary Adapter│
+                     │ DB / Kafka / HTTP│
+                     └──────────────────┘
 ```
 
 ## Regulations of module architecture
@@ -82,8 +81,10 @@ Domain
 
 Application
   → depends on Domain
-  → contains use cases and application orchestration
-  → owns inbound and outbound ports
+  → owns inbound ports (`ports/inbound/`: use case interfaces, commands, queries)
+  → owns outbound ports (`ports/outbound/`: SPI repository & adapter interfaces)
+  → contains application services in `services/` that implement inbound ports
+  → contains DTOs in `dto/` for cross-boundary data transfer and events
   → must not depend on Infrastructure or frameworks
 
 Infrastructure
