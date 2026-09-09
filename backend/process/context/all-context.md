@@ -41,6 +41,11 @@
     <scope>Engineering harness, subagent orchestration, and code standards</scope>
   </group>
 
+  <group id="arhitecture">
+    <title>Standard Architecture</title>
+    <path>`/contenxt/architecture/architecture.md`</path>
+  </group>
+
   <!-- Example: Register custom domain context below
   <group id="domain-billing">
     <title>Billing & Invoicing Architecture</title>
