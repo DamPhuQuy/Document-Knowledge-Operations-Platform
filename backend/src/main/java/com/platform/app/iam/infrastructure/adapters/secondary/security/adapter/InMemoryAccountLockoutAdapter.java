@@ -1,13 +1,15 @@
-package com.platform.app.iam.infrastructure.adapters.secondary.security;
+package com.platform.app.iam.infrastructure.adapters.secondary.security.adapter;
 
-import com.platform.app.iam.application.ports.outbound.AccountLockoutPort;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
 import org.springframework.stereotype.Component;
+
+import com.platform.app.iam.application.ports.outbound.AccountLockoutPort;
 
 @Component
 public class InMemoryAccountLockoutAdapter implements AccountLockoutPort {

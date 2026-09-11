@@ -1,9 +1,10 @@
-package com.platform.app.iam.infrastructure.adapters.secondary.security;
+package com.platform.app.iam.infrastructure.adapters.secondary.security.adapter;
 
-import com.platform.app.iam.application.ports.outbound.PasswordEncoderPort;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import com.platform.app.iam.application.ports.outbound.PasswordEncoderPort;
 
 @Component
 public class BCryptPasswordEncoderAdapter implements PasswordEncoderPort {

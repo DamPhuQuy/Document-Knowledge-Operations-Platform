@@ -1,21 +1,30 @@
-package com.platform.app.iam.infrastructure.adapters.secondary.persistence;
+package com.platform.app.iam.infrastructure.adapters.secondary.persistence.adapter;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.platform.app.iam.domain.model.RefreshToken;
-import com.platform.app.iam.domain.model.User;
-import com.platform.app.iam.domain.model.UserId;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+
+import com.platform.app.iam.domain.model.RefreshToken;
+import com.platform.app.iam.domain.model.User;
+import com.platform.app.iam.domain.model.UserId;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
+
+import jakarta.persistence.EntityManager;
 
 @DataJpaTest
 @Import({UserRepositoryAdapter.class, RefreshTokenRepositoryAdapter.class})
@@ -30,29 +39,42 @@ class PersistenceAdaptersTest {
   void shouldFindUserByEmailWithRolesAndPermissions() {
     UUID permissionId = UUID.randomUUID();
     PermissionJpaEntity perm =
-        new PermissionJpaEntity(
-            permissionId, "DOC_READ", "Read Documents", "DOC", "Read permission", Instant.now());
+        PermissionJpaEntity.builder()
+            .id(permissionId)
+            .code("DOC_READ")
+            .name("Read Documents")
+            .module("DOC")
+            .description("Read permission")
+            .createdAt(Instant.now())
+            .build();
     entityManager.persist(perm);
 
     UUID roleId = UUID.randomUUID();
     RoleJpaEntity role =
-        new RoleJpaEntity(
-            roleId, "ADMIN", "Administrator", "Admin role", Instant.now(), Set.of(perm));
+        RoleJpaEntity.builder()
+            .id(roleId)
+            .code("ADMIN")
+            .name("Administrator")
+            .description("Admin role")
+            .createdAt(Instant.now())
+            .permissions(Set.of(perm))
+            .build();
     entityManager.persist(role);
 
     UUID userId = UUID.randomUUID();
     UserJpaEntity user =
-        new UserJpaEntity(
-            userId,
-            "test@platform.com",
-            "$2a$12$somehashvaluehere",
-            "John Doe",
-            null,
-            true,
-            true,
-            Instant.now(),
-            Instant.now(),
-            Set.of(role));
+        UserJpaEntity.builder()
+            .id(userId)
+            .email("test@platform.com")
+            .passwordHash("$2a$12$somehashvaluehere")
+            .fullName("John Doe")
+            .departmentId(null)
+            .enabled(true)
+            .isInternal(true)
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
+            .roles(Set.of(role))
+            .build();
     entityManager.persist(user);
     entityManager.flush();
     entityManager.clear();

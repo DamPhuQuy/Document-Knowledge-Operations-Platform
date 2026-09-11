@@ -6,11 +6,30 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
+@Builder
 public class Role {
+  @ToString.Include
+  @EqualsAndHashCode.Include
   private final RoleId id;
+
+  @ToString.Include
   private final String code;
+
+  @ToString.Include
   private final String name;
+
   private final String description;
+
+  @Getter(AccessLevel.NONE)
   private final Set<Permission> permissions;
 
   public Role(RoleId id, String code, String name, String description, Set<Permission> permissions) {
@@ -21,45 +40,11 @@ public class Role {
     this.permissions = permissions != null ? new HashSet<>(permissions) : new HashSet<>();
   }
 
-  public RoleId getId() {
-    return id;
-  }
-
-  public String getCode() {
-    return code;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
   public Set<Permission> getPermissions() {
     return Collections.unmodifiableSet(permissions);
   }
 
   public Set<String> getPermissionCodes() {
     return permissions.stream().map(Permission::getCode).collect(Collectors.toSet());
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    Role role = (Role) o;
-    return Objects.equals(id, role.id);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(id);
-  }
-
-  @Override
-  public String toString() {
-    return "Role{" + "id=" + id + ", code='" + code + '\'' + '}';
   }
 }

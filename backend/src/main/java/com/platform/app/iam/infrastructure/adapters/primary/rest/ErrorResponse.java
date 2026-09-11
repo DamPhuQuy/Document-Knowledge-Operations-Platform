@@ -1,7 +1,9 @@
 package com.platform.app.iam.infrastructure.adapters.primary.rest;
 
 import java.time.Instant;
+import lombok.Builder;
 
+@Builder
 public record ErrorResponse(
     int status,
     String error,

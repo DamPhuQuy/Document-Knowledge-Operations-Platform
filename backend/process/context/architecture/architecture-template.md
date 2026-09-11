@@ -35,6 +35,9 @@ module_DDD/
     │   │
     │   └── secondary/
     │       ├── persistence/
+    │       │   ├── entity/           <!-- JPA/ORM mapping entities -->
+    │       │   ├── repository/       <!-- Spring Data JPA repository interfaces -->
+    │       │   └── adapter/          <!-- Secondary adapters implementing Outbound Ports -->
     │       ├── messaging/ <!-- optional -->
     │       └── external_services/ <!-- optional -->
 ```
@@ -101,6 +104,20 @@ Primary Adapter
 Secondary Adapter
   → implements an Outbound Port
   → translates application operations into external technology operations
+
+### Persistence Organization Rules
+
+Secondary Persistence Adapter (`infrastructure/adapters/secondary/persistence/`)
+  → `entity/`: Houses database-specific schema representations (JPA entities with `@Entity`, `@Table`, `@Id`, relationships).
+    - Entities are persistence implementation details and must never leak into Domain models or Application DTOs.
+    - Equals/hashCode should strictly rely on ID to avoid lazy loading issues and cyclical recursion.
+  → `repository/`: Houses Spring Data JPA interfaces extending `JpaRepository` or `CrudRepository`.
+    - Declares custom JPQL queries, pagination, or finder methods.
+    - Operates purely on JPA entities, kept isolated from domain models.
+  → `adapter/`: Houses Spring `@Component` classes that implement application outbound ports (e.g. `UserRepositoryPort`).
+    - Injects the relevant Spring Data repositories.
+    - Translates between pure Domain models and internal JPA entities.
+    - Encapsulates transactional boundaries for persistence operations (`@Transactional`).
 
 ### Boundary Rules
 
