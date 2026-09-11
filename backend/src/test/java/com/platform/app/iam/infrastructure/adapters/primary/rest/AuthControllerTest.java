@@ -1,28 +1,36 @@
 package com.platform.app.iam.infrastructure.adapters.primary.rest;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.platform.app.iam.application.ports.outbound.PasswordEncoderPort;
-import com.platform.app.iam.infrastructure.adapters.secondary.persistence.PermissionJpaEntity;
-import com.platform.app.iam.infrastructure.adapters.secondary.persistence.RoleJpaEntity;
-import com.platform.app.iam.infrastructure.adapters.secondary.persistence.SpringDataUserRepository;
-import com.platform.app.iam.infrastructure.adapters.secondary.persistence.UserJpaEntity;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.platform.app.iam.application.ports.outbound.PasswordEncoderPort;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.repository.SpringDataUserRepository;
+
+import jakarta.persistence.EntityManager;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -47,43 +55,57 @@ class AuthControllerTest {
     springDataUserRepository.deleteAll();
 
     PermissionJpaEntity docRead =
-        new PermissionJpaEntity(
-            UUID.randomUUID(), "DOC_READ", "Read Documents", "DOC", "Read permission", Instant.now());
+        PermissionJpaEntity.builder()
+            .id(UUID.randomUUID())
+            .code("DOC_READ")
+            .name("Read Documents")
+            .module("DOC")
+            .description("Read permission")
+            .createdAt(Instant.now())
+            .build();
     entityManager.persist(docRead);
 
     RoleJpaEntity userRole =
-        new RoleJpaEntity(
-            UUID.randomUUID(), "STAFF", "Staff User", "Staff role", Instant.now(), Set.of(docRead));
+        RoleJpaEntity.builder()
+            .id(UUID.randomUUID())
+            .code("STAFF")
+            .name("Staff User")
+            .description("Staff role")
+            .createdAt(Instant.now())
+            .permissions(Set.of(docRead))
+            .build();
     entityManager.persist(userRole);
 
     activeUserId = UUID.randomUUID();
     UserJpaEntity activeUser =
-        new UserJpaEntity(
-            activeUserId,
-            "active@platform.com",
-            passwordEncoderPort.encode("Password123#"),
-            "Active User",
-            null,
-            true,
-            true,
-            Instant.now(),
-            Instant.now(),
-            Set.of(userRole));
+        UserJpaEntity.builder()
+            .id(activeUserId)
+            .email("active@platform.com")
+            .passwordHash(passwordEncoderPort.encode("Password123#"))
+            .fullName("Active User")
+            .departmentId(null)
+            .enabled(true)
+            .isInternal(true)
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
+            .roles(Set.of(userRole))
+            .build();
     entityManager.persist(activeUser);
 
     disabledUserId = UUID.randomUUID();
     UserJpaEntity disabledUser =
-        new UserJpaEntity(
-            disabledUserId,
-            "disabled@platform.com",
-            passwordEncoderPort.encode("Password123#"),
-            "Disabled User",
-            null,
-            false,
-            true,
-            Instant.now(),
-            Instant.now(),
-            Set.of(userRole));
+        UserJpaEntity.builder()
+            .id(disabledUserId)
+            .email("disabled@platform.com")
+            .passwordHash(passwordEncoderPort.encode("Password123#"))
+            .fullName("Disabled User")
+            .departmentId(null)
+            .enabled(false)
+            .isInternal(true)
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
+            .roles(Set.of(userRole))
+            .build();
     entityManager.persist(disabledUser);
 
     entityManager.flush();
@@ -93,7 +115,8 @@ class AuthControllerTest {
   @Test
   @DisplayName("POST /api/v1/auth/login - 200 OK with tokens on valid credentials")
   void shouldLoginSuccessfully() throws Exception {
-    LoginRequest request = new LoginRequest("active@platform.com", "Password123#");
+    LoginRequest request =
+        LoginRequest.builder().email("active@platform.com").password("Password123#").build();
 
     mockMvc
         .perform(
@@ -117,7 +140,8 @@ class AuthControllerTest {
   @Test
   @DisplayName("POST /api/v1/auth/login - 400 Bad Request on invalid email format")
   void shouldReturn400OnInvalidEmail() throws Exception {
-    LoginRequest request = new LoginRequest("not-an-email", "Password123#");
+    LoginRequest request =
+        LoginRequest.builder().email("not-an-email").password("Password123#").build();
 
     mockMvc
         .perform(
@@ -132,7 +156,8 @@ class AuthControllerTest {
   @Test
   @DisplayName("POST /api/v1/auth/login - 400 Bad Request on blank password")
   void shouldReturn400OnBlankPassword() throws Exception {
-    LoginRequest request = new LoginRequest("active@platform.com", "");
+    LoginRequest request =
+        LoginRequest.builder().email("active@platform.com").password("").build();
 
     mockMvc
         .perform(
@@ -147,7 +172,8 @@ class AuthControllerTest {
   @Test
   @DisplayName("POST /api/v1/auth/login - 401 Unauthorized on wrong password")
   void shouldReturn401OnWrongPassword() throws Exception {
-    LoginRequest request = new LoginRequest("active@platform.com", "WrongPassword999!");
+    LoginRequest request =
+        LoginRequest.builder().email("active@platform.com").password("WrongPassword999!").build();
 
     mockMvc
         .perform(
@@ -162,7 +188,8 @@ class AuthControllerTest {
   @Test
   @DisplayName("POST /api/v1/auth/login - 401 Unauthorized on non-existent user")
   void shouldReturn401OnUnknownUser() throws Exception {
-    LoginRequest request = new LoginRequest("unknown@platform.com", "SomePassword123#");
+    LoginRequest request =
+        LoginRequest.builder().email("unknown@platform.com").password("SomePassword123#").build();
 
     mockMvc
         .perform(
@@ -177,7 +204,8 @@ class AuthControllerTest {
   @Test
   @DisplayName("POST /api/v1/auth/login - 403 Forbidden on disabled account")
   void shouldReturn403OnDisabledAccount() throws Exception {
-    LoginRequest request = new LoginRequest("disabled@platform.com", "Password123#");
+    LoginRequest request =
+        LoginRequest.builder().email("disabled@platform.com").password("Password123#").build();
 
     mockMvc
         .perform(
@@ -192,7 +220,8 @@ class AuthControllerTest {
   @Test
   @DisplayName("POST /api/v1/auth/login - 423 Locked on 5 consecutive failed attempts")
   void shouldReturn423AfterFiveFailedAttempts() throws Exception {
-    LoginRequest badRequest = new LoginRequest("active@platform.com", "WrongPassword!");
+    LoginRequest badRequest =
+        LoginRequest.builder().email("active@platform.com").password("WrongPassword!").build();
 
     // 4 failed attempts -> 401
     for (int i = 0; i < 4; i++) {
@@ -213,7 +242,8 @@ class AuthControllerTest {
         .andExpect(status().isUnauthorized());
 
     // 6th attempt (even with correct password) -> 423 LOCKED
-    LoginRequest correctRequest = new LoginRequest("active@platform.com", "Password123#");
+    LoginRequest correctRequest =
+        LoginRequest.builder().email("active@platform.com").password("Password123#").build();
     mockMvc
         .perform(
             post("/api/v1/auth/login")

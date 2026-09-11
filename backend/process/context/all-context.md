@@ -41,9 +41,10 @@
     <scope>Engineering harness, subagent orchestration, and code standards</scope>
   </group>
 
-  <group id="arhitecture">
+  <group id="architecture">
     <title>Standard Architecture</title>
-    <path>`/contenxt/architecture/architecture.md`</path>
+    <path>[`architecture/architecture-template.md`](architecture/architecture-template.md)</path>
+    <scope>Module directory tree, Clean/Hexagonal layers, persistence subpackages, boundary and dependency rules</scope>
   </group>
 
   <!-- Example: Register custom domain context below

@@ -1,5 +1,12 @@
 package com.platform.app.iam.application.services;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
 import com.platform.app.iam.application.dto.AuthTokensDto;
 import com.platform.app.iam.application.dto.UserLoginFailedEvent;
 import com.platform.app.iam.application.dto.UserLoginSuccessEvent;
@@ -17,13 +24,11 @@ import com.platform.app.iam.domain.exception.AccountLockedException;
 import com.platform.app.iam.domain.exception.InvalidCredentialsException;
 import com.platform.app.iam.domain.model.RefreshToken;
 import com.platform.app.iam.domain.model.User;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Objects;
-import java.util.Optional;
-import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class LoginService implements LoginUseCase {
 
   private final UserRepositoryPort userRepositoryPort;
@@ -33,28 +38,6 @@ public class LoginService implements LoginUseCase {
   private final AccountLockoutPort accountLockoutPort;
   private final EventPublisherPort eventPublisherPort;
 
-  public LoginService(
-      UserRepositoryPort userRepositoryPort,
-      RefreshTokenRepositoryPort refreshTokenRepositoryPort,
-      PasswordEncoderPort passwordEncoderPort,
-      TokenProviderPort tokenProviderPort,
-      AccountLockoutPort accountLockoutPort,
-      EventPublisherPort eventPublisherPort) {
-    this.userRepositoryPort =
-        Objects.requireNonNull(userRepositoryPort, "userRepositoryPort must not be null");
-    this.refreshTokenRepositoryPort =
-        Objects.requireNonNull(
-            refreshTokenRepositoryPort, "refreshTokenRepositoryPort must not be null");
-    this.passwordEncoderPort =
-        Objects.requireNonNull(passwordEncoderPort, "passwordEncoderPort must not be null");
-    this.tokenProviderPort =
-        Objects.requireNonNull(tokenProviderPort, "tokenProviderPort must not be null");
-    this.accountLockoutPort =
-        Objects.requireNonNull(accountLockoutPort, "accountLockoutPort must not be null");
-    this.eventPublisherPort =
-        Objects.requireNonNull(eventPublisherPort, "eventPublisherPort must not be null");
-  }
-
   @Override
   public AuthTokensDto execute(LoginCommand command) {
     Objects.requireNonNull(command, "LoginCommand must not be null");
@@ -63,8 +46,13 @@ public class LoginService implements LoginUseCase {
     // 1. Check account lockout policy (Rule B4)
     if (accountLockoutPort.isLocked(email)) {
       eventPublisherPort.publish(
-          new UserLoginFailedEvent(
-              email, command.clientIp(), command.userAgent(), "ACCOUNT_LOCKED", Instant.now()));
+          UserLoginFailedEvent.builder()
+              .email(email)
+              .clientIp(command.clientIp())
+              .userAgent(command.userAgent())
+              .reason("ACCOUNT_LOCKED")
+              .timestamp(Instant.now())
+              .build());
       throw new AccountLockedException(
           "Account is temporarily locked due to 5 consecutive failed login attempts. Please try again after 15 minutes.");
     }
@@ -74,18 +62,28 @@ public class LoginService implements LoginUseCase {
     if (userOptional.isEmpty()) {
       accountLockoutPort.recordFailure(email);
       eventPublisherPort.publish(
-          new UserLoginFailedEvent(
-              email, command.clientIp(), command.userAgent(), "USER_NOT_FOUND", Instant.now()));
+          UserLoginFailedEvent.builder()
+              .email(email)
+              .clientIp(command.clientIp())
+              .userAgent(command.userAgent())
+              .reason("USER_NOT_FOUND")
+              .timestamp(Instant.now())
+              .build());
       throw new InvalidCredentialsException("Invalid email or password");
     }
 
     User user = userOptional.get();
 
     // 3. Verify user is active/enabled
-    if (!user.isEnabled()) {
+    if (!user.getFlags().enabled()) {
       eventPublisherPort.publish(
-          new UserLoginFailedEvent(
-              email, command.clientIp(), command.userAgent(), "ACCOUNT_DISABLED", Instant.now()));
+          UserLoginFailedEvent.builder()
+              .email(email)
+              .clientIp(command.clientIp())
+              .userAgent(command.userAgent())
+              .reason("ACCOUNT_DISABLED")
+              .timestamp(Instant.now())
+              .build());
       throw new AccountDisabledException("Account is deactivated");
     }
 
@@ -93,8 +91,13 @@ public class LoginService implements LoginUseCase {
     if (!passwordEncoderPort.matches(command.password(), user.getPasswordHash())) {
       accountLockoutPort.recordFailure(email);
       eventPublisherPort.publish(
-          new UserLoginFailedEvent(
-              email, command.clientIp(), command.userAgent(), "INVALID_PASSWORD", Instant.now()));
+          UserLoginFailedEvent.builder()
+              .email(email)
+              .clientIp(command.clientIp())
+              .userAgent(command.userAgent())
+              .reason("INVALID_PASSWORD")
+              .timestamp(Instant.now())
+              .build());
       throw new InvalidCredentialsException("Invalid email or password");
     }
 
@@ -114,23 +117,25 @@ public class LoginService implements LoginUseCase {
 
     // 8. Publish login success domain event (ready for future UC-AUDIT-01 ingestion)
     eventPublisherPort.publish(
-        new UserLoginSuccessEvent(
-            user.getId().value(),
-            user.getEmail(),
-            command.clientIp(),
-            command.userAgent(),
-            Instant.now()));
+        UserLoginSuccessEvent.builder()
+            .userId(user.getId().value())
+            .email(user.getEmail())
+            .clientIp(command.clientIp())
+            .userAgent(command.userAgent())
+            .timestamp(Instant.now())
+            .build());
 
     // 9. Build response
     UserProfileDto userProfile =
-        new UserProfileDto(
-            user.getId().value(),
-            user.getEmail(),
-            user.getFullName(),
-            user.getDepartmentId() != null ? user.getDepartmentId().value() : null,
-            user.isInternal(),
-            user.getRoleCodes(),
-            user.getAllPermissionCodes());
+        UserProfileDto.builder()
+            .id(user.getId().value())
+            .email(user.getEmail())
+            .fullName(user.getFullName())
+            .departmentId(user.getDepartmentId() != null ? user.getDepartmentId().value() : null)
+            .isInternal(user.getFlags().isInternal())
+            .roles(user.getRoleCodes())
+            .permissions(user.getAllPermissionCodes())
+            .build();
 
     return AuthTokensDto.ofBearer(accessToken, refreshTokenString, expiresIn, userProfile);
   }

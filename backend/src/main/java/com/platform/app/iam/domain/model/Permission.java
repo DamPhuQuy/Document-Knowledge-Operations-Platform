@@ -3,10 +3,26 @@ package com.platform.app.iam.domain.model;
 import java.util.Objects;
 import java.util.UUID;
 
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
+@Builder
 public class Permission {
   private final UUID id;
+
+  @ToString.Include
+  @EqualsAndHashCode.Include
   private final String code;
+
+  @ToString.Include
   private final String name;
+
+  @ToString.Include
   private final String module;
   private final String description;
 
@@ -16,43 +32,5 @@ public class Permission {
     this.name = Objects.requireNonNull(name, "Permission name must not be null");
     this.module = module;
     this.description = description;
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public String getCode() {
-    return code;
-  }
-
-  public String getName() {
-    return name;
-  }
-
-  public String getModule() {
-    return module;
-  }
-
-  public String getDescription() {
-    return description;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    Permission that = (Permission) o;
-    return Objects.equals(code, that.code);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(code);
-  }
-
-  @Override
-  public String toString() {
-    return "Permission{" + "code='" + code + '\'' + ", name='" + name + '\'' + '}';
   }
 }

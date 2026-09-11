@@ -1,18 +1,15 @@
 package com.platform.app.iam.infrastructure.adapters.secondary.messaging;
 
 import com.platform.app.iam.application.ports.outbound.EventPublisherPort;
-import java.util.Objects;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class SpringEventPublisherAdapter implements EventPublisherPort {
 
   private final ApplicationEventPublisher delegate;
-
-  public SpringEventPublisherAdapter(ApplicationEventPublisher delegate) {
-    this.delegate = Objects.requireNonNull(delegate, "ApplicationEventPublisher must not be null");
-  }
 
   @Override
   public void publish(Object event) {

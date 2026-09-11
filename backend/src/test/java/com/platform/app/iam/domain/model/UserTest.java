@@ -1,12 +1,17 @@
 package com.platform.app.iam.domain.model;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import com.platform.app.shared.domain.AuditMetadata;
+import com.platform.app.shared.domain.UserFlags;
 
 class UserTest {
 
@@ -17,22 +22,42 @@ class UserTest {
     RoleId roleId = RoleId.generate();
     DepartmentId deptId = DepartmentId.from(UUID.randomUUID());
 
-    Permission p1 = new Permission(UUID.randomUUID(), "DOC_READ", "Read Documents", "DOC", "Can read documents");
-    Permission p2 = new Permission(UUID.randomUUID(), "DOC_WRITE", "Write Documents", "DOC", "Can write documents");
-    Role role = new Role(roleId, "DOCUMENT_MANAGER", "Document Manager", "Manages documents", Set.of(p1, p2));
+    Permission p1 =
+        Permission.builder()
+            .id(UUID.randomUUID())
+            .code("DOC_READ")
+            .name("Read Documents")
+            .module("DOC")
+            .description("Can read documents")
+            .build();
+    Permission p2 =
+        Permission.builder()
+            .id(UUID.randomUUID())
+            .code("DOC_WRITE")
+            .name("Write Documents")
+            .module("DOC")
+            .description("Can write documents")
+            .build();
+    Role role =
+        Role.builder()
+            .id(roleId)
+            .code("DOCUMENT_MANAGER")
+            .name("Document Manager")
+            .description("Manages documents")
+            .permissions(Set.of(p1, p2))
+            .build();
 
-    User user = new User(
-        userId,
-        "User@Platform.COM",
-        "$2a$12$e88...hashed",
-        "Test User",
-        deptId,
-        true,
-        true,
-        Set.of(role),
-        Instant.now(),
-        Instant.now()
-    );
+    User user =
+        User.builder()
+            .id(userId)
+            .email("User@Platform.COM")
+            .passwordHash("$2a$12$e88...hashed")
+            .fullName("Test User")
+            .departmentId(deptId)
+            .flags(UserFlags.of(true, true))
+            .roles(Set.of(role))
+            .auditMetadata(AuditMetadata.now())
+            .build();
 
     assertEquals("user@platform.com", user.getEmail());
     assertTrue(user.isEnabled());
@@ -45,18 +70,15 @@ class UserTest {
   @Test
   @DisplayName("Should detect disabled user state")
   void shouldDetectDisabledUser() {
-    User user = new User(
-        UserId.generate(),
-        "inactive@platform.com",
-        "hash",
-        "Inactive User",
-        null,
-        false,
-        false,
-        Set.of(),
-        Instant.now(),
-        Instant.now()
-    );
+    User user =
+        User.builder()
+            .id(UserId.generate())
+            .email("inactive@platform.com")
+            .passwordHash("hash")
+            .fullName("Inactive User")
+            .flags(UserFlags.of(false, false))
+            .roles(Set.of())
+            .build();
 
     assertFalse(user.isEnabled());
   }

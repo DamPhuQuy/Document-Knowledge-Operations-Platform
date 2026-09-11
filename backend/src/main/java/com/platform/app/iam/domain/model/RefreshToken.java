@@ -3,8 +3,15 @@ package com.platform.app.iam.domain.model;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
+@Getter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Builder
 public class RefreshToken {
+  @EqualsAndHashCode.Include
   private final UUID id;
   private final UserId userId;
   private final String token;
@@ -32,30 +39,6 @@ public class RefreshToken {
         UUID.randomUUID(), userId, token, expiryDate, false, Instant.now());
   }
 
-  public UUID getId() {
-    return id;
-  }
-
-  public UserId getUserId() {
-    return userId;
-  }
-
-  public String getToken() {
-    return token;
-  }
-
-  public Instant getExpiryDate() {
-    return expiryDate;
-  }
-
-  public boolean isRevoked() {
-    return revoked;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
   public boolean isExpired(Instant now) {
     return expiryDate.isBefore(now);
   }
@@ -66,18 +49,5 @@ public class RefreshToken {
 
   public void revoke() {
     this.revoked = true;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    RefreshToken that = (RefreshToken) o;
-    return Objects.equals(id, that.id);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(id);
   }
 }

@@ -1,8 +1,23 @@
 package com.platform.app.iam.application.services;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+import java.util.Set;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.platform.app.iam.application.dto.AuthTokensDto;
 import com.platform.app.iam.application.dto.UserLoginFailedEvent;
@@ -20,15 +35,8 @@ import com.platform.app.iam.domain.exception.InvalidCredentialsException;
 import com.platform.app.iam.domain.model.RefreshToken;
 import com.platform.app.iam.domain.model.User;
 import com.platform.app.iam.domain.model.UserId;
-import java.time.Instant;
-import java.util.Optional;
-import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import com.platform.app.shared.domain.AuditMetadata;
+import com.platform.app.shared.domain.UserFlags;
 
 @ExtendWith(MockitoExtension.class)
 class LoginServiceTest {
@@ -63,17 +71,16 @@ class LoginServiceTest {
     UserId userId = UserId.generate();
 
     User user =
-        new User(
-            userId,
-            email,
-            hashedPassword,
-            "Test User",
-            null,
-            true,
-            true,
-            Set.of(),
-            Instant.now(),
-            Instant.now());
+        User.builder()
+            .id(userId)
+            .email(email)
+            .passwordHash(hashedPassword)
+            .fullName("Test User")
+            .departmentId(null)
+            .flags(UserFlags.of(true, true))
+            .roles(Set.of())
+            .auditMetadata(AuditMetadata.now())
+            .build();
 
     when(accountLockoutPort.isLocked(email)).thenReturn(false);
     when(userRepositoryPort.findByEmail(email)).thenReturn(Optional.of(user));
@@ -82,7 +89,13 @@ class LoginServiceTest {
     when(tokenProviderPort.generateRefreshTokenString()).thenReturn("mock-refresh-token-opaque");
     when(tokenProviderPort.getAccessTokenExpirationSeconds()).thenReturn(3600L);
 
-    LoginCommand command = new LoginCommand(email, rawPassword, "127.0.0.1", "JUnit-Agent");
+    LoginCommand command =
+        LoginCommand.builder()
+            .email(email)
+            .password(rawPassword)
+            .clientIp("127.0.0.1")
+            .userAgent("JUnit-Agent")
+            .build();
     AuthTokensDto result = loginService.execute(command);
 
     assertNotNull(result);
@@ -102,7 +115,13 @@ class LoginServiceTest {
     String email = "locked@platform.com";
     when(accountLockoutPort.isLocked(email)).thenReturn(true);
 
-    LoginCommand command = new LoginCommand(email, "anyPassword", "127.0.0.1", "JUnit-Agent");
+    LoginCommand command =
+        LoginCommand.builder()
+            .email(email)
+            .password("anyPassword")
+            .clientIp("127.0.0.1")
+            .userAgent("JUnit-Agent")
+            .build();
 
     assertThrows(AccountLockedException.class, () -> loginService.execute(command));
     verify(eventPublisherPort).publish(any(UserLoginFailedEvent.class));
@@ -116,7 +135,13 @@ class LoginServiceTest {
     when(accountLockoutPort.isLocked(email)).thenReturn(false);
     when(userRepositoryPort.findByEmail(email)).thenReturn(Optional.empty());
 
-    LoginCommand command = new LoginCommand(email, "anyPassword", "127.0.0.1", "JUnit-Agent");
+    LoginCommand command =
+        LoginCommand.builder()
+            .email(email)
+            .password("anyPassword")
+            .clientIp("127.0.0.1")
+            .userAgent("JUnit-Agent")
+            .build();
 
     assertThrows(InvalidCredentialsException.class, () -> loginService.execute(command));
     verify(accountLockoutPort).recordFailure(email);
@@ -128,22 +153,27 @@ class LoginServiceTest {
   void shouldThrowWhenAccountDisabled() {
     String email = "disabled@platform.com";
     User user =
-        new User(
-            UserId.generate(),
-            email,
-            "$2a$12$hash",
-            "Disabled User",
-            null,
-            false,
-            true,
-            Set.of(),
-            Instant.now(),
-            Instant.now());
+        User.builder()
+            .id(UserId.generate())
+            .email(email)
+            .passwordHash("$2a$12$hash")
+            .fullName("Disabled User")
+            .departmentId(null)
+            .flags(UserFlags.of(false, true))
+            .roles(Set.of())
+            .auditMetadata(AuditMetadata.now())
+            .build();
 
     when(accountLockoutPort.isLocked(email)).thenReturn(false);
     when(userRepositoryPort.findByEmail(email)).thenReturn(Optional.of(user));
 
-    LoginCommand command = new LoginCommand(email, "password", "127.0.0.1", "JUnit-Agent");
+    LoginCommand command =
+        LoginCommand.builder()
+            .email(email)
+            .password("password")
+            .clientIp("127.0.0.1")
+            .userAgent("JUnit-Agent")
+            .build();
 
     assertThrows(AccountDisabledException.class, () -> loginService.execute(command));
     verify(eventPublisherPort).publish(any(UserLoginFailedEvent.class));
@@ -154,23 +184,28 @@ class LoginServiceTest {
   void shouldThrowWhenPasswordMismatch() {
     String email = "test@platform.com";
     User user =
-        new User(
-            UserId.generate(),
-            email,
-            "$2a$12$correcthash",
-            "Test User",
-            null,
-            true,
-            true,
-            Set.of(),
-            Instant.now(),
-            Instant.now());
+        User.builder()
+            .id(UserId.generate())
+            .email(email)
+            .passwordHash("$2a$12$correcthash")
+            .fullName("Test User")
+            .departmentId(null)
+            .flags(UserFlags.of(true, true))
+            .roles(Set.of())
+            .auditMetadata(AuditMetadata.now())
+            .build();
 
     when(accountLockoutPort.isLocked(email)).thenReturn(false);
     when(userRepositoryPort.findByEmail(email)).thenReturn(Optional.of(user));
     when(passwordEncoderPort.matches("wrongPassword", "$2a$12$correcthash")).thenReturn(false);
 
-    LoginCommand command = new LoginCommand(email, "wrongPassword", "127.0.0.1", "JUnit-Agent");
+    LoginCommand command =
+        LoginCommand.builder()
+            .email(email)
+            .password("wrongPassword")
+            .clientIp("127.0.0.1")
+            .userAgent("JUnit-Agent")
+            .build();
 
     assertThrows(InvalidCredentialsException.class, () -> loginService.execute(command));
     verify(accountLockoutPort).recordFailure(email);

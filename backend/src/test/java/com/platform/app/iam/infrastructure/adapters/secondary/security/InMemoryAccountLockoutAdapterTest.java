@@ -1,13 +1,17 @@
 package com.platform.app.iam.infrastructure.adapters.secondary.security;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import com.platform.app.iam.infrastructure.adapters.secondary.security.adapter.InMemoryAccountLockoutAdapter;
 
 class InMemoryAccountLockoutAdapterTest {
 

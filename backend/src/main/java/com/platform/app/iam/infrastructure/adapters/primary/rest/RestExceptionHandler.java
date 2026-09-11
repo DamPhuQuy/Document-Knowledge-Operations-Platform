@@ -6,8 +6,7 @@ import com.platform.app.iam.domain.exception.InvalidCredentialsException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -15,9 +14,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
+@Slf4j
 public class RestExceptionHandler {
-
-  private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ErrorResponse> handleValidationException(
@@ -28,12 +26,7 @@ public class RestExceptionHandler {
             .collect(Collectors.joining("; "));
 
     ErrorResponse error =
-        new ErrorResponse(
-            HttpStatus.BAD_REQUEST.value(),
-            HttpStatus.BAD_REQUEST.getReasonPhrase(),
-            message,
-            Instant.now(),
-            request.getRequestURI());
+        buildErrorResponse(HttpStatus.BAD_REQUEST, message, request);
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 
@@ -41,12 +34,7 @@ public class RestExceptionHandler {
   public ResponseEntity<ErrorResponse> handleInvalidCredentials(
       InvalidCredentialsException ex, HttpServletRequest request) {
     ErrorResponse error =
-        new ErrorResponse(
-            HttpStatus.UNAUTHORIZED.value(),
-            HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-            ex.getMessage(),
-            Instant.now(),
-            request.getRequestURI());
+        buildErrorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
   }
 
@@ -54,12 +42,7 @@ public class RestExceptionHandler {
   public ResponseEntity<ErrorResponse> handleAccountDisabled(
       AccountDisabledException ex, HttpServletRequest request) {
     ErrorResponse error =
-        new ErrorResponse(
-            HttpStatus.FORBIDDEN.value(),
-            HttpStatus.FORBIDDEN.getReasonPhrase(),
-            ex.getMessage(),
-            Instant.now(),
-            request.getRequestURI());
+        buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
   }
 
@@ -68,12 +51,7 @@ public class RestExceptionHandler {
       AccountLockedException ex, HttpServletRequest request) {
     // 423 LOCKED
     ErrorResponse error =
-        new ErrorResponse(
-            HttpStatus.LOCKED.value(),
-            HttpStatus.LOCKED.getReasonPhrase(),
-            ex.getMessage(),
-            Instant.now(),
-            request.getRequestURI());
+        buildErrorResponse(HttpStatus.LOCKED, ex.getMessage(), request);
     return ResponseEntity.status(HttpStatus.LOCKED).body(error);
   }
 
@@ -82,12 +60,19 @@ public class RestExceptionHandler {
       Exception ex, HttpServletRequest request) {
     log.error("Unhandled exception at {}: {}", request.getRequestURI(), ex.getMessage(), ex);
     ErrorResponse error =
-        new ErrorResponse(
-            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-            "An unexpected internal error occurred",
-            Instant.now(),
-            request.getRequestURI());
+        buildErrorResponse(
+            HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected internal error occurred", request);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+  }
+
+  private ErrorResponse buildErrorResponse(
+      HttpStatus status, String message, HttpServletRequest request) {
+    return ErrorResponse.builder()
+        .status(status.value())
+        .error(status.getReasonPhrase())
+        .message(message)
+        .timestamp(Instant.now())
+        .path(request.getRequestURI())
+        .build();
   }
 }
