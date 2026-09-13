@@ -57,6 +57,7 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
         .claim(
             "roleIds",
             user.getRoleIds().stream().map(UUID::toString).sorted().toList())
+        .claim("roles", user.getRoleCodes().stream().sorted().toList())
         .claim("isInternal", user.isInternal())
         .claim("permissions", user.getAllPermissionCodes().stream().sorted().toList())
         .claim(Claims.ISSUED_AT, now.getEpochSecond())

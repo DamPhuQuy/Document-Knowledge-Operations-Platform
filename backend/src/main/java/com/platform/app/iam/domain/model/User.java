@@ -8,6 +8,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.platform.app.iam.domain.exception.EmptyRolesException;
+import com.platform.app.iam.domain.exception.SelfRoleRevocationException;
+
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -34,7 +37,7 @@ public class User {
   @Getter(AccessLevel.NONE)
   private final Set<Role> roles;
   private final Instant createdAt;
-  private final Instant updatedAt;
+  private Instant updatedAt;
 
   public User(
       UUID id,
@@ -75,5 +78,34 @@ public class User {
     return roles.stream()
         .flatMap(role -> role.getPermissionCodes().stream())
         .collect(Collectors.toSet());
+  }
+
+  public void assignRoles(Set<Role> newRoles, UUID operatorUserId) {
+    if (newRoles == null || newRoles.isEmpty()) {
+      throw new EmptyRolesException("User must maintain at least one active role");
+    }
+
+    boolean isSelf = operatorUserId != null && this.id.equals(operatorUserId);
+    boolean hasAdminRole =
+        newRoles.stream()
+            .anyMatch(
+                r ->
+                    "ROLE_ADMIN".equalsIgnoreCase(r.getCode())
+                        || "ADMIN".equalsIgnoreCase(r.getCode()));
+    boolean currentlyAdmin =
+        this.roles.stream()
+            .anyMatch(
+                r ->
+                    "ROLE_ADMIN".equalsIgnoreCase(r.getCode())
+                        || "ADMIN".equalsIgnoreCase(r.getCode()));
+
+    if (isSelf && currentlyAdmin && !hasAdminRole) {
+      throw new SelfRoleRevocationException(
+          "Administrators cannot revoke their own ROLE_ADMIN role");
+    }
+
+    this.roles.clear();
+    this.roles.addAll(newRoles);
+    this.updatedAt = Instant.now();
   }
 }

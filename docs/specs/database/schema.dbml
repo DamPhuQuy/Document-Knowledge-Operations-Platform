@@ -1,10 +1,44 @@
+// ============================================================================
+// ENTERPRISE DOCUMENT KNOWLEDGE & OPERATIONS PLATFORM
+// ULTRA-LEAN MVP DATABASE SCHEMA (POSTGRESQL 16)
+// ============================================================================
+// Source of Truth: docs/specs/business/ (MVP.md, 01_problem_and_business_scope.md,
+//                  03_use_case_architecture.md, 05_requirements_traceability_matrix.md)
+//
+// Core Bounded Contexts in Ultra-Lean MVP Scope:
+// 1. Identity & Access Management (BC 1: IAM_Organization) - UC-IAM-01..03
+// 2. Document Management & S3 Storage (BC 2: Document_Management) - UC-DOC-01..04
+// 3. Audit Subsystem (BC 3: Audit_System) - UC-AUDIT-01
+//
+// Deferred Components (Moved to docs/specs/business/deferred/ for Phase 2):
+// - AI Knowledge & Hybrid RAG (document_chunks, pgvector, HNSW)
+// - Conversational AI (conversations, conversation_messages, message_citations)
+// - Workflow Automation (workflows, workflow_executions)
+// - Operations & HITL Approvals (action_approvals, operation_tasks)
+// - Real-time Push Notifications (notifications)
+// ============================================================================
 
-// PROJECT DEFINITION & ARCHITECTURAL METADATA
 Project document_knowledge_operations_platform {
   database_type: 'PostgreSQL 16'
+  Note: '''
+    # Enterprise Document Knowledge & Operations Platform - Ultra-Lean MVP Database Schema
+    
+    ## Architectural Context & MVP Scope
+    This database schema models the 3 Core Bounded Contexts of the Ultra-Lean MVP:
+    1. **IAM & Organization (BC 1)**: Multi-tenant organizational scoping, multi-role RBAC, and session management (UC-IAM-01..03).
+    2. **Document Management & Storage (BC 2)**: AWS S3-integrated document catalog, immutable version snapshots, and 4-tier ACL matrix (UC-DOC-01..04).
+    3. **Audit Subsystem (BC 3)**: Append-only, tamper-evident compliance audit trail (UC-AUDIT-01).
+    
+    All non-essential and heavy application components (AI/RAG, Conversational Chat, Workflow Automation Engines,
+    2-Phase HITL Approvals, and Real-Time Push Notifications) have been deferred to Phase 2 to ensure the fastest
+    path to production on AWS Cloud infrastructure.
+  '''
 }
 
+// ============================================================================
 // ENUMERATIONS
+// ============================================================================
+
 enum document_file_type {
   PDF   [note: 'Portable Document Format']
   DOCX  [note: 'Microsoft Word Document']
@@ -16,10 +50,8 @@ enum document_file_type {
 
 enum document_processing_status {
   UPLOADED  [note: 'Phase 1: Binary successfully stored in AWS S3 and ready for secure retrieval']
-  PENDING   [note: 'Phase 2: Queued for background AI text extraction and chunking pipeline']
-  PARSING   [note: 'Phase 2: AI extraction worker currently parsing textual and structural content']
-  CHUNKED   [note: 'Phase 2: Text successfully split into semantic chunks with token counts']
-  INDEXED   [note: 'Phase 2: 1536d embeddings generated and indexed in HNSW and FTS tsvector']
+  PENDING   [note: 'Queued or pending processing/version transition']
+  COMPLETED [note: 'Document ingestion and persistence completed successfully']
   FAILED    [note: 'Processing pipeline encountered an unrecoverable error']
 }
 
@@ -36,76 +68,15 @@ enum permission_level {
   ADMIN  [note: 'Full administrative control including ACL management and soft deletion']
 }
 
-enum conversation_status {
-  ACTIVE    [note: 'Active ongoing conversational session']
-  ARCHIVED  [note: 'Read-only conversation session preserved for historical review']
-  DELETED   [note: 'Soft-deleted conversation session']
-}
-
-enum message_role {
-  USER       [note: 'End-user question or prompt']
-  ASSISTANT  [note: 'AI assistant synthesized response']
-  SYSTEM     [note: 'System instructions or anti-hallucination prompt guard']
-  TOOL       [note: 'Tool invocation or retrieval output payload']
-}
-
-enum confidence_level {
-  LOW     [note: 'Low retrieval similarity (< 0.60); triggers Safe Abstention guard']
-  MEDIUM  [note: 'Moderate retrieval similarity (0.60 - 0.75)']
-  HIGH    [note: 'High retrieval similarity (> 0.75) grounded in cited chunks']
-}
-
-enum workflow_trigger_event {
-  ON_DOCUMENT_UPLOADED  [note: 'Triggered immediately when a document is uploaded to S3']
-  ON_DOCUMENT_INDEXED   [note: 'Triggered when Phase 2 AI indexing completes']
-  MANUAL_TRIGGER        [note: 'Explicitly triggered by an authenticated operator']
-  SCHEDULED             [note: 'Triggered on a recurring cron or time schedule']
-}
-
-enum workflow_execution_status {
-  PENDING           [note: 'Execution created and waiting in queue']
-  RUNNING           [note: 'Workflow pipeline steps actively executing']
-  WAITING_APPROVAL  [note: 'Execution paused at Human-In-The-Loop approval gate']
-  COMPLETED         [note: 'All workflow steps finished successfully']
-  FAILED            [note: 'Execution failed due to error']
-  CANCELLED         [note: 'Execution terminated by operator']
-}
-
-enum action_approval_status {
-  PENDING    [note: 'Awaiting authorized manager review and decision']
-  APPROVED   [note: 'Approved by authorized reviewer; queued for commit']
-  REJECTED   [note: 'Rejected by reviewer with required justification notes']
-  COMMITTED  [note: '2-Phase commit executed successfully with state mutation']
-  EXPIRED    [note: 'Approval window timed out without decision']
-}
-
-enum task_status {
-  PENDING      [note: 'Task created and pending assignment or start']
-  IN_PROGRESS  [note: 'Assignee actively executing operation task']
-  COMPLETED    [note: 'Task objectives met and verified']
-  CANCELLED    [note: 'Task rendered obsolete or cancelled']
-}
-
-enum task_priority {
-  LOW     [note: 'Routine operational task']
-  MEDIUM  [note: 'Standard priority business activity']
-  HIGH    [note: 'High priority or urgent compliance deadline']
-  URGENT  [note: 'Critical blocker requiring immediate manager intervention']
-}
-
 enum audit_status {
   SUCCESS  [note: 'Operation completed successfully']
   FAILED   [note: 'Operation failed, unauthorized, or rejected by invariants']
 }
 
-enum notification_type {
-  INFO             [note: 'Informational system notification']
-  SUCCESS          [note: 'Confirmation of completed action or workflow']
-  WARNING          [note: 'Warning regarding quotas, access attempts, or transient issues']
-  ACTION_REQUIRED  [note: 'Action required: e.g., pending HITL approval ticket']
-}
+// ============================================================================
+// BOUNDED CONTEXT 1: IDENTITY & ACCESS MANAGEMENT (IAM) & ORGANIZATION
+// ============================================================================
 
-// PHASE 1: IDENTITY & ACCESS MANAGEMENT (IAM) BOUNDED CONTEXT
 Table departments {
   id uuid [pk, note: 'UUIDv7 primary key']
   code varchar(50) [unique, not null, note: 'Unique business identifier: e.g. FIN, HR, IT, LEGAL']
@@ -118,13 +89,13 @@ Table departments {
     code
   }
 
-  Note: 'Phase 1 Core Table: Defines organizational departments for tenancy and access isolation.'
+  Note: 'BC 1 Core Table: Defines organizational departments for tenancy and access isolation (UC-IAM-03).'
 }
 
 Table users {
   id uuid [pk, note: 'UUIDv7 primary key']
   email varchar(255) [unique, not null, note: 'Corporate email address used for login']
-  password_hash varchar(255) [not null, note: 'BCrypt/Argon2 encrypted password hash']
+  password_hash varchar(255) [not null, note: 'BCrypt encrypted password hash (work factor >= 12)']
   full_name varchar(255) [not null, note: 'Full display name of employee/contractor']
   department_id uuid [ref: > departments.id, note: 'Primary assigned department']
   enabled boolean [not null, default: true, note: 'Account status flag; false disables login']
@@ -137,12 +108,12 @@ Table users {
     department_id
   }
 
-  Note: 'Phase 1 Core Table: Authenticated user accounts and organizational association.'
+  Note: 'BC 1 Core Table: Authenticated user accounts and organizational association (UC-IAM-01, UC-IAM-03).'
 }
 
 Table roles {
   id uuid [pk, note: 'UUIDv7 primary key']
-  code varchar(50) [unique, not null, note: 'Standard role identifier: ROLE_ADMIN, ROLE_DEPT_HEAD, ROLE_STAFF, ROLE_AUDITOR']
+  code varchar(50) [unique, not null, note: 'Standard role identifier: ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF, ROLE_LEGAL_AUDITOR, ROLE_CUSTOMER']
   name varchar(100) [not null, note: 'Human-readable role name']
   description text [note: 'Summary of privileges granted by this role']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
@@ -151,14 +122,14 @@ Table roles {
     code
   }
 
-  Note: 'Phase 1 Core Table: System and domain roles defining permission boundaries.'
+  Note: 'BC 1 Core Table: System and domain roles defining permission boundaries (UC-IAM-02).'
 }
 
 Table permissions {
   id uuid [pk, note: 'UUIDv7 primary key']
-  code varchar(100) [unique, not null, note: 'Granular authority: DOC_READ, DOC_WRITE, APPROVAL_COMMIT, AUDIT_VIEW']
+  code varchar(100) [unique, not null, note: 'Granular authority code: read:documents, write:documents, delete:documents, manage:permissions, manage:users, read:audit_logs']
   name varchar(150) [not null, note: 'Human-readable permission title']
-  module varchar(50) [not null, note: 'Functional bounded context: IAM, DMS, RAG, WORKFLOW, AUDIT']
+  module varchar(50) [not null, note: 'Functional bounded context: IAM, DMS, AUDIT']
   description text [note: 'Functional specification of the authority']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
@@ -167,7 +138,7 @@ Table permissions {
     module
   }
 
-  Note: 'Phase 1 Core Table: Granular functional authorities mapped into Spring Security.'
+  Note: 'BC 1 Core Table: Granular functional authorities mapped into Spring Security (UC-IAM-02).'
 }
 
 Table user_roles {
@@ -180,7 +151,7 @@ Table user_roles {
     role_id
   }
 
-  Note: 'Phase 1 Core Junction: Many-to-many assignment of roles to user accounts.'
+  Note: 'BC 1 Core Junction: Many-to-many assignment of roles to user accounts (UC-IAM-02).'
 }
 
 Table role_permissions {
@@ -193,14 +164,14 @@ Table role_permissions {
     permission_id
   }
 
-  Note: 'Phase 1 Core Junction: Many-to-many mapping of permissions to roles.'
+  Note: 'BC 1 Core Junction: Many-to-many mapping of permissions to roles (UC-IAM-02).'
 }
 
 Table refresh_tokens {
   id uuid [pk, note: 'UUIDv7 primary key']
   user_id uuid [ref: > users.id, not null, note: 'Owning user account']
   token varchar(512) [unique, not null, note: 'Opaque cryptographically secure refresh token string']
-  expiry_date timestamptz [not null, note: 'Token expiration instant (e.g. 7 days from issue)']
+  expiry_date timestamptz [not null, note: 'Token expiration instant (e.g. 7-30 days from issue)']
   revoked boolean [not null, default: false, note: 'Explicit revocation flag for logout or security breach']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
 
@@ -209,10 +180,12 @@ Table refresh_tokens {
     token
   }
 
-  Note: 'Phase 1 Core Table: Long-lived session management for secure JWT renewal.'
+  Note: 'BC 1 Core Table: Long-lived session management for secure JWT renewal (UC-IAM-01).'
 }
 
-// PHASE 1: DOCUMENT MANAGEMENT SYSTEM (DMS) & S3 STORAGE CONTEXT
+// ============================================================================
+// BOUNDED CONTEXT 2: DOCUMENT MANAGEMENT SYSTEM (DMS) & AWS S3 STORAGE
+// ============================================================================
 
 Table documents {
   id uuid [pk, note: 'Globally unique document identifier (UUIDv7)']
@@ -221,17 +194,17 @@ Table documents {
   description text [note: 'Optional summary, abstract, or user notes']
   file_type document_file_type [not null, note: 'Standardized file category (PDF, DOCX, TXT, XLSX, etc.)']
   mime_type varchar(100) [not null, note: 'Verified MIME type: application/pdf, application/vnd.openxmlformats...']
-  file_size_bytes bigint [not null, note: 'Exact binary size in bytes']
+  file_size_bytes bigint [not null, note: 'Exact binary size in bytes (max 50MB in MVP)']
   checksum_sha256 varchar(64) [not null, note: 'Cryptographic SHA-256 hash for deduplication and tampering detection']
   storage_bucket varchar(128) [not null, note: 'Target AWS S3 private bucket (e.g. docs-platform-prod)']
-  storage_key varchar(512) [not null, note: 'S3 Object Key path: {dept_code}/{doc_id}/{version}_{filename}']
+  storage_key varchar(512) [not null, note: 'S3 Object Key path: documents/{doc_id}/v{version}/{filename}']
   is_s3_synced boolean [not null, default: true, note: 'True when binary upload to AWS S3 bucket is verified']
-  processing_status document_processing_status [not null, default: 'UPLOADED', note: 'Phase 1 defaults to UPLOADED; Phase 2 progresses to INDEXED']
+  processing_status document_processing_status [not null, default: 'UPLOADED', note: 'Processing state: UPLOADED, PENDING, COMPLETED, FAILED']
   current_version int [not null, default: 1, note: 'Active version number displayed by default']
   department_id uuid [ref: > departments.id, note: 'Primary department owner for tenancy boundaries']
   uploaded_by_user_id uuid [ref: > users.id, not null, note: 'User who created the document record']
   access_level access_level [not null, default: 'INTERNAL', note: 'Security classification: PUBLIC, INTERNAL, RESTRICTED, CONFIDENTIAL']
-  metadata jsonb [not null, default: `'{}'`, note: 'Extensible JSON metadata (tags, custom attributes, OCR properties)']
+  metadata jsonb [not null, default: `'{}'`, note: 'Extensible JSON metadata (tags, custom attributes)']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   deleted_at timestamptz [note: 'Soft delete timestamp; NULL represents an active record']
@@ -246,7 +219,7 @@ Table documents {
     deleted_at [name: 'idx_documents_deleted_at']
   }
 
-  Note: 'Phase 1 Core Table: Master catalog for enterprise documents persisted durably in AWS S3.'
+  Note: 'BC 2 Core Table: Master catalog for enterprise documents persisted durably in AWS S3 (UC-DOC-01, UC-DOC-03, UC-DOC-04).'
 }
 
 Table document_versions {
@@ -267,7 +240,7 @@ Table document_versions {
     uploaded_by_user_id
   }
 
-  Note: 'Phase 1 Core Table: Immutable historical snapshots of document binaries stored on AWS S3.'
+  Note: 'BC 2 Core Table: Immutable historical snapshots of document binaries stored on AWS S3 (UC-DOC-02).'
 }
 
 Table document_user_access {
@@ -282,7 +255,7 @@ Table document_user_access {
     user_id
   }
 
-  Note: 'Phase 1 Core Table: Explicit user-level Access Control List (ACL).'
+  Note: 'BC 2 Core Table: Explicit user-level Access Control List (ACL) (UC-DOC-03).'
 }
 
 Table document_department_access {
@@ -297,7 +270,7 @@ Table document_department_access {
     department_id
   }
 
-  Note: 'Phase 1 Core Table: Cross-departmental sharing Access Control List (ACL).'
+  Note: 'BC 2 Core Table: Cross-departmental sharing Access Control List (ACL) (UC-DOC-03).'
 }
 
 Table document_role_access {
@@ -312,114 +285,18 @@ Table document_role_access {
     role_id
   }
 
-  Note: 'Phase 1 Core Table: Role-based document Access Control List (ACL).'
+  Note: 'BC 2 Core Table: Role-based document Access Control List (ACL) (UC-DOC-03).'
 }
 
 // ============================================================================
-// PHASE 1: WORKFLOW AUTOMATION BOUNDED CONTEXT
-// ============================================================================
-
-Table workflows {
-  id uuid [pk, note: 'Unique workflow template ID (UUIDv7)']
-  name varchar(255) [not null, note: 'Workflow pipeline display name']
-  description text [note: 'Functional specification of the workflow logic']
-  trigger_event workflow_trigger_event [not null, note: 'Event that instantiates this workflow']
-  is_active boolean [not null, default: true, note: 'Master switch to activate or pause workflow']
-  config_schema jsonb [not null, default: `'{}'`, note: 'JSON Schema configuring pipeline steps and constraints']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    trigger_event
-    is_active
-  }
-
-  Note: 'Phase 1 Core Table: Workflow templates and automated business process definitions.'
-}
-
-Table workflow_executions {
-  id uuid [pk, note: 'Unique execution instance ID (UUIDv7)']
-  workflow_id uuid [ref: > workflows.id, not null, note: 'Instantiated workflow template']
-  document_id uuid [ref: > documents.id, note: 'Associated document if triggered by DMS event']
-  status workflow_execution_status [not null, default: 'PENDING', note: 'Current execution lifecycle state']
-  current_step varchar(100) [note: 'Identifier of the active pipeline step']
-  input_payload jsonb [not null, default: `'{}'`, note: 'Input data supplied to the workflow execution']
-  step_results jsonb [not null, default: `'{}'`, note: 'Intermediate outputs and state of completed steps']
-  error_message text [note: 'Diagnostic error trace if execution failed']
-  started_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  completed_at timestamptz [note: 'Timestamp when pipeline reached a terminal state']
-
-  indexes {
-    workflow_id
-    document_id
-    status
-    started_at
-  }
-
-  Note: 'Phase 1 Core Table: Execution instances and state tracking for automated workflows.'
-}
-
-// ============================================================================
-// PHASE 1: OPERATIONS & HUMAN-IN-THE-LOOP (HITL) APPROVALS CONTEXT
-// ============================================================================
-
-Table action_approvals {
-  id uuid [pk, note: 'Unique approval ticket identifier (UUIDv7)']
-  execution_id uuid [ref: > workflow_executions.id, note: 'Originating workflow execution (nullable for standalone actions)']
-  action_type varchar(100) [not null, note: 'Action identifier: PUBLISH_DOCUMENT, PURGE_DOCUMENT, ROLE_ESCALATION, etc.']
-  status action_approval_status [not null, default: 'PENDING', note: '2-Phase lifecycle: PENDING -> APPROVED/REJECTED -> COMMITTED/EXPIRED']
-  idempotency_key varchar(128) [unique, not null, note: 'Cryptographic or UUID key preventing duplicate execution']
-  preview_payload jsonb [not null, default: `'{}'`, note: 'Staged Before/After diff payload rendered visually for manager review']
-  execution_result jsonb [not null, default: `'{}'`, note: 'Result payload produced upon Phase 2 commit']
-  requested_by_user_id uuid [ref: > users.id, note: 'User who requested the protected operation']
-  reviewed_by_user_id uuid [ref: > users.id, note: 'Authorized manager who reviewed the request']
-  review_notes text [note: 'Mandatory justification or comments recorded during review']
-  requested_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  reviewed_at timestamptz [note: 'Timestamp when manager submitted approval or rejection']
-  committed_at timestamptz [note: 'Timestamp when 2-phase commit completed execution']
-
-  indexes {
-    status
-    idempotency_key
-    (status, requested_at)
-  }
-
-  Note: 'Phase 1 Core Table: 2-Phase Human-In-The-Loop safety gate ensuring no destructive action without staged diff review.'
-}
-
-Table operation_tasks {
-  id uuid [pk, note: 'Unique operational task ID (UUIDv7)']
-  title varchar(255) [not null, note: 'Short descriptive title of the task']
-  description text [note: 'Detailed instructions or business context']
-  status task_status [not null, default: 'PENDING', note: 'Task lifecycle state: PENDING, IN_PROGRESS, COMPLETED, CANCELLED']
-  priority task_priority [not null, default: 'MEDIUM', note: 'Priority level: LOW, MEDIUM, HIGH, URGENT']
-  creator_id uuid [ref: > users.id, not null, note: 'User who created the task']
-  assignee_id uuid [ref: > users.id, note: 'Assigned employee or team member']
-  document_id uuid [ref: > documents.id, note: 'Linked document if task relates to a DMS file']
-  execution_id uuid [ref: > workflow_executions.id, note: 'Linked workflow execution if task spawned from pipeline']
-  metadata jsonb [not null, default: `'{}'`, note: 'Custom operational tags, checklists, or deadlines']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    status
-    creator_id
-    assignee_id
-    (status, priority)
-  }
-
-  Note: 'Phase 1 Core Table: Operations management tasks requiring manual staff action or resolution.'
-}
-
-// ============================================================================
-// PHASE 1: AUDIT TRAIL & NOTIFICATIONS CONTEXT
+// BOUNDED CONTEXT 3: AUDIT SUBSYSTEM (APPEND-ONLY AUDIT TRAIL)
 // ============================================================================
 
 Table audit_logs {
   id uuid [pk, note: 'UUIDv7 primary key']
   user_id uuid [ref: > users.id, note: 'Acting user ID (NULL for unauthenticated or system daemon events)']
-  action varchar(100) [not null, note: 'Action verb: AUTH_LOGIN, DOC_UPLOAD, DOC_DOWNLOAD_S3, APPROVAL_COMMIT, etc.']
-  resource_type varchar(100) [not null, note: 'Target resource domain: DOCUMENT, USER, APPROVAL, WORKFLOW, S3_OBJECT']
+  action varchar(100) [not null, note: 'Action verb: LOGIN, LOGIN_FAILED, LOGOUT, REFRESH_TOKEN, UPLOAD_DOC, UPDATE_DOC, UPDATE_ACL, DELETE_DOC, ASSIGN_ROLES, etc.']
+  resource_type varchar(100) [not null, note: 'Target resource domain: DOCUMENT, USER, DEPARTMENT, ROLE, S3_OBJECT, AUTH']
   resource_id varchar(64) [note: 'Target resource primary key or S3 key']
   ip_address varchar(45) [note: 'Client IPv4/IPv6 address captured at edge ingress']
   user_agent text [note: 'Client User-Agent header for forensic audit']
@@ -434,117 +311,14 @@ Table audit_logs {
     (user_id, created_at)
   }
 
-  Note: 'Phase 1 Core Table: Append-only tamper-evident compliance audit log.'
-}
-
-Table notifications {
-  id uuid [pk, note: 'UUIDv7 primary key']
-  user_id uuid [ref: > users.id, not null, note: 'Recipient user ID']
-  title varchar(255) [not null, note: 'Notification headline']
-  message text [not null, note: 'Body text explaining event or required action']
-  type notification_type [not null, default: 'INFO', note: 'Severity/Category: INFO, SUCCESS, WARNING, ACTION_REQUIRED']
-  is_read boolean [not null, default: false, note: 'Read status flag for UI badges and counters']
-  reference_type varchar(100) [note: 'Linked entity type: APPROVAL, DOCUMENT, TASK, WORKFLOW']
-  reference_id varchar(64) [note: 'Linked entity identifier for in-app navigation']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (user_id, is_read)
-    created_at
-  }
-
-  Note: 'Phase 1 Core Table: In-app real-time alerts and action notifications.'
+  Note: 'BC 3 Core Table: Append-only tamper-evident compliance audit log (UC-AUDIT-01).'
 }
 
 // ============================================================================
-// PHASE 2: AI KNOWLEDGE & HYBRID RAG EXTENSION CONTEXT
+// BOUNDED CONTEXT TABLE GROUPS
 // ============================================================================
 
-Table document_chunks {
-  id uuid [pk, note: 'Unique chunk identifier (UUIDv7)']
-  document_id uuid [ref: > documents.id, not null, note: 'Parent document reference']
-  document_version_id uuid [ref: > document_versions.id, not null, note: 'Specific document version chunked']
-  chunk_index int [not null, default: 0, note: 'Zero-based sequential chunk order within the document']
-  page_number int [note: 'Page number in source document for citation drill-down']
-  content text [not null, note: 'Extracted plain text chunk content (500-1000 tokens)']
-  token_count int [not null, default: 0, note: 'Exact token count calculated via tokenizer']
-  metadata jsonb [not null, default: `'{}'`, note: 'Structural metadata: section headers, bounding boxes, table schema']
-  embedding "vector(1536)" [note: '1536-dimensional vector embedding for pgvector cosine search']
-  tsv tsvector [not null, note: 'Pre-computed tsvector for PostgreSQL full-text search (BM25/FTS)']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    document_id
-    document_version_id
-    embedding [type: hnsw, name: 'idx_chunks_embedding_hnsw']
-    tsv [type: gin]
-    metadata [type: gin]
-  }
-
-  Note: 'Phase 2 Extension Table: Text chunks with 1536d HNSW vector and GIN tsvector indices for Pre-filtered Hybrid RRF retrieval.'
-}
-
-// ============================================================================
-// PHASE 2: CONVERSATIONAL AI & CITATIONS CONTEXT
-// ============================================================================
-
-Table conversations {
-  id uuid [pk, note: 'Unique chat session ID (UUIDv7)']
-  user_id uuid [ref: > users.id, not null, note: 'Session owner']
-  title varchar(255) [not null, default: 'New Conversation', note: 'Conversation title generated from user prompt or set manually']
-  status conversation_status [not null, default: 'ACTIVE', note: 'Session lifecycle: ACTIVE, ARCHIVED, DELETED']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (user_id, updated_at)
-  }
-
-  Note: 'Phase 2 Extension Table: Conversational threads and multi-turn chat sessions.'
-}
-
-Table conversation_messages {
-  id uuid [pk, note: 'Unique message identifier (UUIDv7)']
-  conversation_id uuid [ref: > conversations.id, not null, note: 'Parent conversation session']
-  role message_role [not null, note: 'Message author role: USER, ASSISTANT, SYSTEM, TOOL']
-  content text [not null, note: 'Raw text content of the message']
-  confidence confidence_level [note: 'Confidence score evaluation: LOW (trigger Safe Abstention), MEDIUM, HIGH']
-  prompt_tokens int [not null, default: 0, note: 'Token count consumed by prompt and context window']
-  completion_tokens int [not null, default: 0, note: 'Token count generated by LLM']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    (conversation_id, created_at)
-  }
-
-  Note: 'Phase 2 Extension Table: Individual messages in conversation threads with token usage and confidence tracking.'
-}
-
-Table message_citations {
-  id uuid [pk, note: 'UUIDv7 primary key']
-  message_id uuid [ref: > conversation_messages.id, not null, note: 'Citing assistant message']
-  document_id uuid [ref: > documents.id, not null, note: 'Source document cited']
-  chunk_id uuid [ref: > document_chunks.id, not null, note: 'Exact chunk supporting the factual claim']
-  relevance_score float [not null, default: 0.0, note: 'Cosine similarity or RRF score of the cited chunk']
-  snippet text [note: 'Exact verbatim excerpt referenced in the response badge']
-  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-
-  indexes {
-    message_id
-    document_id
-    chunk_id
-  }
-
-  Note: 'Phase 2 Extension Table: Audit citations linking AI-generated answers directly to source chunks for user drill-down.'
-}
-
-// ============================================================================
-// PHASED TABLE GROUPS (BOUNDED CONTEXT VISUALIZATION)
-// ============================================================================
-
-// --- PHASE 1: CORE CLOUD MVP BASELINE ---
-
-TableGroup Phase1_IAM_Organization {
+TableGroup MVP_IAM_Organization {
   departments
   users
   roles
@@ -554,7 +328,7 @@ TableGroup Phase1_IAM_Organization {
   refresh_tokens
 }
 
-TableGroup Phase1_Document_Management {
+TableGroup MVP_Document_Management {
   documents
   document_versions
   document_user_access
@@ -562,29 +336,6 @@ TableGroup Phase1_Document_Management {
   document_role_access
 }
 
-TableGroup Phase1_Workflow_Automation {
-  workflows
-  workflow_executions
-}
-
-TableGroup Phase1_Operations_HITL {
-  action_approvals
-  operation_tasks
-}
-
-TableGroup Phase1_Audit_System {
+TableGroup MVP_Audit_System {
   audit_logs
-  notifications
-}
-
-// --- PHASE 2: PLUGGABLE AI KNOWLEDGE & RAG EXTENSION ---
-
-TableGroup Phase2_AI_Knowledge_RAG {
-  document_chunks
-}
-
-TableGroup Phase2_Conversational_AI {
-  conversations
-  conversation_messages
-  message_citations
 }

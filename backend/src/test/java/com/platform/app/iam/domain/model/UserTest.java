@@ -83,4 +83,104 @@ class UserTest {
 
     assertFalse(user.isEnabled());
   }
+
+  @Test
+  @DisplayName("Should successfully assign new roles to user")
+  void shouldAssignNewRoles() {
+    UUID userId = UUID.randomUUID();
+    Role role1 = Role.builder().id(UUID.randomUUID()).code("ROLE_STAFF").name("Staff").build();
+    Role role2 = Role.builder().id(UUID.randomUUID()).code("ROLE_MANAGER").name("Manager").build();
+
+    User user =
+        User.builder()
+            .id(userId)
+            .email("staff@platform.com")
+            .passwordHash("hash")
+            .fullName("Staff User")
+            .enabled(true)
+            .internal(true)
+            .roles(Set.of(role1))
+            .build();
+
+    user.assignRoles(Set.of(role1, role2), UUID.randomUUID());
+
+    assertEquals(2, user.getRoles().size());
+    assertTrue(user.getRoleCodes().contains("ROLE_STAFF"));
+    assertTrue(user.getRoleCodes().contains("ROLE_MANAGER"));
+  }
+
+  @Test
+  @DisplayName("Should reject assigning empty roles set")
+  void shouldRejectEmptyRoles() {
+    UUID userId = UUID.randomUUID();
+    Role role1 = Role.builder().id(UUID.randomUUID()).code("ROLE_STAFF").name("Staff").build();
+    User user =
+        User.builder()
+            .id(userId)
+            .email("staff@platform.com")
+            .passwordHash("hash")
+            .fullName("Staff User")
+            .enabled(true)
+            .internal(true)
+            .roles(Set.of(role1))
+            .build();
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.platform.app.iam.domain.exception.EmptyRolesException.class,
+        () -> user.assignRoles(Set.of(), UUID.randomUUID()));
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.platform.app.iam.domain.exception.EmptyRolesException.class,
+        () -> user.assignRoles(null, UUID.randomUUID()));
+  }
+
+  @Test
+  @DisplayName("Should reject admin revoking ROLE_ADMIN from self")
+  void shouldRejectAdminSelfRoleRevocation() {
+    UUID adminId = UUID.randomUUID();
+    Role adminRole = Role.builder().id(UUID.randomUUID()).code("ROLE_ADMIN").name("Admin").build();
+    Role staffRole = Role.builder().id(UUID.randomUUID()).code("ROLE_STAFF").name("Staff").build();
+
+    User adminUser =
+        User.builder()
+            .id(adminId)
+            .email("admin@platform.com")
+            .passwordHash("hash")
+            .fullName("Admin User")
+            .enabled(true)
+            .internal(true)
+            .roles(Set.of(adminRole))
+            .build();
+
+    // Admin attempting to replace own role with only ROLE_STAFF
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.platform.app.iam.domain.exception.SelfRoleRevocationException.class,
+        () -> adminUser.assignRoles(Set.of(staffRole), adminId));
+  }
+
+  @Test
+  @DisplayName("Should allow admin updating self when retaining ROLE_ADMIN")
+  void shouldAllowAdminUpdatingSelfRetainingAdmin() {
+    UUID adminId = UUID.randomUUID();
+    Role adminRole = Role.builder().id(UUID.randomUUID()).code("ROLE_ADMIN").name("Admin").build();
+    Role managerRole =
+        Role.builder().id(UUID.randomUUID()).code("ROLE_MANAGER").name("Manager").build();
+
+    User adminUser =
+        User.builder()
+            .id(adminId)
+            .email("admin@platform.com")
+            .passwordHash("hash")
+            .fullName("Admin User")
+            .enabled(true)
+            .internal(true)
+            .roles(Set.of(adminRole))
+            .build();
+
+    adminUser.assignRoles(Set.of(adminRole, managerRole), adminId);
+
+    assertEquals(2, adminUser.getRoles().size());
+    assertTrue(adminUser.getRoleCodes().contains("ROLE_ADMIN"));
+    assertTrue(adminUser.getRoleCodes().contains("ROLE_MANAGER"));
+  }
 }
