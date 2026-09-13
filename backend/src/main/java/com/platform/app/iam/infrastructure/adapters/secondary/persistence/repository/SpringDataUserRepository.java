@@ -18,4 +18,11 @@ public interface SpringDataUserRepository extends JpaRepository<UserJpaEntity, U
           + "WHERE LOWER(u.email) = LOWER(:email)")
   Optional<UserJpaEntity> findByEmailIgnoreCaseWithRolesAndPermissions(
       @Param("email") String email);
+
+  @Query(
+      "SELECT DISTINCT u FROM UserJpaEntity u "
+          + "LEFT JOIN FETCH u.roles r "
+          + "LEFT JOIN FETCH r.permissions p "
+          + "WHERE u.id = :id")
+  Optional<UserJpaEntity> findByIdWithRolesAndPermissions(@Param("id") UUID id);
 }

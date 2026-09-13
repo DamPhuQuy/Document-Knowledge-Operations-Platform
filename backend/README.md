@@ -51,11 +51,7 @@ backend/
     │               ├── 001-initial-extensions.yaml
     │               ├── 002-create-iam-tables.yaml
     │               ├── 003-create-document-tables.yaml
-    │               ├── 004-create-rag-tables.yaml
-    │               ├── 005-create-conversation-tables.yaml
-    │               ├── 006-create-workflow-tables.yaml
-    │               ├── 007-create-operations-tables.yaml
-    │               └── 008-create-audit-and-notification-tables.yaml
+    │               └── 004-create-audit-tables.yaml
     └── test/                                  # Application tests
 ```
 

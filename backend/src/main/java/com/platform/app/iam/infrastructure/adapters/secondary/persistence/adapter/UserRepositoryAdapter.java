@@ -1,7 +1,10 @@
 package com.platform.app.iam.infrastructure.adapters.secondary.persistence.adapter;
 
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
@@ -14,6 +17,7 @@ import com.platform.app.iam.domain.model.User;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
+import com.platform.app.iam.infrastructure.adapters.secondary.persistence.repository.SpringDataRoleRepository;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.repository.SpringDataUserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class UserRepositoryAdapter implements UserRepositoryPort {
 
   private final SpringDataUserRepository springDataUserRepository;
+  private final SpringDataRoleRepository springDataRoleRepository;
 
   @Override
   @Transactional(readOnly = true)
@@ -33,6 +38,61 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     return springDataUserRepository
         .findByEmailIgnoreCaseWithRolesAndPermissions(email.trim().toLowerCase())
         .map(this::toDomain);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<User> findById(UUID id) {
+    if (id == null) {
+      return Optional.empty();
+    }
+    return springDataUserRepository
+        .findByIdWithRolesAndPermissions(id)
+        .map(this::toDomain);
+  }
+
+  @Override
+  @Transactional
+  public User save(User user) {
+    Objects.requireNonNull(user, "user must not be null");
+
+    UserJpaEntity entity =
+        springDataUserRepository
+            .findById(user.getId())
+            .orElseGet(
+                () ->
+                    UserJpaEntity.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .passwordHash(user.getPasswordHash())
+                        .fullName(user.getFullName())
+                        .departmentId(user.getDepartmentId())
+                        .enabled(user.isEnabled())
+                        .isInternal(user.isInternal())
+                        .createdAt(user.getCreatedAt())
+                        .updatedAt(user.getUpdatedAt())
+                        .roles(new HashSet<>())
+                        .build());
+
+    entity.setEmail(user.getEmail());
+    entity.setPasswordHash(user.getPasswordHash());
+    entity.setFullName(user.getFullName());
+    entity.setDepartmentId(user.getDepartmentId());
+    entity.setEnabled(user.isEnabled());
+    entity.setInternal(user.isInternal());
+    entity.setUpdatedAt(user.getUpdatedAt());
+
+    Set<UUID> roleIds = user.getRoleIds();
+    if (roleIds != null && !roleIds.isEmpty()) {
+      Set<RoleJpaEntity> roleEntities =
+          springDataRoleRepository.findByIdInWithPermissions(roleIds);
+      entity.setRoles(new HashSet<>(roleEntities));
+    } else {
+      entity.getRoles().clear();
+    }
+
+    UserJpaEntity savedEntity = springDataUserRepository.save(entity);
+    return toDomain(savedEntity);
   }
 
   private User toDomain(UserJpaEntity entity) {

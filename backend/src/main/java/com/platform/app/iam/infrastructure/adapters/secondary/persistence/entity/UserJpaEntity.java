@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+import org.hibernate.annotations.UuidGenerator;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -31,6 +33,7 @@ import lombok.Setter;
 public class UserJpaEntity {
 
   @Id
+  @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
   @EqualsAndHashCode.Include
   private UUID id;
 

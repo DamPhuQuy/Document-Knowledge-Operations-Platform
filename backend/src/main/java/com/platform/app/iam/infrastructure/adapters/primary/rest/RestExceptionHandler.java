@@ -2,7 +2,9 @@ package com.platform.app.iam.infrastructure.adapters.primary.rest;
 
 import com.platform.app.iam.domain.exception.AccountDisabledException;
 import com.platform.app.iam.domain.exception.AccountLockedException;
+import com.platform.app.iam.domain.exception.EmptyRolesException;
 import com.platform.app.iam.domain.exception.InvalidCredentialsException;
+import com.platform.app.iam.domain.exception.SelfRoleRevocationException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.stream.Collectors;
@@ -53,6 +55,26 @@ public class RestExceptionHandler {
     ErrorResponse error =
         buildErrorResponse(HttpStatus.LOCKED, ex.getMessage(), request);
     return ResponseEntity.status(HttpStatus.LOCKED).body(error);
+  }
+
+  @ExceptionHandler({
+    EmptyRolesException.class,
+    SelfRoleRevocationException.class,
+    IllegalArgumentException.class
+  })
+  public ResponseEntity<ErrorResponse> handleBadRequestExceptions(
+      RuntimeException ex, HttpServletRequest request) {
+    ErrorResponse error =
+        buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+  }
+
+  @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+  public ResponseEntity<ErrorResponse> handleAccessDenied(
+      org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+    ErrorResponse error =
+        buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
   }
 
   @ExceptionHandler(Exception.class)
