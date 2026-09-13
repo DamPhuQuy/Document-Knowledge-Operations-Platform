@@ -1,7 +1,8 @@
 # 3. Use Case Modeling & Architectural Decomposition
 ## Enterprise Document Knowledge & Operations Platform
+### Ultra-Lean Infrastructure-Focused MVP Specification
 
-> **Source of Truth:** OMG UML 2.5 Modeling Standards, Macro Context Boundary, Master Decomposed Global Use Case Map, and Subsystem Architectural Diagrams.
+> **Source of Truth:** OMG UML 2.5 Modeling Standards, Macro Context Boundary, Master Decomposed Global Use Case Map, and Active Subsystem Architectural Diagrams.
 > **Orchestrated by:** [`MVP.md`](MVP.md)
 
 ---
@@ -33,18 +34,11 @@ To ensure strict compliance with **OMG UML 2.5 Use Case Modeling Standards**, th
 └───────────────────┴──────────────────────────────────┴─────────────────────────────────────────────────┘
 ```
 
-> [!IMPORTANT]
-> **Strict UML Modeling Rules Applied:**
-> 1. **Direction of `«include»`:** Points from the base use case to the included use case (`Base -. "«include»" .-> Included`).
-> 2. **Direction of `«extend»`:** Points from the extending use case to the base use case (`Extension -. "«extend»" .-> Base`).
-> 3. **No Non-Standard Stereotypes:** Deprecated custom stereotypes (such as `<<persists>>`, `<<calls>>`, `<<trigger>>`, `<<acts on>>`) are strictly replaced with standard UML Actor Associations or valid `«include»`/`«extend»` relationships.
-> 4. **External Systems as Actors:** Third-party providers (`S3 Storage`, `LLM API`) are modeled as Secondary Actors outside the system boundary with solid association lines (`UseCase ──── SystemActor`).
-
 ---
 
-## 2. High-Level Context Use Case Diagram (Macro Capabilities)
+## 2. High-Level Context Use Case Diagram (Ultra-Lean MVP)
 
-The context use case diagram captures the high-level system boundary, primary human actors, secondary external systems, and macro-level capabilities:
+The context use case diagram captures the high-level system boundary, primary human actors, secondary external systems, and macro-level capabilities for the **Ultra-Lean MVP**:
 
 ```mermaid
 flowchart LR
@@ -54,80 +48,51 @@ flowchart LR
         Manager(["Department Manager"]):::actor
         Staff(["Knowledge Worker / Staff"]):::actor
         Auditor(["Compliance Auditor"]):::actor
-        Customer(["External Client"]):::actor
     end
 
     %% System Boundary & Macro Use Cases
-    subgraph System_Boundary ["Document Knowledge & Operations Platform Boundary"]
+    subgraph System_Boundary ["Ultra-Lean MVP System Boundary"]
         direction TB
-        subgraph Phase1_Core ["Phase 1: Core Cloud Operations Platform (Must Have)"]
-            M_IAM(["UC-MACRO-01: Authenticate & Manage Identity"]):::macro
-            M_DOC(["UC-MACRO-02: Manage Document Lifecycle & Storage"]):::macro
-            M_WF(["UC-MACRO-05: Automate Document Processing Workflows"]):::macro
-            M_HITL(["UC-MACRO-06: Govern Operational Approvals (HITL)"]):::macro
-            M_AUDIT(["UC-MACRO-07: Track Security Audit Trail & Notifications"]):::macro
-        end
-
-        subgraph Phase2_AI ["Phase 2: Pluggable AI Knowledge & RAG (Should Have)"]
-            M_RAG(["UC-MACRO-03: Ingest Knowledge & Index Vectors"]):::macroAi
-            M_CHAT(["UC-MACRO-04: Grounded Conversational AI & Citations"]):::macroAi
-        end
+        M_IAM(["UC-MACRO-01: Authenticate & Manage Identity\n[BC 1: IAM_Organization]"]):::macro
+        M_DOC(["UC-MACRO-02: Manage Document Lifecycle & Storage\n[BC 2: Document_Management]"]):::macro
+        M_AUDIT(["UC-MACRO-03: Track Security Audit Trail & Diagnostics\n[BC 3: Audit_System]"]):::macro
     end
 
     %% Secondary Supporting System Actors (Right)
-    subgraph Supporting_Systems ["Secondary Cloud & External Systems"]
+    subgraph Supporting_Systems ["Secondary Cloud Systems"]
         AWS_CLOUD[("AWS Cloud & Edge Platform\nEC2 / VPC / Cloudflare\n(EXT-03)")]:::cloudSystem
         S3[("AWS S3 Object Storage\n(EXT-01)")]:::system
-        LLM[("Embedding & LLM API\n(EXT-02)")]:::system
     end
 
     %% Actor to Macro Associations
     Admin --- M_IAM
-    Admin --- M_WF
-    Admin --- M_HITL
     Admin --- M_AUDIT
-
     Manager --- M_DOC
-    Manager --- M_CHAT
-    Manager --- M_HITL
-    Manager --- M_WF
-
     Staff --- M_IAM
     Staff --- M_DOC
-    Staff --- M_CHAT
-    Staff --- M_HITL
-
-    Auditor --- M_CHAT
     Auditor --- M_AUDIT
-
-    Customer --- M_IAM
-    Customer --- M_DOC
-    Customer --- M_CHAT
 
     %% Secondary Actor Associations
     System_Boundary --- AWS_CLOUD
     M_DOC --- S3
-    M_RAG --- LLM
-    M_CHAT --- LLM
 
-    %% High-level Include Dependencies
-    M_CHAT -. "«include»" .-> M_RAG
-    M_WF -. "«include»" .-> M_RAG
+    %% Include Dependencies
+    M_IAM -. "«include»" .-> M_AUDIT
     M_DOC -. "«include»" .-> M_AUDIT
-    M_HITL -. "«include»" .-> M_AUDIT
 
     classDef actor fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529;
     classDef macro fill:#e7f5ff,stroke:#1c7ed6,stroke-width:2px,color:#1864ab;
-    classDef macroAi fill:#f3f0ff,stroke:#7950f2,stroke-width:2px,stroke-dasharray: 4 4,color:#5f3dc4;
     classDef system fill:#fff4e6,stroke:#fd7e14,stroke-width:2px,color:#d9480f;
     classDef cloudSystem fill:#e6fcf5,stroke:#0ca678,stroke-width:2px,color:#099268;
 ```
 
+> **Note on Deferred Modules:** Advanced macro capabilities (`UC-MACRO-04: Conversational AI`, `UC-MACRO-05: Workflow Automation`, `UC-MACRO-06: Operations HITL`) have been relocated to [`deferred/`](deferred/) for post-MVP execution.
+
 ---
 
-## 3. Master Decomposed Use Case Map (Global Architecture)
+## 3. Master Decomposed Use Case Map (Ultra-Lean MVP)
 
-The macro capabilities are decomposed into **20 concrete functional use cases** organized across **7 Bounded Contexts**, featuring fully standardized `«include»` and `«extend»` relationships with explicit condition points:
+The macro capabilities are decomposed into **8 active functional use cases** across **3 Core Bounded Contexts**:
 
 ```mermaid
 flowchart TB
@@ -138,10 +103,8 @@ flowchart TB
     Auditor(["Compliance Auditor"]):::actor
 
     %% System Actors
-    Worker(["AI Ingestion Worker"]):::sysactor
-    Engine(["Hybrid RAG Engine"]):::sysactor
-    Orchestrator(["Workflow Orchestrator"]):::sysactor
-    AuditSub(["Audit Subsystem"]):::sysactor
+    AuditSub(["Audit Subsystem (SYS-04)"]):::sysactor
+    S3[("AWS S3 Storage (EXT-01)")]:::sysactor
 
     %% Bounded Context 1: IAM
     subgraph BC_IAM ["1. Identity & Access Management (IAM)"]
@@ -158,85 +121,39 @@ flowchart TB
         UC_DOC_04(["UC-DOC-04: Document Soft Deletion"])
     end
 
-    %% Bounded Context 3: AI Knowledge & RAG
-    subgraph BC_RAG ["3. AI Knowledge & Hybrid RAG"]
-        UC_RAG_01(["UC-RAG-01: Ingestion & Vector Indexing"])
-        UC_RAG_02(["UC-RAG-02: Pre-filtered Hybrid Search"])
-        UC_RAG_03(["UC-RAG-03: Anti-Hallucination Safe Abstention"])
-    end
-
-    %% Bounded Context 4: Conversational AI
-    subgraph BC_CHAT ["4. Conversational AI"]
-        UC_CHAT_01(["UC-CHAT-01: Multi-Turn Conversational Q&A"])
-        UC_CHAT_02(["UC-CHAT-02: Citation Drill-Down & Verification"])
-        UC_CHAT_03(["UC-CHAT-03: Token Usage & Confidence Tracking"])
-    end
-
-    %% Bounded Context 5: Workflow Automation
-    subgraph BC_WF ["5. Workflow Automation"]
-        UC_WF_01(["UC-WF-01: Trigger-Based Pipeline Execution"])
-        UC_WF_02(["UC-WF-02: Workflow Execution Monitoring"])
-    end
-
-    %% Bounded Context 6: Operations & HITL
-    subgraph BC_HITL ["6. Operations & Human-In-The-Loop"]
-        UC_HITL_01(["UC-HITL-01: 2-Phase Action Request & Preview"])
-        UC_HITL_02(["UC-HITL-02: Manager Approval & Idempotent Commit"])
-        UC_HITL_03(["UC-HITL-03: Operational Exception Task Handling"])
-    end
-
-    %% Bounded Context 7: Audit & Notifications
-    subgraph BC_AUDIT ["7. Audit Trail & Notifications"]
+    %% Bounded Context 3: Audit System
+    subgraph BC_AUDIT ["3. Audit Trail Subsystem"]
         UC_AUDIT_01(["UC-AUDIT-01: Immutable Audit Trail Logging"])
-        UC_AUDIT_02(["UC-AUDIT-02: Real-time In-App Notifications"])
     end
 
     %% Actor to Use Case Associations
     Admin --- UC_IAM_02
     Admin --- UC_IAM_03
-    Admin --- UC_WF_02
     Admin --- UC_AUDIT_01
-    Admin --- UC_HITL_02
 
     Staff --- UC_IAM_01
     Staff --- UC_DOC_01
     Staff --- UC_DOC_03
-    Staff --- UC_CHAT_01
-    Staff --- UC_HITL_01
-    Staff --- UC_HITL_03
 
     Manager --- UC_DOC_03
     Manager --- UC_DOC_04
-    Manager --- UC_HITL_02
-    Manager --- UC_HITL_03
-    Manager --- UC_WF_02
 
-    Auditor --- UC_CHAT_02
     Auditor --- UC_AUDIT_01
 
-    Worker --- UC_RAG_01
-    Engine --- UC_RAG_02
-    Orchestrator --- UC_WF_01
     AuditSub --- UC_AUDIT_01
+    UC_DOC_01 --- S3
+    UC_DOC_02 --- S3
 
     %% Standard UML Include Relationships (Base -> Included)
-    UC_CHAT_01 -. "«include»" .-> UC_RAG_02
-    UC_CHAT_01 -. "«include»" .-> UC_CHAT_03
-    UC_WF_01 -. "«include»" .-> UC_RAG_01
     UC_IAM_01 -. "«include»" .-> UC_AUDIT_01
+    UC_IAM_02 -. "«include»" .-> UC_AUDIT_01
+    UC_IAM_03 -. "«include»" .-> UC_AUDIT_01
     UC_DOC_01 -. "«include»" .-> UC_AUDIT_01
     UC_DOC_03 -. "«include»" .-> UC_AUDIT_01
     UC_DOC_04 -. "«include»" .-> UC_AUDIT_01
-    UC_HITL_01 -. "«include»" .-> UC_AUDIT_02
-    UC_HITL_02 -. "«include»" .-> UC_AUDIT_01
-    UC_HITL_02 -. "«include»" .-> UC_AUDIT_02
 
     %% Standard UML Extend Relationships (Extension -> Base)
     UC_DOC_02 -. "«extend»\n(On Existing Document)" .-> UC_DOC_01
-    UC_RAG_03 -. "«extend»\n(On 0 Chunks Found)" .-> UC_RAG_02
-    UC_CHAT_02 -. "«extend»\n(On Citation Click)" .-> UC_CHAT_01
-    UC_HITL_01 -. "«extend»\n(On Sensitive Action)" .-> UC_WF_01
-    UC_HITL_03 -. "«extend»\n(On Pipeline Failure)" .-> UC_WF_01
 
     classDef actor fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529;
     classDef sysactor fill:#f1f3f5,stroke:#868e96,stroke-width:2px,stroke-dasharray: 5 5,color:#343a40;
@@ -292,7 +209,8 @@ flowchart LR
     Manager(["Department Manager"]):::actor
 
     %% Secondary System Actors
-    S3[("S3 Object Storage\n(EXT-01)")]:::system
+    S3[("AWS S3 Storage\n(EXT-01)")]:::system
+
     %% System Boundary
     subgraph BC_DOC ["Document Management Subsystem"]
         UC_DOC_01(["UC-DOC-01: Document Upload & S3 Storage"])
@@ -327,177 +245,26 @@ flowchart LR
 
 ---
 
-### Diagram 3: AI Knowledge & Hybrid Retrieval (`AI_Knowledge_RAG`)
-
-```mermaid
-flowchart LR
-    %% System Actors
-    Worker(["AI Ingestion Worker\n(SYS-01)"]):::sysactor
-    Engine(["Hybrid RAG Engine\n(SYS-02)"]):::sysactor
-
-    %% External Service Actor
-    LLM[("Embedding & LLM API\n(EXT-02)")]:::system
-
-    %% System Boundary
-    subgraph BC_RAG ["AI Knowledge & RAG Subsystem"]
-        UC_RAG_01(["UC-RAG-01: Ingestion & Vector Indexing"])
-        UC_RAG_02(["UC-RAG-02: Pre-filtered Hybrid RRF Search"])
-        UC_RAG_03(["UC-RAG-03: Anti-Hallucination Safe Abstention"])
-    end
-
-    %% Actor Associations
-    Worker --- UC_RAG_01
-    Engine --- UC_RAG_02
-
-    %% External Associations
-    UC_RAG_01 --- LLM
-    UC_RAG_02 --- LLM
-
-    %% Standard UML Extend (Extension -> Base)
-    UC_RAG_03 -. "«extend»\n(Extension Point:\n0 Chunks Found OR Sim < 0.50)" .-> UC_RAG_02
-
-    classDef sysactor fill:#f1f3f5,stroke:#868e96,stroke-width:2px,stroke-dasharray: 5 5,color:#343a40;
-    classDef system fill:#f3f0ff,stroke:#7950f2,stroke-width:2px,color:#5f3dc4;
-```
-
----
-
-### Diagram 4: Conversational AI & Citations (`Conversational_AI`)
-
-```mermaid
-flowchart LR
-    %% Primary Human Actors
-    Staff(["Knowledge Worker"]):::actor
-    Auditor(["Compliance Auditor"]):::actor
-
-    %% Secondary System Actor
-    LLM[("Embedding & LLM API\n(EXT-02)")]:::system
-
-    %% System Boundary
-    subgraph BC_CHAT ["Conversational AI Subsystem"]
-        UC_CHAT_01(["UC-CHAT-01: Multi-Turn Conversational Q&A"])
-        UC_CHAT_02(["UC-CHAT-02: Evidence Citation Drill-Down"])
-        UC_CHAT_03(["UC-CHAT-03: Token Usage & Confidence Tracking"])
-        UC_RAG_02_EXT(["UC-RAG-02: Pre-filtered Hybrid Search"]):::external
-    end
-
-    %% Actor Associations
-    Staff --- UC_CHAT_01
-    Auditor --- UC_CHAT_01
-    Auditor --- UC_CHAT_02
-    UC_CHAT_01 --- LLM
-
-    %% Standard UML Include (Base -> Included)
-    UC_CHAT_01 -. "«include»" .-> UC_RAG_02_EXT
-    UC_CHAT_01 -. "«include»" .-> UC_CHAT_03
-
-    %% Standard UML Extend (Extension -> Base)
-    UC_CHAT_02 -. "«extend»\n(Extension Point:\nUser Clicks Citation Badge)" .-> UC_CHAT_01
-
-    classDef actor fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529;
-    classDef system fill:#f3f0ff,stroke:#7950f2,stroke-width:2px,color:#5f3dc4;
-    classDef external fill:#fff3bf,stroke:#fab005,stroke-width:2px,stroke-dasharray: 3 3,color:#d9480f;
-```
-
----
-
-### Diagram 5: Workflow Automation (`Workflow_Automation`)
-
-```mermaid
-flowchart LR
-    %% Actors
-    Orchestrator(["Workflow Orchestrator\n(SYS-03)"]):::sysactor
-    Manager(["Department Manager"]):::actor
-    Admin(["System Administrator"]):::actor
-
-    %% System Boundary
-    subgraph BC_WF ["Workflow Automation Subsystem"]
-        UC_WF_01(["UC-WF-01: Trigger-Based Pipeline Execution"])
-        UC_WF_02(["UC-WF-02: Workflow Execution Monitoring"])
-        UC_RAG_01_EXT(["UC-RAG-01: Ingestion & Vector Indexing"]):::external
-        UC_HITL_01_EXT(["UC-HITL-01: 2-Phase Action Request"]):::external
-        UC_HITL_03_EXT(["UC-HITL-03: Exception Task Handling"]):::external
-    end
-
-    %% Actor Associations
-    Orchestrator --- UC_WF_01
-    Manager --- UC_WF_02
-    Admin --- UC_WF_02
-
-    %% Standard UML Include (Base -> Included)
-    UC_WF_01 -. "«include»" .-> UC_RAG_01_EXT
-
-    %% Standard UML Extend (Extension -> Base)
-    UC_HITL_01_EXT -. "«extend»\n(Extension Point:\nSensitive Action Triggered)" .-> UC_WF_01
-    UC_HITL_03_EXT -. "«extend»\n(Extension Point:\nStep Execution Failure)" .-> UC_WF_01
-
-    classDef actor fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529;
-    classDef sysactor fill:#f1f3f5,stroke:#868e96,stroke-width:2px,stroke-dasharray: 5 5,color:#343a40;
-    classDef external fill:#fff3bf,stroke:#fab005,stroke-width:2px,stroke-dasharray: 3 3,color:#d9480f;
-```
-
----
-
-### Diagram 6: Operations & Human-In-The-Loop (`Operations_HITL`)
+### Diagram 3: Audit Trail Subsystem (`Audit_System`)
 
 ```mermaid
 flowchart LR
     %% Primary Actors
-    Staff(["Knowledge Worker"]):::actor
-    Manager(["Department Manager"]):::actor
-    Admin(["System Administrator"]):::actor
-
-    %% System Boundary
-    subgraph BC_HITL ["Operations & HITL Subsystem"]
-        UC_HITL_01(["UC-HITL-01: 2-Phase Action Request & Preview"])
-        UC_HITL_02(["UC-HITL-02: Manager Approval & Idempotent Commit"])
-        UC_HITL_03(["UC-HITL-03: Operational Exception Task Handling"])
-        UC_AUDIT_01_EXT(["UC-AUDIT-01: Immutable Audit Logging"]):::external
-        UC_AUDIT_02_EXT(["UC-AUDIT-02: Real-time In-App Notifications"]):::external
-    end
-
-    %% Actor Associations
-    Staff --- UC_HITL_01
-    Staff --- UC_HITL_03
-    Manager --- UC_HITL_02
-    Manager --- UC_HITL_03
-    Admin --- UC_HITL_02
-
-    %% Standard UML Include Relationships
-    UC_HITL_01 -. "«include»" .-> UC_AUDIT_02_EXT
-    UC_HITL_02 -. "«include»" .-> UC_AUDIT_01_EXT
-    UC_HITL_02 -. "«include»" .-> UC_AUDIT_02_EXT
-    UC_HITL_03 -. "«include»" .-> UC_AUDIT_01_EXT
-
-    classDef actor fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529;
-    classDef external fill:#fff3bf,stroke:#fab005,stroke-width:2px,stroke-dasharray: 3 3,color:#d9480f;
-```
-
----
-
-### Diagram 7: Audit Subsystem & Notifications (`Audit_System`)
-
-```mermaid
-flowchart LR
-    %% Actors
     Auditor(["Compliance Auditor"]):::actor
     Admin(["System Administrator"]):::actor
-    User(["System User"]):::actor
-    AuditSub(["Audit Subsystem\n(SYS-04)"]):::sysactor
-    NotifSub(["Notification Subsystem\n(SYS-05)"]):::sysactor
+
+    %% Secondary System Actors
+    AuditSub(["Audit Subsystem (SYS-04)"]):::sysactor
 
     %% System Boundary
-    subgraph BC_AUDIT ["Audit Trail & Notification Subsystem"]
+    subgraph BC_AUDIT ["Audit Subsystem Boundary"]
         UC_AUDIT_01(["UC-AUDIT-01: Immutable Audit Trail Logging"])
-        UC_AUDIT_02(["UC-AUDIT-02: Real-time In-App Notifications"])
     end
 
     %% Actor Associations
-    AuditSub --- UC_AUDIT_01
     Auditor --- UC_AUDIT_01
     Admin --- UC_AUDIT_01
-    NotifSub --- UC_AUDIT_02
-    User --- UC_AUDIT_02
+    AuditSub --- UC_AUDIT_01
 
     classDef actor fill:#f8f9fa,stroke:#495057,stroke-width:2px,color:#212529;
     classDef sysactor fill:#f1f3f5,stroke:#868e96,stroke-width:2px,stroke-dasharray: 5 5,color:#343a40;

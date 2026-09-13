@@ -22,6 +22,11 @@ public class SecurityConfig {
   private String allowedOrigins;
 
   @Bean
+  public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder() {
+    return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(12);
+  }
+
+  @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) {
     http
         .csrf(csrf -> csrf.disable())

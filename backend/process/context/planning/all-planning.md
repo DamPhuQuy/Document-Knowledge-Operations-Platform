@@ -52,7 +52,10 @@
   </rule>
 
   <rule id="atomic_checkpoint">
-    Commit or checkpoint each slice atomically upon verification passing. This guarantees clean git history and enables instant rollback if subsequent slices encounter irrecoverable regressions.
+    Commit or checkpoint each slice atomically upon verification passing using the standard format:
+    `git commit -m "<type>(<task-id>/slice-<index>): <short summary> [verifier: <cmd> (exit: 0)]"`
+    This guarantees clean git history and enables instant rollback if subsequent slices encounter irrecoverable regressions.
+    For high-risk exploratory tasks, adhere to the Git Worktree Sandboxing policy in [`process/development-protocols/observability-and-evals.md`](../development-protocols/observability-and-evals.md).
   </rule>
 </slice_sizing>
 

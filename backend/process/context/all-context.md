@@ -16,44 +16,35 @@
   - Specify clear `scope` so agents know exactly when to load this context group without
     unnecessary full-directory scanning.
 -->
-<context_groups>
-  <group id="planning">
-    <title>Planning Standards & Calibration</title>
-    <path>[`planning/all-planning.md`](planning/all-planning.md)</path>
-    <scope>INVEST criteria, vertical slicing rules, Story Point capacity calibration</scope>
-  </group>
 
-  <group id="seeds">
+<context_groups>
+  <group id="planning"></group>
+
+    <path></path>
+    <scope>  INVEST criteria, vertical slicing rules, Story Point capacity calibration</group>
+
+<group id="seeds">
     <title>Seeds & Archetypes Guide</title>
     <path>[`../_seeds/_GUIDE.md`](../_seeds/_GUIDE.md)</path>
     <scope>Scaffolding seeds for tasks, research, decisions, plans, state, reviews, handoffs, pause, cancellation, benchmarks, and programs. Full artifact chain and instantiation commands.</scope>
   </group>
 
-  <group id="tests">
+<group id="tests">
     <title>Testing Standards & Harness Strategy</title>
     <path>[`tests/all-tests.md`](tests/all-tests.md)</path>
     <scope>Test pyramid, unit/integration isolation policies, mock conventions, and test fixtures</scope>
   </group>
 
-  <group id="protocols">
+<group id="protocols">
     <title>Development Protocols Index</title>
     <path>[`../development-protocols/all-development-protocols.md`](../development-protocols/all-development-protocols.md)</path>
     <scope>Engineering harness, subagent orchestration, and code standards</scope>
   </group>
 
-  <group id="architecture">
-    <title>Standard Architecture</title>
+<group id="architecture">
+    <title>Backend Architecture & Module Standards</title>
     <path>[`architecture/architecture-template.md`](architecture/architecture-template.md)</path>
-    <scope>Module directory tree, Clean/Hexagonal layers, persistence subpackages, boundary and dependency rules</scope>
+    <scope>Pragmatic Clean Hexagonal architecture, SOLID principles matrix, layer boundaries, and anti-overengineering guardrails</scope>
   </group>
-
-  <!-- Example: Register custom domain context below
-  <group id="domain-billing">
-    <title>Billing & Invoicing Architecture</title>
-    <path>[`billing/billing-context.md`](billing/billing-context.md)</path>
-    <scope>Payment gateway integrations, invoice calculation invariants, tax handling</scope>
-  </group>
-  -->
-</context_groups>
 
 </context_router>

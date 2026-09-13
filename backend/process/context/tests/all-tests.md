@@ -110,4 +110,25 @@
   <command type="coverage">Run test coverage report and threshold check</command>
 </verification_commands>
 
+---
+
+## 7. Tiered / Adaptive TDD Policy
+
+<adaptive_tdd_policy>
+  Do not dogmatically enforce strict Test-Driven Development (test-first) across all tasks. Calibrate testing discipline by technical risk:
+
+  - **Tier 1: Strict TDD (Red → Green → Refactor) — Mandatory:**
+    - *Scope:* Bugfixes (regression verification), Core Domain entities & business invariants, Financial/data calculations, Public API contracts, and Security/authorization boundaries.
+    - *Protocol:*
+      1. Write test case reproducing bug / proving new contract and execute verifier (Confirm: TEST MUST FAIL - RED).
+      2. Write minimal implementation to flip test to GREEN.
+      3. Refactor and clean up while maintaining GREEN state.
+  - **Tier 2: Test-After / Verifier-Driven — Flexible:**
+    - *Scope:* UI components, Frontend layout, Peripheral adapters with existing mocks, File path refactoring.
+    - *Protocol:* Implement code concurrently or prior to tests, run slice verifier to prove correctness.
+  - **Tier 3: Visual & Manual Verifier — Lightweight:**
+    - *Scope:* Markdown documentation, static config files, assets.
+    - *Protocol:* Verify via linters, schema validators, or visual diffs.
+</adaptive_tdd_policy>
+
 </testing_context>

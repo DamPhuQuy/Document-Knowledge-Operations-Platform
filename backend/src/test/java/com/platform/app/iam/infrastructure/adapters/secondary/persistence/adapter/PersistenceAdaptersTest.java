@@ -19,7 +19,6 @@ import org.springframework.context.annotation.Import;
 
 import com.platform.app.iam.domain.model.RefreshToken;
 import com.platform.app.iam.domain.model.User;
-import com.platform.app.iam.domain.model.UserId;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
@@ -91,7 +90,7 @@ class PersistenceAdaptersTest {
   @Test
   @DisplayName("Should save and find refresh token")
   void shouldSaveAndFindRefreshToken() {
-    UserId userId = UserId.generate();
+    UUID userId = UUID.randomUUID();
     Instant expiry = Instant.now().plus(30, ChronoUnit.DAYS);
     RefreshToken token = RefreshToken.create(userId, "sample-token-string-12345", expiry);
 

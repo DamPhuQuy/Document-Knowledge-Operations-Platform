@@ -44,9 +44,9 @@
 
 <completed_slices>
   <!-- Update after each slice verifier passes -->
-  | Slice | Status | Verifier Result | Evidence |
-  |---|---|---|---|
-  | S1 | | | |
+  | Slice | Status | Atomic Commit | Verifier Result | Evidence |
+  |---|---|---|---|---|
+  | S1 | | | | |
 </completed_slices>
 
 ---
@@ -145,5 +145,26 @@
   - [ ] Failure memory checked — no stale assumption being repeated.
   - [ ] No unverified hypothesis being treated as confirmed fact.
 </context_freshness>
+
+---
+
+## 14. Cost & Resource Observability
+
+<cost_observability>
+  <total_tool_calls>0</total_tool_calls>
+  <estimated_tokens_consumed></estimated_tokens_consumed>
+  <total_retries_used>0</total_retries_used>  <!-- maximum 3 per unique symptom -->
+  <wall_clock_duration></wall_clock_duration>
+  <first_pass_acceptance>YES</first_pass_acceptance>  <!-- YES if verified first attempt, NO if required auto-healing -->
+</cost_observability>
+
+## 15. Policy & Provenance Evidence
+
+<policy_evidence>
+  <policy_manifest>process/policy/policy-manifest.json</policy_manifest>
+  <policy_verdict>[ALLOW | DENY | ESCALATE]</policy_verdict>
+  <source_reference>[Stable local path, issue ID, or content hash — never raw secret/tool payload]</source_reference>
+  <untrusted_content_handling>[DATA_ONLY | NOT_APPLICABLE]</untrusted_content_handling>
+</policy_evidence>
 
 </loop_state>

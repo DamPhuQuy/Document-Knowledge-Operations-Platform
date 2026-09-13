@@ -48,16 +48,16 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
     Instant expiry = now.plusMillis(properties.expirationMs());
 
     return Jwts.builder()
-        .subject(user.getId().value().toString())
-        .claim("userId", user.getId().value().toString())
+        .subject(user.getId().toString())
+        .claim("userId", user.getId().toString())
         .claim("email", user.getEmail())
         .claim(
             "departmentId",
-            user.getDepartmentId() != null ? user.getDepartmentId().value().toString() : null)
+            user.getDepartmentId() != null ? user.getDepartmentId().toString() : null)
         .claim(
             "roleIds",
             user.getRoleIds().stream().map(UUID::toString).sorted().toList())
-        .claim("isInternal", user.getFlags().isInternal())
+        .claim("isInternal", user.isInternal())
         .claim("permissions", user.getAllPermissionCodes().stream().sorted().toList())
         .claim(Claims.ISSUED_AT, now.getEpochSecond())
         .claim(Claims.EXPIRATION, expiry.getEpochSecond())

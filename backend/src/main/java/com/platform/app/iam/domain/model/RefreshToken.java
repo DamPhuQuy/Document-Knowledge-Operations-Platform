@@ -13,7 +13,7 @@ import lombok.Getter;
 public class RefreshToken {
   @EqualsAndHashCode.Include
   private final UUID id;
-  private final UserId userId;
+  private final UUID userId;
   private final String token;
   private final Instant expiryDate;
   private boolean revoked;
@@ -21,7 +21,7 @@ public class RefreshToken {
 
   public RefreshToken(
       UUID id,
-      UserId userId,
+      UUID userId,
       String token,
       Instant expiryDate,
       boolean revoked,
@@ -34,7 +34,7 @@ public class RefreshToken {
     this.createdAt = createdAt != null ? createdAt : Instant.now();
   }
 
-  public static RefreshToken create(UserId userId, String token, Instant expiryDate) {
+  public static RefreshToken create(UUID userId, String token, Instant expiryDate) {
     return new RefreshToken(
         UUID.randomUUID(), userId, token, expiryDate, false, Instant.now());
   }

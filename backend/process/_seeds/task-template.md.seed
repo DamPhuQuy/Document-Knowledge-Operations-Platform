@@ -53,6 +53,14 @@
     - [ ] AC-2: [Edge cases, validation rules, or error handling]
     - [ ] AC-3: [Automated tests added/updated and passing]
   </acceptance_criteria>
+
+  <!-- Definition-of-Ready (DoR) Gate — Frontload the thinking before dispatch -->
+  <definition_of_ready>
+    - [ ] Target outcome and acceptance criteria are verifiable without guessing.
+    - [ ] Invariants and <out_of_scope> boundaries are explicit.
+    - [ ] Open questions resolved or scheduled in decision.md (No speculative coding).
+    <!-- STOP: If any DoR item is unchecked, halt and ask clarifying questions first! -->
+  </definition_of_ready>
 </specification>
 
 ---

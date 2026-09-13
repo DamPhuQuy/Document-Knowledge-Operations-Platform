@@ -21,18 +21,18 @@
 
 ## 2. Machine & Supporting System Actors
 
-Supporting system actors are structured across the two implementation phases:
+Supporting system actors for the **Ultra-Lean MVP** and future extensions:
 
-| Actor Code | System Actor Name | Technical Component | Automated Responsibilities | Delivery Phase |
+| Actor Code | System Actor Name | Technical Component | Automated Responsibilities | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **EXT-03** | **AWS Cloud & Edge Platform** | AWS EC2 / S3 / Cloudflare / GitHub Actions | Hosts Docker runtime, terminates HTTPS/TLS, manages security groups, and automates CI/CD deployment. | **Phase 1 (P0)** |
-| **EXT-01** | **AWS S3 Object Storage** | AWS S3 / Compatible Blob Storage | Remote cloud blob storage for binary files (PDF, DOCX, XLSX) with SSE-AES256 and presigned URLs. | **Phase 1 (P0)** |
-| **SYS-03** | **Workflow Orchestrator** | `backend` (Spring Boot App Service) | Coordinates multi-step document pipelines, handles event triggers, and transitions executions into `WAITING_APPROVAL`. | **Phase 1 (P1)** |
-| **SYS-04** | **Audit Subsystem** | `backend` (`@EventListener` & Interceptor)| Immutably records all authentication, CRUD mutations, ACL updates, and HITL decisions into the `audit_logs` table. | **Phase 1 (P0)** |
-| **SYS-05** | **Notification Subsystem**| `backend` (Notification Service) | Dispatches real-time in-app alerts and pending approval notifications to target users. | **Phase 1 (P1)** |
-| **SYS-01** | **AI Ingestion Worker** | `ai` (FastAPI Background Task) | *(Phase 2 Extension)* Ingests files, extracts text, performs chunking, computes 1536d embeddings, and indexes vectors. | **Phase 2 (P2)** |
-| **SYS-02** | **Hybrid RAG Engine** | `ai` (FastAPI + pgvector + BM25 FTS) | *(Phase 2 Extension)* Executes Pre-filtered SQL hybrid retrieval, computes RRF rankings, and formats grounded citations. | **Phase 2 (P2)** |
-| **EXT-02** | **Embedding & LLM API** | OpenAI / Gemini API Provider | External AI foundation models for dense vector embeddings and conversational completions. | **Phase 2 (P2)** |
+| **EXT-03** | **AWS Cloud & Edge Platform** | AWS EC2 / S3 / Cloudflare / GitHub Actions | Hosts Docker runtime, terminates HTTPS/TLS, manages security groups, and automates CI/CD deployment. | **Active MVP (P0)** |
+| **EXT-01** | **AWS S3 Object Storage** | AWS S3 / Compatible Blob Storage | Remote cloud blob storage for binary files (PDF, DOCX, XLSX) with SSE-AES256 and presigned URLs. | **Active MVP (P0)** |
+| **SYS-04** | **Audit Subsystem** | `backend` (`@EventListener` & Interceptor)| Immutably records all authentication, CRUD mutations, and ACL updates into the `audit_logs` table. | **Active MVP (P0)** |
+| **SYS-03** | **Workflow Orchestrator** | `backend` (Spring Boot App Service) | *(Deferred)* Coordinates multi-step document pipelines and handles event triggers. | *Deferred* |
+| **SYS-05** | **Notification Subsystem**| `backend` (Notification Service) | *(Deferred)* Dispatches real-time in-app alerts and pending approval notifications. | *Deferred* |
+| **SYS-01** | **AI Ingestion Worker** | `ai` (FastAPI Background Task) | *(Deferred)* Ingests files, extracts text, performs chunking, and indexes 1536d vectors. | *Deferred* |
+| **SYS-02** | **Hybrid RAG Engine** | `ai` (FastAPI + pgvector + BM25 FTS) | *(Deferred)* Executes Pre-filtered SQL hybrid retrieval and formats grounded citations. | *Deferred* |
+| **EXT-02** | **Embedding & LLM API** | OpenAI / Gemini API Provider | *(Deferred)* External foundation models for embeddings and completions. | *Deferred* |
 
 ---
 
@@ -65,13 +65,14 @@ flowchart TD
 
 Fine-grained permissions follow the standard format `<action>:<resource>` (stored in `permissions` and `role_permissions`):
 
-| Permission Code | Business Meaning | `ADMIN` | `MANAGER` | `STAFF` | `LEGAL_AUDITOR` | `CUSTOMER` |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| `read:documents` | Search, view, and query available documents | Allowed | Allowed | Allowed | Allowed | Allowed *(Public)* |
-| `write:documents` | Upload new documents and publish revisions | Allowed | Allowed | Allowed | - | - |
-| `delete:documents` | Soft-delete documents from the workspace | Allowed | Allowed | - | - | - |
-| `manage:permissions` | Grant or revoke document ACL access | Allowed | Allowed | Allowed *(Own docs)* | - | - |
-| `manage:users` | Provision, deactivate, and assign user roles | Allowed | - | - | - | - |
-| `manage:workflows` | Define and trigger automated workflows | Allowed | Allowed | - | - | - |
-| `approve:actions` | Approve or reject sensitive HITL actions | Allowed | Allowed | - | - | - |
-| `read:audit_logs` | Inspect system-wide security audit trail | Allowed | - | - | Allowed | - |
+| Permission Code | Business Meaning | `ADMIN` | `MANAGER` | `STAFF` | `LEGAL_AUDITOR` | `CUSTOMER` | MVP Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `read:documents` | Search, view, and query available documents | Allowed | Allowed | Allowed | Allowed | Allowed *(Public)* | **Active MVP** |
+| `write:documents` | Upload new documents and publish revisions | Allowed | Allowed | Allowed | - | - | **Active MVP** |
+| `delete:documents` | Soft-delete documents from the workspace | Allowed | Allowed | - | - | - | **Active MVP** |
+| `manage:permissions` | Grant or revoke document ACL access | Allowed | Allowed | Allowed *(Own docs)* | - | - | **Active MVP** |
+| `manage:users` | Provision, deactivate, and assign user roles | Allowed | - | - | - | - | **Active MVP** |
+| `read:audit_logs` | Inspect system-wide security audit trail | Allowed | - | - | Allowed | - | **Active MVP** |
+| `manage:workflows` | Define and trigger automated workflows | Allowed | Allowed | - | - | - | *Deferred* |
+| `approve:actions` | Approve or reject sensitive HITL actions | Allowed | Allowed | - | - | - | *Deferred* |
+

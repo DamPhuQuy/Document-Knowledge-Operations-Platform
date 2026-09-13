@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -13,12 +14,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.platform.app.iam.domain.model.DepartmentId;
 import com.platform.app.iam.domain.model.Permission;
 import com.platform.app.iam.domain.model.Role;
-import com.platform.app.iam.domain.model.RoleId;
 import com.platform.app.iam.domain.model.User;
-import com.platform.app.iam.domain.model.UserId;
 import com.platform.app.iam.infrastructure.adapters.secondary.security.adapter.JwtTokenProviderAdapter;
 import com.platform.app.iam.infrastructure.adapters.secondary.security.config.JwtProperties;
 
@@ -40,9 +38,9 @@ class JwtTokenProviderAdapterTest {
   void shouldGenerateValidJwtWithClaims() {
     JwtTokenProviderAdapter adapter = new JwtTokenProviderAdapter(PROPERTIES);
 
-    UserId userId = UserId.generate();
-    RoleId roleId = RoleId.generate();
-    DepartmentId deptId = DepartmentId.from(UUID.randomUUID());
+    UUID userId = UUID.randomUUID();
+    UUID roleId = UUID.randomUUID();
+    UUID deptId = UUID.randomUUID();
     Permission p1 =
         Permission.builder()
             .id(UUID.randomUUID())
@@ -67,9 +65,11 @@ class JwtTokenProviderAdapterTest {
             .passwordHash("hash")
             .fullName("Admin User")
             .departmentId(deptId)
-            .flags(com.platform.app.shared.domain.UserFlags.of(true, true))
+            .enabled(true)
+            .internal(true)
             .roles(Set.of(role))
-            .auditMetadata(com.platform.app.shared.domain.AuditMetadata.now())
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
             .build();
 
     String token = adapter.generateAccessToken(user);
@@ -77,15 +77,15 @@ class JwtTokenProviderAdapterTest {
     assertTrue(adapter.validateToken(token));
 
     Claims claims = adapter.parseClaims(token);
-    assertEquals(userId.value().toString(), claims.getSubject());
-    assertEquals(userId.value().toString(), claims.get("userId", String.class));
+    assertEquals(userId.toString(), claims.getSubject());
+    assertEquals(userId.toString(), claims.get("userId", String.class));
     assertEquals("admin@platform.com", claims.get("email", String.class));
-    assertEquals(deptId.value().toString(), claims.get("departmentId", String.class));
+    assertEquals(deptId.toString(), claims.get("departmentId", String.class));
     assertEquals(true, claims.get("isInternal", Boolean.class));
 
     @SuppressWarnings("unchecked")
     List<String> roleIds = claims.get("roleIds", List.class);
-    assertEquals(List.of(roleId.value().toString()), roleIds);
+    assertEquals(List.of(roleId.toString()), roleIds);
 
     @SuppressWarnings("unchecked")
     List<String> permissions = claims.get("permissions", List.class);
@@ -116,13 +116,15 @@ class JwtTokenProviderAdapterTest {
 
     User user =
         User.builder()
-            .id(UserId.generate())
+            .id(UUID.randomUUID())
             .email("expired@platform.com")
             .passwordHash("hash")
             .fullName("Expired User")
-            .flags(com.platform.app.shared.domain.UserFlags.of(true, true))
+            .enabled(true)
+            .internal(true)
             .roles(Set.of())
-            .auditMetadata(com.platform.app.shared.domain.AuditMetadata.now())
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
             .build();
 
     String token = adapter.generateAccessToken(user);

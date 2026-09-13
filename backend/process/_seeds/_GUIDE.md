@@ -23,9 +23,18 @@
 <catalog>
 
   <seed type="task" path="task-template.md.seed">
-    Master contract and state record for the full RIPER-5 lifecycle.
+    Master contract and state record for the full RIPER-5 lifecycle (Full Track: 7 artifacts).
     Contains: Task Control metadata (working_mode PAIR/DELEGATED), Spec, Context Boundaries, Verification Strategy,
     Decisions, RIPER-5 Execution Plan (with Gates G0–G3), and Guardrails.
+    Recommended for: Complex features, architectural refactors, and Epics in `process/features/`.
+  </seed>
+
+  <seed type="task-lite" path="task-lite.md.seed">
+    Consolidated single-file contract for RIPER-5 Lite Track (1 artifact).
+    Combines: Intent, Invariants, Scope Contract (<allowed_files>), Compact Vertical Slices,
+    and Consolidated Verification Gates (G1/G2/G3).
+    Recommended for: Small tasks, bugfixes, micro-features, and hotfixes in `process/general-plans/`.
+    Reduces token tax and context overhead by over 70%.
   </seed>
 
   <seed type="research" path="context-group.md.seed">
@@ -173,29 +182,41 @@ Instead of manually executing terminal commands, you can initiate a task directl
 
 The Agent will automatically create the required directory, copy `task-template.md.seed` $\rightarrow$ `task.md`, hydrate `<goal>` and `<acceptance_criteria>` from your prompt, and begin the Research phase immediately.
 
-### Method 2: Manual Terminal Commands (Copy Commands)
+### Method 2: Manual Terminal Commands (Progressive Copy-On-Demand)
+
+Follow the **Copy-On-Demand Protocol**: start with `task.md` (or `task-lite.md`), and only instantiate subsequent artifacts as the task enters each respective phase.
 
 ```bash
-# Create a new task workspace
+# 1. Initialize Task Workspace (Start with task.md or task-lite.md):
 mkdir -p process/features/active/CHG-XXX-your-feature
+cp process/_seeds/task-template.md.seed process/features/active/CHG-XXX-your-feature/task.md
+# (Or for Lite Track: cp process/_seeds/task-lite.md.seed process/general-plans/active/FIX-XXX/task-lite.md)
 
-# Instantiate primary seeds into the workspace
-cp process/_seeds/task-template.md.seed     process/features/active/CHG-XXX-your-feature/task.md
-cp process/_seeds/context-group.md.seed    process/features/active/CHG-XXX-your-feature/research.md
-cp process/_seeds/decision-template.md.seed process/features/active/CHG-XXX-your-feature/decision.md
-cp process/_seeds/plan-template.md.seed    process/features/active/CHG-XXX-your-feature/plan.md
-cp process/_seeds/state-template.md.seed   process/features/active/CHG-XXX-your-feature/state.md
-cp process/_seeds/review-template.md.seed  process/features/active/CHG-XXX-your-feature/review.md
-cp process/_seeds/handoff-template.md.seed process/features/active/CHG-XXX-your-feature/handoff.md
+# 2. Copy-On-Demand as Phases Progress:
+# When entering RESEARCH:
+cp process/_seeds/context-group.md.seed     process/features/active/CHG-XXX-your-feature/research.md
 
-# (Optional) Tracking performance or evaluation metrics:
-cp process/_seeds/results-template.tsv.seed process/features/active/CHG-XXX-your-feature/results.tsv
+# When entering INNOVATE (Gate G1 options):
+cp process/_seeds/decision-template.md.seed  process/features/active/CHG-XXX-your-feature/decision.md
 
-# (When pausing or parking an in-flight task):
-cp process/_seeds/pause-template.md.seed process/features/active/CHG-XXX-your-feature/paused.md
+# When entering PLAN (Gate G2 execution contract & slices):
+cp process/_seeds/plan-template.md.seed      process/features/active/CHG-XXX-your-feature/plan.md
 
-# (When cancelling an in-flight task):
-cp process/_seeds/cancellation-template.md.seed process/features/active/CHG-XXX-your-feature/cancelled.md
+# When entering EXECUTE (Runtime memory ledger):
+cp process/_seeds/state-template.md.seed     process/features/active/CHG-XXX-your-feature/state.md
+
+# When entering REVIEW (Gate G3 audit & diff check):
+cp process/_seeds/review-template.md.seed   process/features/active/CHG-XXX-your-feature/review.md
+
+# When completing task (Final projection):
+cp process/_seeds/handoff-template.md.seed  process/features/active/CHG-XXX-your-feature/handoff.md
+
+# Optional: When tracking benchmark metrics:
+# cp process/_seeds/results-template.tsv.seed process/features/active/CHG-XXX-your-feature/results.tsv
+
+# State transitions: If task is paused or cancelled:
+# cp process/_seeds/pause-template.md.seed process/features/active/CHG-XXX-your-feature/paused.md
+# cp process/_seeds/cancellation-template.md.seed process/features/active/CHG-XXX-your-feature/cancelled.md
 ```
 
 </seeds_guide>
