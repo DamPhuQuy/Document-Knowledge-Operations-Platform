@@ -4,23 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.platform.app.shared.domain.AuditMetadata;
-import com.platform.app.shared.domain.UserFlags;
-
 class UserTest {
 
   @Test
   @DisplayName("Should correctly assemble user with roles and permissions")
   void shouldAssembleUserWithRolesAndPermissions() {
-    UserId userId = UserId.generate();
-    RoleId roleId = RoleId.generate();
-    DepartmentId deptId = DepartmentId.from(UUID.randomUUID());
+    UUID userId = UUID.randomUUID();
+    UUID roleId = UUID.randomUUID();
+    UUID deptId = UUID.randomUUID();
 
     Permission p1 =
         Permission.builder()
@@ -54,16 +52,18 @@ class UserTest {
             .passwordHash("$2a$12$e88...hashed")
             .fullName("Test User")
             .departmentId(deptId)
-            .flags(UserFlags.of(true, true))
+            .enabled(true)
+            .internal(true)
             .roles(Set.of(role))
-            .auditMetadata(AuditMetadata.now())
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
             .build();
 
     assertEquals("user@platform.com", user.getEmail());
     assertTrue(user.isEnabled());
     assertTrue(user.isInternal());
     assertEquals(1, user.getRoleIds().size());
-    assertTrue(user.getRoleIds().contains(roleId.value()));
+    assertTrue(user.getRoleIds().contains(roleId));
     assertEquals(Set.of("DOC_READ", "DOC_WRITE"), user.getAllPermissionCodes());
   }
 
@@ -72,11 +72,12 @@ class UserTest {
   void shouldDetectDisabledUser() {
     User user =
         User.builder()
-            .id(UserId.generate())
+            .id(UUID.randomUUID())
             .email("inactive@platform.com")
             .passwordHash("hash")
             .fullName("Inactive User")
-            .flags(UserFlags.of(false, false))
+            .enabled(false)
+            .internal(false)
             .roles(Set.of())
             .build();
 

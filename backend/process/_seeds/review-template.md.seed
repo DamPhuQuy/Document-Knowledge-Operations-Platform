@@ -7,6 +7,7 @@
   <phase>REVIEW</phase>
   <mode>READ-ONLY</mode>
   <reviewer></reviewer>
+  <reviewer_harness></reviewer_harness>  <!-- e.g. human-pair / independent-subagent / cross-model-harness -->
   <last_updated></last_updated>
 </review_status>
 
@@ -136,6 +137,7 @@
 
 <gate id="G3">
   - [ ] Full diff reviewed (zero extraneous changes).
+  - [ ] Independent review verified (implementer was not sole reviewer).
   - [ ] Housekeeping complete: all transient debug logs, print statements, and scratch files removed.
   - [ ] All required evidence exists and is attached.
   - [ ] All findings triaged (Confirmed Defects resolved or risk-accepted).

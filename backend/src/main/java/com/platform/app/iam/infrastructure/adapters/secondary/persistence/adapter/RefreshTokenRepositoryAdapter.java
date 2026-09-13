@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.platform.app.iam.application.ports.outbound.RefreshTokenRepositoryPort;
 import com.platform.app.iam.domain.model.RefreshToken;
-import com.platform.app.iam.domain.model.UserId;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RefreshTokenJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.repository.SpringDataRefreshTokenRepository;
 
@@ -27,7 +26,7 @@ public class RefreshTokenRepositoryAdapter implements RefreshTokenRepositoryPort
     RefreshTokenJpaEntity entity =
         RefreshTokenJpaEntity.builder()
             .id(refreshToken.getId())
-            .userId(refreshToken.getUserId().value())
+            .userId(refreshToken.getUserId())
             .token(refreshToken.getToken())
             .expiryDate(refreshToken.getExpiryDate())
             .revoked(refreshToken.isRevoked())
@@ -50,7 +49,7 @@ public class RefreshTokenRepositoryAdapter implements RefreshTokenRepositoryPort
   private RefreshToken toDomain(RefreshTokenJpaEntity entity) {
     return RefreshToken.builder()
         .id(entity.getId())
-        .userId(UserId.from(entity.getUserId()))
+        .userId(entity.getUserId())
         .token(entity.getToken())
         .expiryDate(entity.getExpiryDate())
         .revoked(entity.isRevoked())

@@ -37,32 +37,34 @@
 <foundations>
   <!-- Pillar 1: Task & Specification -->
   <pillar id="task_spec" title="Task & Specification">
-    <rule>Single Source of Truth: Active task file in [`process/features/active/{feature}/task.md`](process/features/) or [`process/general-plans/active/{task}/task.md`](process/general-plans/) (instantiated from [`process/_seeds/task-template.md.seed`](process/_seeds/task-template.md.seed)).</rule>
-    <rule>Prompt & Slash Command Initialization: Users can request and run tasks directly via prompt or pseudo-slash command prefixes. The Agent automatically routes the folder and instantiates `task.md` from [`process/_seeds/task-template.md.seed`](process/_seeds/task-template.md.seed):
-      - Commands `/feature`, `/big-task`, `/epic` or keywords `big task`, `feature`, `big changes`: routes to `process/features/active/{task-slug}/task.md` (PAIR mode).
-      - Commands `/task`, `/small-task`, `/bug` or keywords `small task`, `general changes`, `small changes`: routes to `process/general-plans/active/{task-slug}/task.md` (PAIR mode).
-      - Command `/hotfix`: routes to `process/general-plans/active/{task-slug}/task.md` and runs in DELEGATED mode.
+    <rule>Single Source of Truth: Active task file in [`process/features/active/{feature}/task.md`](process/features/) (Full Track) or [`process/general-plans/active/{task}/task-lite.md`](process/general-plans/) (Lite Track).</rule>
+    <rule>Dual-Track Routing:
+      - **Full Track (7 artifacts):** For complex features, epics, and cross-cutting refactoring. Initiated from [`process/_seeds/task-template.md.seed`](process/_seeds/task-template.md.seed) in `process/features/active/{task-slug}/`. Chain: `task.md → research.md → decision.md → plan.md → state.md → review.md → handoff.md`.
+      - **Lite Track (1 artifact):** For quick tasks, bugfixes, micro-features, and hotfixes. Initiated from [`process/_seeds/task-lite.md.seed`](process/_seeds/task-lite.md.seed) in `process/general-plans/active/{task-slug}/task-lite.md`. Consolidates spec, allowed files, slices, and verification gates into a single file to eliminate token overhead.</rule>
+    <rule>Prompt & Slash Command Initialization: Users can request and run tasks directly via prompt or pseudo-slash command prefixes:
+      - Commands `/feature`, `/big-task`, `/epic` or keywords `big task`, `feature`, `big changes`: routes to Full Track in `process/features/active/{task-slug}/task.md` (PAIR mode).
+      - Commands `/task`, `/small-task`, `/bug` or keywords `small task`, `bug`: routes to Lite Track in `process/general-plans/active/{task-slug}/task-lite.md` (PAIR mode).
+      - Command `/hotfix`: routes to Lite Track in `process/general-plans/active/{task-slug}/task-lite.md` and runs in DELEGATED mode.
       - Commands `/fast-track`, `/delegated`: executes autonomously through all phases.
-      - Command `/update`: checks for a new framework version (via `instruction-version.json` and registry); updates instructions if a newer version exists, or outputs "nothing changed" if already on the latest version.
-      The Agent creates the directory, hydrates `<goal>` and `<acceptance_criteria>` from the prompt, and initiates the RESEARCH phase immediately.</rule>
-    <rule>Define changes via Goal, Current Behavior, Expected Behavior, Invariants, and `<out_of_scope>`.</rule>
-    <rule>Acceptance Criteria (AC) must be unambiguous, verifiable markdown checkboxes (`- [ ]`).</rule>
-    <rule>Every task has a master contract (`task.md`) and a full artifact chain: `research.md → decision.md → plan.md → state.md → review.md → handoff.md`.</rule>
+      - Command `/sync`: runs `npx @damphuquy/agent-init sync` to mirror `AGENTS.md` to `.cursor/rules/`, `CLAUDE.md`, and `.windsurfrules`.
+      - Command `/verify-gate [G2|G3]`: verifies that no modified files in `git diff` violate `<allowed_files>`.
+      - Command /update: checks for a new framework version (via `instruction-version.json` and registry); updates instructions if a newer version exists, or outputs "nothing changed" if already on the latest version.</rule>
+    <rule>Define changes via Goal, Invariants, `<scope_contract>`, and Acceptance Criteria.</rule>
   </pillar>
 
-  <!-- Pillar 2: Context Navigation -->
-  <pillar id="context" title="Context Navigation">
+  <!-- Pillar 2: Context Navigation, LSP & Model Context Protocol (MCP) -->
+  <pillar id="context" title="Context Navigation, LSP & MCP">
     <rule>Gather minimum sufficient context. No full-repo scanning or drive-by refactoring.</rule>
     <rule>Follow information priority defined in [`.agents/behavior.md`](.agents/behavior.md).</rule>
-    <rule>Project context routes via [`process/context/all-context.md`](process/context/all-context.md).</rule>
-    <information_priority>
-      1. Task Spec & AC ([`process/features/**`](process/features/), [`process/general-plans/**`](process/general-plans/), [`process/context/all-context.md`](process/context/all-context.md))
-      2. Domain Entities & Repositories (`src/main/java/**/domain/`)
-      3. Application Services & Use Cases (`src/main/java/**/application/`)
-      4. Configuration & Security (`src/main/resources/application.yaml`, `src/main/java/**/system/`)
-      5. Infrastructure Adapters & Controllers (`src/main/java/**/infrastructure/`)
-      6. Relevant Test Suites (`src/test/java/`)
-    </information_priority>
+    <rule>Project context routes via [`process/context/all-context.md`](process/context/all-context.md) and [`process/development-protocols/mcp-lsp-protocol.md`](process/development-protocols/mcp-lsp-protocol.md).</rule>
+    <lsp_mcp_capabilities>
+      Prioritize native Language Server Protocol (LSP) AST static analysis and MCP tools:
+      - LSP (Language Server Protocol): Prioritize `documentSymbols`, `goToDefinition`, `findReferences`, and `diagnostics` over raw string grep.
+      - Database MCP: Inspect schemas and run read-only queries instead of hardcoded mock assumptions.
+      - Git MCP: Query log/diff cleanly without unconstrained shell parsing.
+      - Browser/DevTools MCP: Inspect live DOM/accessibility tree during UI review.
+      - Fallback Engine: Gracefully fallback to ast-grep, targeted regex, or static schemas when LSP/MCP are absent.
+    </lsp_mcp_capabilities>
   </pillar>
 
   <!-- Pillar 3: Engineering Harness & Guardrails -->
@@ -71,8 +73,15 @@
       ./gradlew test
       ./gradlew check
     </validation_commands>
+    <action_governance>
+      Agents operate under strict containment:
+      - Anti-Escape: Never modify files outside `<allowed_files>` or unapproved root configurations (`package.json`, workflow CI files) unless explicitly specified in `plan.md`.
+      - Safety Blacklist: Never execute destructive commands (`git push -f`, `git reset --hard`, recursive unconstrained deletes, `DROP TABLE`).
+      - Non-Implementer Review: Authors must never unilaterally certify their own work; review requires independent verification.
+    </action_governance>
     <architecture_guardrail>
-      Java 25 Spring Boot 4.0. Hexagonal / Clean Architecture & Domain-Driven Design (DDD). Persistence entities, database tables, and external protocols must not leak into core domain models.
+      Clean Architecture & Dependency Injection provide structural guidance, NOT an
+      instruction to blindly over-engineer simple utilities.
     </architecture_guardrail>
   </pillar>
 </foundations>

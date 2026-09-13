@@ -98,4 +98,23 @@
   </rule>
 </coordination_and_recovery>
 
+---
+
+## 6. Cross-Harness & Independent Review Protocol
+
+<cross_harness_review>
+  <rule id="implementer_cannot_review">
+    The subagent or harness that authored an implementation must NEVER act as the sole approver of that slice.
+    To prevent confirmation bias, delegate the verification of complex or security-sensitive slices to an independent review subagent, or require human gate sign-off.
+  </rule>
+
+  <rule id="adversarial_verification">
+    Review subagents must be tasked with finding edge-case regressions, compliance violations, and scope breaches against `<scope_contract>`, rather than merely validating the author's declared success.
+  </rule>
+
+  <rule id="fresh_context_mandate">
+    Independent review subagents should operate with clean context: they receive the task requirements, the git diff, and the test command, without the conversational baggage or speculative rationale of the implementation loop.
+  </rule>
+</cross_harness_review>
+
 </orchestration_protocol>

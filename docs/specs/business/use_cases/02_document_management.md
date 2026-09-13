@@ -12,18 +12,17 @@
 - **Actor(s):** Knowledge Worker / Staff (`ROLE_STAFF`) (primary), S3 Storage (`EXT-01`) (secondary)
 - **Includes:** `UC-AUDIT-01` (Immutable Audit Trail Logging)
 - **Extended By:** `UC-DOC-02` (Manage Document Versioning) at Extension Point `Existing Document Revision`
-- **Summary Description:** Uploads raw document files (PDF, DOCX, TXT, XLSX), stores binaries on S3/Floci, computes SHA-256 integrity checksums, creates Version 1 metadata in PostgreSQL, and triggers background AI ingestion.
-- **Priority:** Must Have
+- **Summary Description:** Uploads raw document files (PDF, DOCX, TXT, XLSX), stores binaries on AWS S3, computes SHA-256 integrity checksums, creates Version 1 metadata in PostgreSQL, and records an immutable audit log.
+- **Priority:** Must Have (P0)
 - **Status:** Complete Specification
 - **Pre-Condition:**
   1. User is authenticated with `write:documents` permission.
-  2. Object Storage (S3/Floci) is accessible.
+  2. Object Storage (AWS S3) is accessible.
 - **Post-Condition(s):**
   1. Binary file is saved in S3 at `documents/{doc_id}/v1/{file_name}`.
-  2. Record created in `documents` with `current_version = 1` and `processing_status = 'PENDING'`.
+  2. Record created in `documents` with `current_version = 1` and `processing_status = 'COMPLETED'`.
   3. Version 1 record created in `document_versions`.
-  4. Domain event `DocumentUploadedEvent` is emitted to trigger async processing.
-  5. Audit log recorded via `UC-AUDIT-01`.
+  4. Audit log recorded via `UC-AUDIT-01`.
 - **Basic Path:**
   1. User selects a local file and inputs title, description, and security access level.
   2. Client submits a `multipart/form-data` request to `POST /api/v1/documents`.
@@ -32,9 +31,8 @@
   5. Backend uploads the binary stream to S3 Object Storage (`EXT-01`).
   6. Backend inserts a new row into the `documents` table.
   7. Backend inserts a new row into `document_versions` table referencing Version 1.
-  8. Backend publishes `DocumentUploadedEvent` to trigger automated processing (`UC-WF-01`).
-  9. Backend invokes `UC-AUDIT-01` to record `UPLOAD_DOC` event in `audit_logs`.
-  10. Backend returns HTTP 201 Created with document metadata.
+  8. Backend invokes `UC-AUDIT-01` to record `UPLOAD_DOC` event in `audit_logs`.
+  9. Backend returns HTTP 201 Created with document metadata.
 - **Alternative Paths:**
   - 3a. Unsupported file extension: System returns HTTP 415 Unsupported Media Type.
   - 3b. File size exceeds 50MB: System returns HTTP 413 Payload Too Large.

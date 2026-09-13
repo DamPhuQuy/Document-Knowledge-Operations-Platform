@@ -6,22 +6,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import com.platform.app.iam.infrastructure.adapters.secondary.security.adapter.BCryptPasswordEncoderAdapter;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 class BCryptPasswordEncoderAdapterTest {
 
   @Test
   @DisplayName("Should encode password and verify matches with BCrypt strength >= 12")
   void shouldEncodeAndVerify() {
-    BCryptPasswordEncoderAdapter adapter = new BCryptPasswordEncoderAdapter();
+    PasswordEncoder encoder = new BCryptPasswordEncoder(12);
     String raw = "SecurePass#2026";
-    String hash = adapter.encode(raw);
+    String hash = encoder.encode(raw);
 
     assertNotNull(hash);
     assertTrue(hash.startsWith("$2a$12$") || hash.startsWith("$2b$12$"));
-    assertTrue(adapter.matches(raw, hash));
-    assertFalse(adapter.matches("WrongPassword", hash));
-    assertFalse(adapter.matches(null, hash));
+    assertTrue(encoder.matches(raw, hash));
+    assertFalse(encoder.matches("WrongPassword", hash));
+    assertFalse(encoder.matches(null, hash));
   }
 }

@@ -9,8 +9,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,14 +20,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.platform.app.iam.application.dto.AuthTokensDto;
 import com.platform.app.iam.application.dto.UserLoginFailedEvent;
 import com.platform.app.iam.application.dto.UserLoginSuccessEvent;
 import com.platform.app.iam.application.ports.inbound.LoginCommand;
 import com.platform.app.iam.application.ports.outbound.AccountLockoutPort;
-import com.platform.app.iam.application.ports.outbound.EventPublisherPort;
-import com.platform.app.iam.application.ports.outbound.PasswordEncoderPort;
 import com.platform.app.iam.application.ports.outbound.RefreshTokenRepositoryPort;
 import com.platform.app.iam.application.ports.outbound.TokenProviderPort;
 import com.platform.app.iam.application.ports.outbound.UserRepositoryPort;
@@ -34,19 +36,16 @@ import com.platform.app.iam.domain.exception.AccountLockedException;
 import com.platform.app.iam.domain.exception.InvalidCredentialsException;
 import com.platform.app.iam.domain.model.RefreshToken;
 import com.platform.app.iam.domain.model.User;
-import com.platform.app.iam.domain.model.UserId;
-import com.platform.app.shared.domain.AuditMetadata;
-import com.platform.app.shared.domain.UserFlags;
 
 @ExtendWith(MockitoExtension.class)
 class LoginServiceTest {
 
   @Mock private UserRepositoryPort userRepositoryPort;
   @Mock private RefreshTokenRepositoryPort refreshTokenRepositoryPort;
-  @Mock private PasswordEncoderPort passwordEncoderPort;
+  @Mock private PasswordEncoder passwordEncoder;
   @Mock private TokenProviderPort tokenProviderPort;
   @Mock private AccountLockoutPort accountLockoutPort;
-  @Mock private EventPublisherPort eventPublisherPort;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   private LoginService loginService;
 
@@ -56,10 +55,10 @@ class LoginServiceTest {
         new LoginService(
             userRepositoryPort,
             refreshTokenRepositoryPort,
-            passwordEncoderPort,
+            passwordEncoder,
             tokenProviderPort,
             accountLockoutPort,
-            eventPublisherPort);
+            eventPublisher);
   }
 
   @Test
@@ -68,7 +67,7 @@ class LoginServiceTest {
     String email = "test@platform.com";
     String rawPassword = "password123";
     String hashedPassword = "$2a$12$somehashedpassword";
-    UserId userId = UserId.generate();
+    UUID userId = UUID.randomUUID();
 
     User user =
         User.builder()
@@ -77,14 +76,16 @@ class LoginServiceTest {
             .passwordHash(hashedPassword)
             .fullName("Test User")
             .departmentId(null)
-            .flags(UserFlags.of(true, true))
+            .enabled(true)
+            .internal(true)
             .roles(Set.of())
-            .auditMetadata(AuditMetadata.now())
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
             .build();
 
     when(accountLockoutPort.isLocked(email)).thenReturn(false);
     when(userRepositoryPort.findByEmail(email)).thenReturn(Optional.of(user));
-    when(passwordEncoderPort.matches(rawPassword, hashedPassword)).thenReturn(true);
+    when(passwordEncoder.matches(rawPassword, hashedPassword)).thenReturn(true);
     when(tokenProviderPort.generateAccessToken(user)).thenReturn("mock.jwt.token");
     when(tokenProviderPort.generateRefreshTokenString()).thenReturn("mock-refresh-token-opaque");
     when(tokenProviderPort.getAccessTokenExpirationSeconds()).thenReturn(3600L);
@@ -106,7 +107,7 @@ class LoginServiceTest {
 
     verify(accountLockoutPort).resetAttempts(email);
     verify(refreshTokenRepositoryPort).save(any(RefreshToken.class));
-    verify(eventPublisherPort).publish(any(UserLoginSuccessEvent.class));
+    verify(eventPublisher).publishEvent(any(UserLoginSuccessEvent.class));
   }
 
   @Test
@@ -124,7 +125,7 @@ class LoginServiceTest {
             .build();
 
     assertThrows(AccountLockedException.class, () -> loginService.execute(command));
-    verify(eventPublisherPort).publish(any(UserLoginFailedEvent.class));
+    verify(eventPublisher).publishEvent(any(UserLoginFailedEvent.class));
     verify(userRepositoryPort, never()).findByEmail(anyString());
   }
 
@@ -145,7 +146,7 @@ class LoginServiceTest {
 
     assertThrows(InvalidCredentialsException.class, () -> loginService.execute(command));
     verify(accountLockoutPort).recordFailure(email);
-    verify(eventPublisherPort).publish(any(UserLoginFailedEvent.class));
+    verify(eventPublisher).publishEvent(any(UserLoginFailedEvent.class));
   }
 
   @Test
@@ -154,14 +155,16 @@ class LoginServiceTest {
     String email = "disabled@platform.com";
     User user =
         User.builder()
-            .id(UserId.generate())
+            .id(UUID.randomUUID())
             .email(email)
             .passwordHash("$2a$12$hash")
             .fullName("Disabled User")
             .departmentId(null)
-            .flags(UserFlags.of(false, true))
+            .enabled(false)
+            .internal(true)
             .roles(Set.of())
-            .auditMetadata(AuditMetadata.now())
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
             .build();
 
     when(accountLockoutPort.isLocked(email)).thenReturn(false);
@@ -176,7 +179,7 @@ class LoginServiceTest {
             .build();
 
     assertThrows(AccountDisabledException.class, () -> loginService.execute(command));
-    verify(eventPublisherPort).publish(any(UserLoginFailedEvent.class));
+    verify(eventPublisher).publishEvent(any(UserLoginFailedEvent.class));
   }
 
   @Test
@@ -185,19 +188,21 @@ class LoginServiceTest {
     String email = "test@platform.com";
     User user =
         User.builder()
-            .id(UserId.generate())
+            .id(UUID.randomUUID())
             .email(email)
             .passwordHash("$2a$12$correcthash")
             .fullName("Test User")
             .departmentId(null)
-            .flags(UserFlags.of(true, true))
+            .enabled(true)
+            .internal(true)
             .roles(Set.of())
-            .auditMetadata(AuditMetadata.now())
+            .createdAt(Instant.now())
+            .updatedAt(Instant.now())
             .build();
 
     when(accountLockoutPort.isLocked(email)).thenReturn(false);
     when(userRepositoryPort.findByEmail(email)).thenReturn(Optional.of(user));
-    when(passwordEncoderPort.matches("wrongPassword", "$2a$12$correcthash")).thenReturn(false);
+    when(passwordEncoder.matches("wrongPassword", "$2a$12$correcthash")).thenReturn(false);
 
     LoginCommand command =
         LoginCommand.builder()
@@ -209,6 +214,6 @@ class LoginServiceTest {
 
     assertThrows(InvalidCredentialsException.class, () -> loginService.execute(command));
     verify(accountLockoutPort).recordFailure(email);
-    verify(eventPublisherPort).publish(any(UserLoginFailedEvent.class));
+    verify(eventPublisher).publishEvent(any(UserLoginFailedEvent.class));
   }
 }

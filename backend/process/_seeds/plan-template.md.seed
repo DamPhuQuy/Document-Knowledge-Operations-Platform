@@ -109,11 +109,11 @@
 <!-- Populated during and after Execute phase -->
 <verification_matrix>
 
-| AC / Risk | Test / Command | Expected Evidence | Actual Result |
-|---|---|---|---|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
+| AC / Risk | Test / Command | Expected Evidence | Strictness (hard-mandatory / soft-mandatory / advisory) | Actual Result |
+|---|---|---|---|---|
+| AC-1 | | | hard-mandatory | |
+| AC-2 | | | hard-mandatory | |
+| AC-3 | | | advisory | |
 
 </verification_matrix>
 
@@ -124,6 +124,7 @@
 <gate id="G2">
   - [ ] Every slice has a defined verifier.
   - [ ] Scope contract (allowed / forbidden) approved.
+  - [ ] Enforcement strictness assigned per AC/verification item.
   - [ ] Stop conditions defined per slice.
   - [ ] Rollback point defined per slice.
   - [ ] Allowed commands listed.

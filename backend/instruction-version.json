@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "@damphuquy/agent-init",
-  "version": "2.3.0",
+  "version": "3.2.0",
   "framework": "RIPER-5",
-  "frameworkVersion": "2.0.0",
+  "frameworkVersion": "3.2.0",
   "language": "en",
   "description": "Instruction and governance template manifest for AI coding agents and operational workspace.",
   "installedAt": "2026-09-08T14:18:50.032Z",
-  "updatedAt": "2026-09-08T14:18:50.032Z",
+  "updatedAt": "2026-09-13T08:16:01.244Z",
   "manifest": {
     "core": [
       "AGENTS.md",
@@ -22,6 +22,7 @@
     "seeds": [
       "process/_seeds/_GUIDE.md",
       "process/_seeds/task-template.md.seed",
+      "process/_seeds/task-lite.md.seed",
       "process/_seeds/context-group.md.seed",
       "process/_seeds/decision-template.md.seed",
       "process/_seeds/plan-template.md.seed",
@@ -38,10 +39,16 @@
       "process/context/planning/all-planning.md",
       "process/context/tests/all-tests.md"
     ],
+    "governance": [
+      "process/policy/policy-manifest.json",
+      "process/evals/eval-case.json"
+    ],
     "protocols": [
       "process/development-protocols/all-development-protocols.md",
       "process/development-protocols/orchestration.md",
-      "process/development-protocols/implementation-standards.md"
+      "process/development-protocols/implementation-standards.md",
+      "process/development-protocols/mcp-lsp-protocol.md",
+      "process/development-protocols/observability-and-evals.md"
     ]
   },
   "updateStrategy": {
@@ -58,6 +65,8 @@
       ".agents/**",
       "process/_seeds/**",
       "process/context/**",
+      "process/policy/**",
+      "process/evals/**",
       "process/development-protocols/**",
       "instruction-version.json"
     ]

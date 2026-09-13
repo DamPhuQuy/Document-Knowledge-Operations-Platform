@@ -5,6 +5,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.platform.app.iam.application.dto.AuthTokensDto;
@@ -14,8 +16,6 @@ import com.platform.app.iam.application.dto.UserProfileDto;
 import com.platform.app.iam.application.ports.inbound.LoginCommand;
 import com.platform.app.iam.application.ports.inbound.LoginUseCase;
 import com.platform.app.iam.application.ports.outbound.AccountLockoutPort;
-import com.platform.app.iam.application.ports.outbound.EventPublisherPort;
-import com.platform.app.iam.application.ports.outbound.PasswordEncoderPort;
 import com.platform.app.iam.application.ports.outbound.RefreshTokenRepositoryPort;
 import com.platform.app.iam.application.ports.outbound.TokenProviderPort;
 import com.platform.app.iam.application.ports.outbound.UserRepositoryPort;
@@ -33,10 +33,10 @@ public class LoginService implements LoginUseCase {
 
   private final UserRepositoryPort userRepositoryPort;
   private final RefreshTokenRepositoryPort refreshTokenRepositoryPort;
-  private final PasswordEncoderPort passwordEncoderPort;
+  private final PasswordEncoder passwordEncoder;
   private final TokenProviderPort tokenProviderPort;
   private final AccountLockoutPort accountLockoutPort;
-  private final EventPublisherPort eventPublisherPort;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Override
   public AuthTokensDto execute(LoginCommand command) {
@@ -45,7 +45,7 @@ public class LoginService implements LoginUseCase {
 
     // 1. Check account lockout policy (Rule B4)
     if (accountLockoutPort.isLocked(email)) {
-      eventPublisherPort.publish(
+      eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
               .clientIp(command.clientIp())
@@ -61,7 +61,7 @@ public class LoginService implements LoginUseCase {
     Optional<User> userOptional = userRepositoryPort.findByEmail(email);
     if (userOptional.isEmpty()) {
       accountLockoutPort.recordFailure(email);
-      eventPublisherPort.publish(
+      eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
               .clientIp(command.clientIp())
@@ -75,8 +75,8 @@ public class LoginService implements LoginUseCase {
     User user = userOptional.get();
 
     // 3. Verify user is active/enabled
-    if (!user.getFlags().enabled()) {
-      eventPublisherPort.publish(
+    if (!user.isEnabled()) {
+      eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
               .clientIp(command.clientIp())
@@ -88,9 +88,9 @@ public class LoginService implements LoginUseCase {
     }
 
     // 4. Verify password against BCrypt hash (Rule B1)
-    if (!passwordEncoderPort.matches(command.password(), user.getPasswordHash())) {
+    if (!passwordEncoder.matches(command.password(), user.getPasswordHash())) {
       accountLockoutPort.recordFailure(email);
-      eventPublisherPort.publish(
+      eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
               .clientIp(command.clientIp())
@@ -115,10 +115,10 @@ public class LoginService implements LoginUseCase {
         RefreshToken.create(user.getId(), refreshTokenString, refreshExpiryDate);
     refreshTokenRepositoryPort.save(refreshToken);
 
-    // 8. Publish login success domain event (ready for future UC-AUDIT-01 ingestion)
-    eventPublisherPort.publish(
+    // 8. Publish login success domain event
+    eventPublisher.publishEvent(
         UserLoginSuccessEvent.builder()
-            .userId(user.getId().value())
+            .userId(user.getId())
             .email(user.getEmail())
             .clientIp(command.clientIp())
             .userAgent(command.userAgent())
@@ -128,11 +128,11 @@ public class LoginService implements LoginUseCase {
     // 9. Build response
     UserProfileDto userProfile =
         UserProfileDto.builder()
-            .id(user.getId().value())
+            .id(user.getId())
             .email(user.getEmail())
             .fullName(user.getFullName())
-            .departmentId(user.getDepartmentId() != null ? user.getDepartmentId().value() : null)
-            .isInternal(user.getFlags().isInternal())
+            .departmentId(user.getDepartmentId())
+            .isInternal(user.isInternal())
             .roles(user.getRoleCodes())
             .permissions(user.getAllPermissionCodes())
             .build();

@@ -314,13 +314,13 @@ The MVP enforces **6 non-negotiable Business Invariants**:
 
 ## 4. Value Proposition
 
-The **Document Knowledge & Operations Platform** is a **Cloud-Native Knowledge Operating System and Workflow Automation Platform** delivering:
+The **Document Knowledge & Operations Platform** is an **Enterprise Cloud Document Platform** delivering:
 
-- **Production-Ready AWS Cloud Deployment:** Rapid, reproducible, and secure cloud deployment leveraging AWS EC2, S3, Docker Compose v2, and GitHub Actions CI/CD.
-- **Durable Enterprise Document Lifecycle:** Multi-format document ingestion, version control, and instant presigned download URLs backed by AWS S3.
+- **Production-Ready AWS Cloud Deployment:** Rapid, reproducible, and secure cloud deployment leveraging AWS EC2, S3, Docker Compose v2, Cloudflare SSL, and GitHub Actions CI/CD.
+- **Durable Enterprise Document Lifecycle:** Multi-format document ingestion, version control, and instant presigned download URLs backed by AWS S3 with SSE-AES256 and SHA-256 integrity verification.
 - **Zero Data Leakage:** Two-tier authorization enforcement evaluating document permissions directly at the SQL database layer before data is returned.
-- **Controlled Human-in-the-Loop Operations:** A 2-phase approval state machine (Prepare / Diff Preview $\rightarrow$ Waiting Approval $\rightarrow$ Idempotent Commit) ensures high-risk actions are executed safely and idempotently.
-- **Decoupled Pluggable AI Service:** Clean hexagonal architecture allowing AI & Hybrid RAG to plug in seamlessly as a Phase 2 extension without disrupting core cloud operations.
+- **Immutable Audit Governance:** Append-only security audit trail recording all authentication and document lifecycle mutations.
+- **Pluggable Architecture:** Clean modular architecture allowing Workflow Automation, HITL Approvals, and AI & Hybrid RAG to plug in seamlessly as post-MVP extensions without disrupting core cloud operations.
 
 ---
 
@@ -330,16 +330,19 @@ The **Document Knowledge & Operations Platform** is a **Cloud-Native Knowledge O
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                   MVP SCOPE BY MOSCOW CATEGORY                                   │
 ├─────────────────────────────────────────┬────────────────────────────────────────────────────────┤
-│ MUST HAVE (Phase 1 Core Cloud MVP)      │ SHOULD HAVE (Phase 2 Pluggable AI Extension)           │
-│ - AWS Cloud Infrastructure (EC2, S3,    │ - AI Ingestion Pipeline (chunking & 1536d embeddings)  │
-│   Docker Compose, Cloudflare SSL, VPC)  │ - pgvector HNSW + FTS Reciprocal Rank Fusion (RRF)     │
-│ - Automated GitHub Actions CI/CD        │ - Conversational RAG with Verbatim Citation Drill-Down │
-│ - JWT Authentication & Multi-Role RBAC  │ - Evidence-Backed Safe Abstention Guardrail            │
-│ - AWS S3 File Storage & Versioning      │ - Conversation transcript export to PDF / Excel        │
-│ - 4-Tier Document ACL Matrix            ├────────────────────────────────────────────────────────┤
-│ - 2-Phase HITL Action Approvals         │ COULD / WONT HAVE (Future Roadmap)                     │
-│ - Immutable Audit Logging               │ - Advanced OCR for scanned tables and handwriting      │
-│ - Real-time In-App Notifications        │ - Auto-scaling Kubernetes deployment on AWS EKS        │
-│ - Health & Diagnostic Endpoint          │ - Unconstrained autonomous multi-agent reasoning       │
+│ MUST HAVE (Ultra-Lean Core MVP)         │ COULD HAVE (Deferred / Future Extensions)              │
+│ - AWS Cloud Infrastructure (EC2, S3,    │ - 2-Phase HITL Action Approvals (UC-HITL-01..02)       │
+│   Docker Compose, Cloudflare SSL, Swap) │ - Trigger-Based Workflow Automation (UC-WF-01..02)     │
+│ - Automated GitHub Actions CI/CD        │ - Real-time In-App Notification Toasts (UC-AUDIT-02)   │
+│ - JWT Authentication & Multi-Role RBAC  │ - AI Ingestion & 1536d Embeddings (UC-RAG-01)          │
+│   (UC-IAM-01, UC-IAM-02, UC-IAM-03)     │ - pgvector HNSW + FTS Hybrid RRF Search (UC-RAG-02)    │
+│ - AWS S3 File Storage & Versioning      │ - Conversational RAG with Citations (UC-CHAT-01..03)   │
+│   (UC-DOC-01, UC-DOC-02)                │ - Operational Exception Tasks (UC-HITL-03)             │
+│ - 4-Tier Document ACL Matrix (UC-DOC-03)├────────────────────────────────────────────────────────┤
+│ - Document Soft Deletion (UC-DOC-04)    │ WONT HAVE (Out of Scope)                               │
+│ - Immutable Audit Logging (UC-AUDIT-01) │ - Advanced OCR for handwriting / scanned physical docs │
+│ - Health & Diagnostic Endpoint          │ - Auto-scaling Kubernetes on AWS EKS                   │
+│   (GET /api/v1/health)                  │ - Unconstrained autonomous multi-agent reasoning       │
 └─────────────────────────────────────────┴────────────────────────────────────────────────────────┘
 ```
+

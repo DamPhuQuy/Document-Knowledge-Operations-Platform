@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.platform.app.iam.application.ports.outbound.PasswordEncoderPort;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
@@ -41,7 +41,7 @@ class AuthControllerTest {
   private final ObjectMapper objectMapper = new ObjectMapper();
   @Autowired private EntityManager entityManager;
   @Autowired private SpringDataUserRepository springDataUserRepository;
-  @Autowired private PasswordEncoderPort passwordEncoderPort;
+  @Autowired private PasswordEncoder passwordEncoder;
   @Autowired private com.platform.app.iam.application.ports.outbound.AccountLockoutPort accountLockoutPort;
 
   private UUID activeUserId;
@@ -81,7 +81,7 @@ class AuthControllerTest {
         UserJpaEntity.builder()
             .id(activeUserId)
             .email("active@platform.com")
-            .passwordHash(passwordEncoderPort.encode("Password123#"))
+            .passwordHash(passwordEncoder.encode("Password123#"))
             .fullName("Active User")
             .departmentId(null)
             .enabled(true)
@@ -97,7 +97,7 @@ class AuthControllerTest {
         UserJpaEntity.builder()
             .id(disabledUserId)
             .email("disabled@platform.com")
-            .passwordHash(passwordEncoderPort.encode("Password123#"))
+            .passwordHash(passwordEncoder.encode("Password123#"))
             .fullName("Disabled User")
             .departmentId(null)
             .enabled(false)

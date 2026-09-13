@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import lombok.AccessLevel;
@@ -19,7 +20,7 @@ import lombok.ToString;
 public class Role {
   @ToString.Include
   @EqualsAndHashCode.Include
-  private final RoleId id;
+  private final UUID id;
 
   @ToString.Include
   private final String code;
@@ -32,7 +33,7 @@ public class Role {
   @Getter(AccessLevel.NONE)
   private final Set<Permission> permissions;
 
-  public Role(RoleId id, String code, String name, String description, Set<Permission> permissions) {
+  public Role(UUID id, String code, String name, String description, Set<Permission> permissions) {
     this.id = Objects.requireNonNull(id, "Role id must not be null");
     this.code = Objects.requireNonNull(code, "Role code must not be null").toUpperCase();
     this.name = Objects.requireNonNull(name, "Role name must not be null");

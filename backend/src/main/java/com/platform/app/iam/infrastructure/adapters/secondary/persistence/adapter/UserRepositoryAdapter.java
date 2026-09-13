@@ -8,18 +8,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.platform.app.iam.application.ports.outbound.UserRepositoryPort;
-import com.platform.app.iam.domain.model.DepartmentId;
 import com.platform.app.iam.domain.model.Permission;
 import com.platform.app.iam.domain.model.Role;
-import com.platform.app.iam.domain.model.RoleId;
 import com.platform.app.iam.domain.model.User;
-import com.platform.app.iam.domain.model.UserId;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.repository.SpringDataUserRepository;
-import com.platform.app.shared.domain.AuditMetadata;
-import com.platform.app.shared.domain.UserFlags;
 
 import lombok.RequiredArgsConstructor;
 
@@ -47,20 +42,16 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
             .collect(Collectors.toSet());
 
     return User.builder()
-        .id(UserId.from(entity.getId()))
+        .id(entity.getId())
         .email(entity.getEmail())
         .passwordHash(entity.getPasswordHash())
         .fullName(entity.getFullName())
-        .departmentId(DepartmentId.from(entity.getDepartmentId()))
-        .flags(UserFlags.builder()
-            .enabled(entity.isEnabled())
-            .isInternal(entity.isInternal())
-            .build())
+        .departmentId(entity.getDepartmentId())
+        .enabled(entity.isEnabled())
+        .internal(entity.isInternal())
         .roles(roles)
-        .auditMetadata(AuditMetadata.builder()
-            .createdAt(entity.getCreatedAt())
-            .updatedAt(entity.getUpdatedAt())
-            .build())
+        .createdAt(entity.getCreatedAt())
+        .updatedAt(entity.getUpdatedAt())
         .build();
   }
 
@@ -71,7 +62,7 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
             .collect(Collectors.toSet());
 
     return Role.builder()
-        .id(RoleId.from(entity.getId()))
+        .id(entity.getId())
         .code(entity.getCode())
         .name(entity.getName())
         .description(entity.getDescription())
