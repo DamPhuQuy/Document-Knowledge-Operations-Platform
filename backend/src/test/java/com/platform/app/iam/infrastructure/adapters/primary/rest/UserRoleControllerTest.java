@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.AssignRolesRequest;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;

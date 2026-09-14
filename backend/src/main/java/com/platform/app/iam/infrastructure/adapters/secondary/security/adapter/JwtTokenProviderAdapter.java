@@ -21,7 +21,10 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Component
+@Slf4j
 public class JwtTokenProviderAdapter implements TokenProviderPort {
 
   private final SecretKey key;
@@ -44,6 +47,7 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
   @Override
   public String generateAccessToken(User user) {
     Objects.requireNonNull(user, "User must not be null");
+    log.debug("Generating access token for user [{}]", user.getId());
     Instant now = Instant.now();
     Instant expiry = now.plusMillis(properties.expirationMs());
 
@@ -90,7 +94,8 @@ public class JwtTokenProviderAdapter implements TokenProviderPort {
     try {
       parseClaims(token);
       return true;
-    } catch (JwtException | IllegalArgumentException _) {
+    } catch (JwtException | IllegalArgumentException ex) {
+      log.debug("JWT token validation failed: {}", ex.getMessage());
       return false;
     }
   }

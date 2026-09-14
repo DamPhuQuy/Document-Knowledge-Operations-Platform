@@ -26,9 +26,11 @@ import com.platform.app.iam.domain.model.RefreshToken;
 import com.platform.app.iam.domain.model.User;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LoginService implements LoginUseCase {
 
   private final UserRepositoryPort userRepositoryPort;
@@ -45,6 +47,7 @@ public class LoginService implements LoginUseCase {
 
     // 1. Check account lockout policy (Rule B4)
     if (accountLockoutPort.isLocked(email)) {
+      log.warn("Login attempt blocked for email [{}]: account locked", email);
       eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
@@ -61,6 +64,7 @@ public class LoginService implements LoginUseCase {
     Optional<User> userOptional = userRepositoryPort.findByEmail(email);
     if (userOptional.isEmpty()) {
       accountLockoutPort.recordFailure(email);
+      log.warn("Login attempt failed for email [{}]: user not found", email);
       eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
@@ -76,6 +80,7 @@ public class LoginService implements LoginUseCase {
 
     // 3. Verify user is active/enabled
     if (!user.isEnabled()) {
+      log.warn("Login attempt rejected for email [{}]: account deactivated", email);
       eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
@@ -90,6 +95,7 @@ public class LoginService implements LoginUseCase {
     // 4. Verify password against BCrypt hash (Rule B1)
     if (!passwordEncoder.matches(command.password(), user.getPasswordHash())) {
       accountLockoutPort.recordFailure(email);
+      log.warn("Login attempt failed for email [{}]: invalid password", email);
       eventPublisher.publishEvent(
           UserLoginFailedEvent.builder()
               .email(email)
@@ -103,6 +109,7 @@ public class LoginService implements LoginUseCase {
 
     // 5. Reset lockout counter on successful authentication
     accountLockoutPort.resetAttempts(email);
+    log.info("User [{}] authenticated successfully with {} roles", user.getId(), user.getRoleCodes().size());
 
     // 6. Generate access token & refresh token
     String accessToken = tokenProviderPort.generateAccessToken(user);

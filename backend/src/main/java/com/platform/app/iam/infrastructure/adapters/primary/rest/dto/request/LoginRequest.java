@@ -1,4 +1,4 @@
-package com.platform.app.iam.infrastructure.adapters.primary.rest;
+package com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

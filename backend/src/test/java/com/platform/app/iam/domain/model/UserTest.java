@@ -183,4 +183,27 @@ class UserTest {
     assertTrue(adminUser.getRoleCodes().contains("ROLE_ADMIN"));
     assertTrue(adminUser.getRoleCodes().contains("ROLE_MANAGER"));
   }
+
+  @Test
+  @DisplayName("Should successfully assign department and internal flag to user")
+  void shouldAssignDepartmentAndInternalFlag() {
+    UUID userId = UUID.randomUUID();
+    UUID deptId = UUID.randomUUID();
+    User user =
+        User.builder()
+            .id(userId)
+            .email("user@platform.com")
+            .passwordHash("hash")
+            .fullName("User")
+            .departmentId(null)
+            .enabled(true)
+            .internal(true)
+            .roles(Set.of())
+            .build();
+
+    user.assignDepartment(deptId, false);
+
+    assertEquals(deptId, user.getDepartmentId());
+    assertFalse(user.isInternal());
+  }
 }

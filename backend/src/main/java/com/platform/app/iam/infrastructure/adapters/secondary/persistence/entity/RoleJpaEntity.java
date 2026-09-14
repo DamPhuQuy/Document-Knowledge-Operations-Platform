@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-import org.hibernate.annotations.UuidGenerator;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,8 +31,7 @@ import lombok.Setter;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class RoleJpaEntity {
 
-  @Id()
-  @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
+  @Id
   @EqualsAndHashCode.Include
   private UUID id;
 

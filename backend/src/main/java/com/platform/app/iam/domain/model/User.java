@@ -30,9 +30,9 @@ public class User {
   private final String email;
   private final String passwordHash;
   private final String fullName;
-  private final UUID departmentId;
+  private UUID departmentId;
   private final boolean enabled;
-  private final boolean internal;
+  private boolean internal;
 
   @Getter(AccessLevel.NONE)
   private final Set<Role> roles;
@@ -106,6 +106,12 @@ public class User {
 
     this.roles.clear();
     this.roles.addAll(newRoles);
+    this.updatedAt = Instant.now();
+  }
+
+  public void assignDepartment(UUID departmentId, boolean internal) {
+    this.departmentId = departmentId;
+    this.internal = internal;
     this.updatedAt = Instant.now();
   }
 }
