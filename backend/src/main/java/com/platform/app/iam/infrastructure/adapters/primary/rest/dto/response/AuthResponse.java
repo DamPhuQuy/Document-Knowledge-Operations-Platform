@@ -1,4 +1,4 @@
-package com.platform.app.iam.infrastructure.adapters.primary.rest;
+package com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response;
 
 import com.platform.app.iam.application.dto.AuthTokensDto;
 import com.platform.app.iam.application.dto.UserProfileDto;

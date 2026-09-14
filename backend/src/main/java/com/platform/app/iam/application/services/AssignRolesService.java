@@ -21,9 +21,11 @@ import com.platform.app.iam.domain.model.Role;
 import com.platform.app.iam.domain.model.User;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AssignRolesService implements AssignRolesUseCase, GetUserRolesUseCase {
 
   private final UserRepositoryPort userRepositoryPort;
@@ -66,6 +68,13 @@ public class AssignRolesService implements AssignRolesUseCase, GetUserRolesUseCa
     user.assignRoles(resolvedRoles, command.operatorUserId());
 
     User savedUser = userRepositoryPort.save(user);
+    log.info(
+        "Assigned {} roles to user [{}] by operator [{}] (roles: {} -> {})",
+        resolvedRoles.size(),
+        savedUser.getId(),
+        command.operatorUserId(),
+        oldRoleCodes,
+        savedUser.getRoleCodes());
 
     eventPublisher.publishEvent(
         new UserRolesUpdatedEvent(

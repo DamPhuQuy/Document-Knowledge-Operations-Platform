@@ -36,3 +36,5 @@ logging:
     "[com.platform.app]": INFO
     "[org.springframework.web]": INFO
     "[org.hibernate.SQL]": WARN
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr([%X{traceId:-}]){yellow} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"

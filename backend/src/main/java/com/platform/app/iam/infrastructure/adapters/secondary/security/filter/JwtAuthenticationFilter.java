@@ -19,9 +19,11 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtTokenProviderAdapter jwtTokenProvider;
@@ -35,9 +37,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     String jwt = extractJwt(request);
 
-    if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-      Claims claims = jwtTokenProvider.parseClaims(jwt);
-      String userId = claims.getSubject();
+    if (StringUtils.hasText(jwt)) {
+      if (jwtTokenProvider.validateToken(jwt)) {
+        Claims claims = jwtTokenProvider.parseClaims(jwt);
+        String userId = claims.getSubject();
+        log.debug("JWT authentication successful for subject [{}] on {}", userId, request.getRequestURI());
 
       List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
@@ -68,6 +72,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
           new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
       SecurityContextHolder.getContext().setAuthentication(authentication);
+      } else {
+        log.warn("JWT validation failed for request on {}", request.getRequestURI());
+      }
     }
 
     filterChain.doFilter(request, response);

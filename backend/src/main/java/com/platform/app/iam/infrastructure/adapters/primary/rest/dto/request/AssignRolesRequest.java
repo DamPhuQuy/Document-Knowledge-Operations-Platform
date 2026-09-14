@@ -1,4 +1,4 @@
-package com.platform.app.iam.infrastructure.adapters.primary.rest;
+package com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request;
 
 import java.util.Set;
 import java.util.UUID;

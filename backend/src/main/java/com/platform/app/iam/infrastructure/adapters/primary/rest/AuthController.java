@@ -1,8 +1,18 @@
 package com.platform.app.iam.infrastructure.adapters.primary.rest;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.platform.app.iam.application.dto.AuthTokensDto;
 import com.platform.app.iam.application.ports.inbound.LoginCommand;
 import com.platform.app.iam.application.ports.inbound.LoginUseCase;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.LoginRequest;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response.AuthResponse;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response.ErrorResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -10,17 +20,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Authentication", description = "Endpoints for user authentication and session management")
 public class AuthController {
 
@@ -55,6 +61,7 @@ public class AuthController {
       @Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
     String clientIp = extractClientIp(servletRequest);
     String userAgent = servletRequest.getHeader("User-Agent");
+    log.info("REST POST /api/v1/auth/login received for email [{}] from IP [{}]", request.email(), clientIp);
 
     LoginCommand command =
         LoginCommand.builder()
@@ -64,6 +71,7 @@ public class AuthController {
             .userAgent(userAgent)
             .build();
     AuthTokensDto tokens = loginUseCase.execute(command);
+    log.debug("REST POST /api/v1/auth/login succeeded for user [{}]", tokens.userProfile().id());
 
     return ResponseEntity.ok(AuthResponse.from(tokens));
   }

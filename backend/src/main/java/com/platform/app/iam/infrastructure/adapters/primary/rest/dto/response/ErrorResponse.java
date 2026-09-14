@@ -1,6 +1,7 @@
-package com.platform.app.iam.infrastructure.adapters.primary.rest;
+package com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response;
 
 import java.time.Instant;
+
 import lombok.Builder;
 
 @Builder

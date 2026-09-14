@@ -11,7 +11,10 @@ import org.springframework.stereotype.Component;
 
 import com.platform.app.iam.application.ports.outbound.AccountLockoutPort;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Component
+@Slf4j
 public class InMemoryAccountLockoutAdapter implements AccountLockoutPort {
 
   private static final int MAX_FAILED_ATTEMPTS = 5;
@@ -44,10 +47,12 @@ public class InMemoryAccountLockoutAdapter implements AccountLockoutPort {
     Instant now = Instant.now(clock);
     if (record.lockedUntil() != null) {
       if (now.isBefore(record.lockedUntil())) {
+        log.warn("Account [{}] is currently locked until {}", normalized, record.lockedUntil());
         return true;
       }
       // Lockout duration expired -> automatically clear
       attemptCache.remove(normalized);
+      log.info("Lockout expired for account [{}]; reset to unlocked", normalized);
       return false;
     }
     return false;
@@ -85,12 +90,31 @@ public class InMemoryAccountLockoutAdapter implements AccountLockoutPort {
           }
           return new AttemptRecord(newCount, current.firstFailedAt(), lockedUntil);
         });
+
+    AttemptRecord updated = attemptCache.get(normalized);
+    if (updated != null && updated.lockedUntil() != null) {
+      log.warn(
+          "Account [{}] reached {} failed login attempts; locked for {} minutes until {}",
+          normalized,
+          updated.failedCount(),
+          LOCKOUT_DURATION.toMinutes(),
+          updated.lockedUntil());
+    } else if (updated != null) {
+      log.debug(
+          "Recorded failed login attempt {}/{} for account [{}]",
+          updated.failedCount(),
+          MAX_FAILED_ATTEMPTS,
+          normalized);
+    }
   }
 
   @Override
   public void resetAttempts(String email) {
     if (email != null) {
-      attemptCache.remove(email.trim().toLowerCase());
+      String normalized = email.trim().toLowerCase();
+      if (attemptCache.remove(normalized) != null) {
+        log.debug("Reset failed login attempts for account [{}]", normalized);
+      }
     }
   }
 
