@@ -84,10 +84,38 @@ public class RestExceptionHandler {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
   }
 
+  @ExceptionHandler(com.platform.app.document.domain.exception.UnsupportedMediaTypeException.class)
+  public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
+      com.platform.app.document.domain.exception.UnsupportedMediaTypeException ex, HttpServletRequest request) {
+    log.warn("Unsupported media type on {}: {}", request.getRequestURI(), ex.getMessage());
+    ErrorResponse error = buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(error);
+  }
+
+  @ExceptionHandler({
+      com.platform.app.document.domain.exception.PayloadTooLargeException.class,
+      org.springframework.web.multipart.MaxUploadSizeExceededException.class
+  })
+  public ResponseEntity<ErrorResponse> handlePayloadTooLarge(
+      Exception ex, HttpServletRequest request) {
+    log.warn("Payload too large on {}: {}", request.getRequestURI(), ex.getMessage());
+    ErrorResponse error = buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+  }
+
+  @ExceptionHandler(com.platform.app.document.domain.exception.StorageException.class)
+  public ResponseEntity<ErrorResponse> handleStorageException(
+      com.platform.app.document.domain.exception.StorageException ex, HttpServletRequest request) {
+    log.error("Storage error on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+    ErrorResponse error = buildErrorResponse(HttpStatus.BAD_GATEWAY, "Object storage error: " + ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error);
+  }
+
   @ExceptionHandler({
     EmptyRolesException.class,
     SelfRoleRevocationException.class,
     InvalidDepartmentCodeException.class,
+    com.platform.app.document.domain.exception.DocumentValidationException.class,
     IllegalArgumentException.class
   })
   public ResponseEntity<ErrorResponse> handleBadRequestExceptions(
