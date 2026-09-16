@@ -20,6 +20,8 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.UUID;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,15 +34,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.platform.app.document.application.dto.DocumentResponseDto;
 import com.platform.app.document.application.dto.UploadDocumentCommand;
 import com.platform.app.document.application.event.DocumentUploadedEvent;
-import com.platform.app.document.application.ports.outbound.DocumentRepositoryPort;
-import com.platform.app.document.application.ports.outbound.DocumentVersionRepositoryPort;
+import com.platform.app.document.application.ports.inbound.StoreMetadataUseCase;
 import com.platform.app.document.application.ports.outbound.ObjectStoragePort;
 import com.platform.app.document.domain.exception.PayloadTooLargeException;
 import com.platform.app.document.domain.exception.StorageException;
 import com.platform.app.document.domain.exception.UnsupportedMediaTypeException;
 import com.platform.app.document.domain.model.AccessLevel;
 import com.platform.app.document.domain.model.Document;
-import com.platform.app.document.domain.model.DocumentVersion;
 import com.platform.app.document.domain.model.ProcessingStatus;
 import com.platform.app.document.infrastructure.adapters.secondary.storage.config.S3StorageProperties;
 
@@ -51,10 +51,7 @@ class DocumentUploadServiceTest {
   private ObjectStoragePort objectStoragePort;
 
   @Mock
-  private DocumentRepositoryPort documentRepositoryPort;
-
-  @Mock
-  private DocumentVersionRepositoryPort documentVersionRepositoryPort;
+  private StoreMetadataUseCase storeMetadataUseCase;
 
   @Mock
   private ApplicationEventPublisher eventPublisher;
@@ -69,8 +66,7 @@ class DocumentUploadServiceTest {
 
     service = new DocumentUploadService(
         objectStoragePort,
-        documentRepositoryPort,
-        documentVersionRepositoryPort,
+        storeMetadataUseCase,
         storageProperties,
         eventPublisher
     );
@@ -109,8 +105,26 @@ class DocumentUploadServiceTest {
       return null;
     }).when(objectStoragePort).upload(anyString(), any(InputStream.class), anyLong(), anyString());
 
-    when(documentRepositoryPort.save(any(Document.class))).thenAnswer(invocation -> invocation.getArgument(0));
-    when(documentVersionRepositoryPort.save(any(DocumentVersion.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    Document mockDocument = Document.builder()
+        .id(UUID.randomUUID())
+        .title("Annual Report")
+        .originalFileName("report.pdf")
+        .fileType("PDF")
+        .fileSizeBytes((long) fileBytes.length)
+        .checksumSha256(expectedSha256)
+        .accessLevel(AccessLevel.INTERNAL)
+        .processingStatus(ProcessingStatus.UPLOADED)
+        .currentVersion(1)
+        .departmentId(deptId)
+        .uploadedByUserId(userId)
+        .createdAt(Instant.now())
+        .updatedAt(Instant.now())
+        .storageKey("test-key")
+        .storageBucket("test-bucket")
+        .build();
+
+    when(storeMetadataUseCase.persistMetadata(any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(mockDocument);
 
     DocumentResponseDto response = service.uploadDocument(command);
 
@@ -124,8 +138,7 @@ class DocumentUploadServiceTest {
     assertEquals(1, response.getCurrentVersion());
 
     verify(objectStoragePort).upload(anyString(), any(InputStream.class), eq((long) fileBytes.length), eq("application/pdf"));
-    verify(documentRepositoryPort).save(any(Document.class));
-    verify(documentVersionRepositoryPort).save(any(DocumentVersion.class));
+    verify(storeMetadataUseCase).persistMetadata(any(), eq(command), eq("report.pdf"), anyString(), eq("test-bucket"), eq(expectedSha256), eq("PDF"));
 
     ArgumentCaptor<DocumentUploadedEvent> eventCaptor = ArgumentCaptor.forClass(DocumentUploadedEvent.class);
     verify(eventPublisher).publishEvent(eventCaptor.capture());
@@ -187,7 +200,7 @@ class DocumentUploadServiceTest {
       return null;
     }).when(objectStoragePort).upload(anyString(), any(InputStream.class), anyLong(), anyString());
 
-    when(documentRepositoryPort.save(any(Document.class)))
+    when(storeMetadataUseCase.persistMetadata(any(), any(), any(), any(), any(), any(), any()))
         .thenThrow(new RuntimeException("Database connection terminated unexpectedly"));
 
     assertThrows(RuntimeException.class, () -> service.uploadDocument(command));
@@ -212,8 +225,7 @@ class DocumentUploadServiceTest {
         .when(objectStoragePort).upload(anyString(), any(InputStream.class), anyLong(), anyString());
 
     assertThrows(StorageException.class, () -> service.uploadDocument(command));
-    verify(documentRepositoryPort, never()).save(any());
-    verify(documentVersionRepositoryPort, never()).save(any());
+    verify(storeMetadataUseCase, never()).persistMetadata(any(), any(), any(), any(), any(), any(), any());
     verify(eventPublisher, never()).publishEvent(any());
   }
 }

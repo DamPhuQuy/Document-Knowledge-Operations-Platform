@@ -129,7 +129,7 @@ public class DocumentUploadService implements UploadDocumentUseCase {
       return null;
     }
 
-    return fileName.substring(lastDotIndex, fileName.length() - 1);
+    return fileName.substring(lastDotIndex + 1);
   }
 
   private String sanitizeFileName(String fileName) {

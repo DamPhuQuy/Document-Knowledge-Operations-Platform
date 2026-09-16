@@ -13,9 +13,9 @@ import lombok.Setter;
 public class S3StorageProperties {
 
   private String endpoint;
-  private String region = "us-east-1";
-  private String bucketName = "doc-knowledge-storage";
-  private String accessKeyId = "test";
-  private String secretAccessKey = "test";
-  private boolean pathStyleAccess = true;
+  private String region;
+  private String bucketName;
+  private String accessKeyId;
+  private String secretAccessKey;
+  private boolean pathStyleAccess;
 }
