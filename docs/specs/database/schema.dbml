@@ -39,20 +39,11 @@ Project document_knowledge_operations_platform {
 // ENUMERATIONS
 // ============================================================================
 
-enum document_file_type {
-  PDF   [note: 'Portable Document Format']
-  DOCX  [note: 'Microsoft Word Document']
-  TXT   [note: 'Plain Text File']
-  XLSX  [note: 'Microsoft Excel Spreadsheet']
-  IMAGE [note: 'Scanned image or diagram (PNG, JPG, TIFF)']
-  OTHER [note: 'Other business document formats']
-}
-
-enum document_processing_status {
-  UPLOADED  [note: 'Phase 1: Binary successfully stored in AWS S3 and ready for secure retrieval']
-  PENDING   [note: 'Queued or pending processing/version transition']
-  COMPLETED [note: 'Document ingestion and persistence completed successfully']
-  FAILED    [note: 'Processing pipeline encountered an unrecoverable error']
+enum document_status {
+  UPLOADED    [note: 'Binary successfully stored in AWS S3 and ready for processing']
+  PROCESSING  [note: 'Document is undergoing parsing, chunking, or indexing']
+  READY       [note: 'Document is processed and ready for search and knowledge retrieval']
+  FAILED      [note: 'Processing pipeline encountered an unrecoverable error']
 }
 
 enum access_level {
@@ -189,34 +180,26 @@ Table refresh_tokens {
 
 Table documents {
   id uuid [pk, note: 'Globally unique document identifier (UUIDv7)']
-  original_file_name varchar(255) [not null, note: 'Original uploaded filename with extension']
   title varchar(255) [not null, note: 'Business title displayed in UI']
-  description text [note: 'Optional summary, abstract, or user notes']
-  file_type document_file_type [not null, note: 'Standardized file category (PDF, DOCX, TXT, XLSX, etc.)']
-  mime_type varchar(100) [not null, note: 'Verified MIME type: application/pdf, application/vnd.openxmlformats...']
+  original_file_name varchar(255) [not null, note: 'Original uploaded filename with extension']
+  content_type varchar(100) [not null, note: 'Verified MIME type: application/pdf, application/vnd.openxmlformats..., text/plain']
   file_size_bytes bigint [not null, note: 'Exact binary size in bytes (max 50MB in MVP)']
   checksum_sha256 varchar(64) [not null, note: 'Cryptographic SHA-256 hash for deduplication and tampering detection']
-  storage_bucket varchar(128) [not null, note: 'Target AWS S3 private bucket (e.g. docs-platform-prod)']
-  storage_key varchar(512) [not null, note: 'S3 Object Key path: documents/{doc_id}/v{version}/{filename}']
-  is_s3_synced boolean [not null, default: true, note: 'True when binary upload to AWS S3 bucket is verified']
-  processing_status document_processing_status [not null, default: 'UPLOADED', note: 'Processing state: UPLOADED, PENDING, COMPLETED, FAILED']
-  current_version int [not null, default: 1, note: 'Active version number displayed by default']
-  department_id uuid [ref: > departments.id, note: 'Primary department owner for tenancy boundaries']
+  storage_key varchar(512) [not null, note: 'S3 Object Key path: documents/{doc_id}/{filename}']
+  current_version int [not null, default: 1, note: 'Current active revision version number (1-based)']
+  status document_status [not null, default: 'UPLOADED', note: 'Processing state: UPLOADED, PROCESSING, READY, FAILED']
   uploaded_by_user_id uuid [ref: > users.id, not null, note: 'User who created the document record']
+  department_id uuid [ref: > departments.id, note: 'Primary department owner for tenancy boundaries']
   access_level access_level [not null, default: 'INTERNAL', note: 'Security classification: PUBLIC, INTERNAL, RESTRICTED, CONFIDENTIAL']
-  metadata jsonb [not null, default: `'{}'`, note: 'Extensible JSON metadata (tags, custom attributes)']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
-  deleted_at timestamptz [note: 'Soft delete timestamp; NULL represents an active record']
 
   indexes {
-    processing_status
+    status
     uploaded_by_user_id
     department_id
+    (department_id, status)
     checksum_sha256
-    metadata [type: gin]
-    (department_id, processing_status)
-    deleted_at [name: 'idx_documents_deleted_at']
   }
 
   Note: 'BC 2 Core Table: Master catalog for enterprise documents persisted durably in AWS S3 (UC-DOC-01, UC-DOC-03, UC-DOC-04).'
@@ -226,11 +209,9 @@ Table document_versions {
   id uuid [pk, note: 'UUIDv7 primary key']
   document_id uuid [ref: > documents.id, not null, note: 'Parent document reference']
   version_number int [not null, note: 'Sequential version number (1, 2, 3...)']
-  storage_bucket varchar(128) [not null, note: 'AWS S3 bucket where this version binary is stored']
   storage_key varchar(512) [not null, note: 'Exact AWS S3 object key for this version']
   file_size_bytes bigint [not null, note: 'Binary size of this specific version in bytes']
   checksum_sha256 varchar(64) [not null, note: 'SHA-256 hash of this specific version binary']
-  is_s3_synced boolean [not null, default: true, note: 'Confirmation of binary persistence in S3']
   change_summary varchar(500) [note: 'Description of changes introduced in this version']
   uploaded_by_user_id uuid [ref: > users.id, not null, note: 'User who uploaded this specific version']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]

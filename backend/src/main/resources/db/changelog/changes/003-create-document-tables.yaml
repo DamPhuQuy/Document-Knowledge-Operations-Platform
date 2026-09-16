@@ -13,25 +13,17 @@ databaseChangeLog:
                     primaryKey: true
                     primaryKeyName: pk_documents
               - column:
-                  name: original_file_name
-                  type: VARCHAR(255)
-                  constraints:
-                    nullable: false
-              - column:
                   name: title
                   type: VARCHAR(255)
                   constraints:
                     nullable: false
               - column:
-                  name: description
-                  type: TEXT
-              - column:
-                  name: file_type
-                  type: VARCHAR(50)
+                  name: original_file_name
+                  type: VARCHAR(255)
                   constraints:
                     nullable: false
               - column:
-                  name: mime_type
+                  name: content_type
                   type: VARCHAR(100)
                   constraints:
                     nullable: false
@@ -46,40 +38,22 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: storage_bucket
-                  type: VARCHAR(128)
-                  constraints:
-                    nullable: false
-              - column:
                   name: storage_key
                   type: VARCHAR(512)
                   constraints:
                     nullable: false
               - column:
-                  name: is_s3_synced
-                  type: BOOLEAN
-                  defaultValueBoolean: true
+                  name: current_version
+                  type: INT
+                  defaultValue: "1"
                   constraints:
                     nullable: false
               - column:
-                  name: processing_status
+                  name: status
                   type: VARCHAR(50)
                   defaultValue: UPLOADED
                   constraints:
                     nullable: false
-              - column:
-                  name: current_version
-                  type: INT
-                  defaultValueNumeric: 1
-                  constraints:
-                    nullable: false
-              - column:
-                  name: department_id
-                  type: UUID
-                  constraints:
-                    foreignKeyName: fk_documents_department
-                    references: departments(id)
-                    onDelete: SET NULL
               - column:
                   name: uploaded_by_user_id
                   type: UUID
@@ -89,15 +63,16 @@ databaseChangeLog:
                     references: users(id)
                     onDelete: RESTRICT
               - column:
+                  name: department_id
+                  type: UUID
+                  constraints:
+                    foreignKeyName: fk_documents_department
+                    references: departments(id)
+                    onDelete: SET NULL
+              - column:
                   name: access_level
                   type: VARCHAR(50)
                   defaultValue: INTERNAL
-                  constraints:
-                    nullable: false
-              - column:
-                  name: metadata
-                  type: JSONB
-                  defaultValueComputed: "'{}'::jsonb"
                   constraints:
                     nullable: false
               - column:
@@ -112,15 +87,12 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
-              - column:
-                  name: deleted_at
-                  type: TIMESTAMPTZ
         - createIndex:
-            indexName: idx_documents_processing_status
+            indexName: idx_documents_status
             tableName: documents
             columns:
               - column:
-                  name: processing_status
+                  name: status
         - createIndex:
             indexName: idx_documents_uploaded_by_user_id
             tableName: documents
@@ -146,25 +118,7 @@ databaseChangeLog:
               - column:
                   name: department_id
               - column:
-                  name: processing_status
-        - createIndex:
-            indexName: idx_documents_deleted_at
-            tableName: documents
-            columns:
-              - column:
-                  name: deleted_at
-
-  - changeSet:
-      id: 003-create-documents-metadata-gin-index
-      author: platform
-      preConditions:
-        - onFail: MARK_RAN
-          dbms:
-            type: postgresql
-      changes:
-        - sql:
-            sql: |
-              CREATE INDEX IF NOT EXISTS idx_documents_metadata ON documents USING gin (metadata);
+                  name: status
 
   - changeSet:
       id: 003-create-document-versions-table
@@ -193,11 +147,6 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
-                  name: storage_bucket
-                  type: VARCHAR(128)
-                  constraints:
-                    nullable: false
-              - column:
                   name: storage_key
                   type: VARCHAR(512)
                   constraints:
@@ -210,12 +159,6 @@ databaseChangeLog:
               - column:
                   name: checksum_sha256
                   type: VARCHAR(64)
-                  constraints:
-                    nullable: false
-              - column:
-                  name: is_s3_synced
-                  type: BOOLEAN
-                  defaultValueBoolean: true
                   constraints:
                     nullable: false
               - column:
