@@ -8,16 +8,15 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class DocumentUploadedEvent {
+public class DocumentVersionCreatedEvent {
 
+  private final UUID versionId;
   private final UUID documentId;
-  private final String title;
-  private final String originalFileName;
-  private final String contentType;
+  private final int versionNumber;
+  private final String storageKey;
   private final long fileSizeBytes;
   private final String checksumSha256;
-  private final String storageKey;
-  private final UUID departmentId;
+  private final String changeSummary;
   private final UUID uploadedByUserId;
   private final Instant timestamp;
 }

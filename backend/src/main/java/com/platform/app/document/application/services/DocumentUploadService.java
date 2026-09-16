@@ -22,7 +22,6 @@ import com.platform.app.document.domain.exception.DocumentValidationException;
 import com.platform.app.document.domain.exception.PayloadTooLargeException;
 import com.platform.app.document.domain.exception.UnsupportedMediaTypeException;
 import com.platform.app.document.domain.model.Document;
-import com.platform.app.document.infrastructure.adapters.secondary.storage.config.S3StorageProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +35,6 @@ public class DocumentUploadService implements UploadDocumentUseCase {
 
   private final ObjectStoragePort objectStoragePort;
   private final StoreMetadataUseCase storeMetadataUseCase;
-  private final S3StorageProperties storageProperties;
   private final ApplicationEventPublisher eventPublisher;
 
   @Override
@@ -64,8 +62,8 @@ public class DocumentUploadService implements UploadDocumentUseCase {
 
     UUID docId = UUID.randomUUID();
     String sanitizedFileName = sanitizeFileName(originalFileName);
-    String storageKey = "documents/" + docId + "/v1/" + sanitizedFileName;
-    String bucket = storageProperties.getBucketName();
+    String storageKey = "documents/" + docId + "/" + sanitizedFileName;
+    String contentType = command.getContentType() != null ? command.getContentType() : "application/octet-stream";
 
     MessageDigest digest;
     try {
@@ -78,7 +76,7 @@ public class DocumentUploadService implements UploadDocumentUseCase {
     DigestInputStream digestStream = new DigestInputStream(command.getInputStream(), digest);
 
     log.info("Starting streaming S3 upload for documentId={}, key={}, size={}", docId, storageKey, command.getFileSize());
-    objectStoragePort.upload(storageKey, digestStream, command.getFileSize(), command.getContentType());
+    objectStoragePort.upload(storageKey, digestStream, command.getFileSize(), contentType);
 
     // Extract calculated checksum after full stream read
     String checksumSha256 = HexFormat.of().formatHex(digest.digest());
@@ -87,7 +85,7 @@ public class DocumentUploadService implements UploadDocumentUseCase {
     // Coordinate DB transaction with S3 compensation on failure
     Document savedDocument;
     try {
-      savedDocument = storeMetadataUseCase.persistMetadata(docId, command, sanitizedFileName, storageKey, bucket, checksumSha256, extension.toUpperCase());
+      savedDocument = storeMetadataUseCase.persistMetadata(docId, command, sanitizedFileName, storageKey, checksumSha256, contentType);
     } catch (Exception e) {
       log.error("Failed to persist document metadata for docId={}. Executing S3 compensation delete for key: {}",
           docId, storageKey, e);
@@ -102,13 +100,11 @@ public class DocumentUploadService implements UploadDocumentUseCase {
     // publish event
     eventPublisher.publishEvent(DocumentUploadedEvent.builder()
         .documentId(savedDocument.getId())
-        .versionNumber(1)
         .title(savedDocument.getTitle())
         .originalFileName(savedDocument.getOriginalFileName())
-        .fileType(savedDocument.getFileType())
+        .contentType(savedDocument.getContentType())
         .fileSizeBytes(savedDocument.getFileSizeBytes())
         .checksumSha256(checksumSha256)
-        .storageBucket(bucket)
         .storageKey(storageKey)
         .departmentId(savedDocument.getDepartmentId())
         .uploadedByUserId(savedDocument.getUploadedByUserId())

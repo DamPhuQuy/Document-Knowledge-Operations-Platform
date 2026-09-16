@@ -6,12 +6,11 @@ import com.platform.app.document.application.dto.UploadDocumentCommand;
 import com.platform.app.document.domain.model.Document;
 
 public interface StoreMetadataUseCase {
-    Document persistMetadata(
+  Document persistMetadata(
       UUID docId,
       UploadDocumentCommand command,
       String sanitizedFileName,
       String storageKey,
-      String bucket,
       String checksumSha256,
-      String fileType);
+      String contentType);
 }

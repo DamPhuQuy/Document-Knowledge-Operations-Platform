@@ -34,9 +34,6 @@ public class DocumentVersionJpaEntity {
   @Column(name = "version_number", nullable = false)
   private Integer versionNumber;
 
-  @Column(name = "storage_bucket", nullable = false, length = 128)
-  private String storageBucket;
-
   @Column(name = "storage_key", nullable = false, length = 512)
   private String storageKey;
 
@@ -45,9 +42,6 @@ public class DocumentVersionJpaEntity {
 
   @Column(name = "checksum_sha256", nullable = false, length = 64)
   private String checksumSha256;
-
-  @Column(name = "is_s3_synced", nullable = false)
-  private boolean isS3Synced;
 
   @Column(name = "change_summary", length = 500)
   private String changeSummary;

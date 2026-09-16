@@ -1,8 +1,8 @@
 package com.platform.app.document.domain.model;
 
-public enum ProcessingStatus {
+public enum DocumentStatus {
   UPLOADED,
-  PARSING,
-  INDEXED,
+  PROCESSING,
+  READY,
   FAILED
 }

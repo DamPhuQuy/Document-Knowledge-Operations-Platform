@@ -27,7 +27,7 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
 
   @Override
   public Optional<Document> findById(UUID id) {
-    return repository.findByIdAndDeletedAtIsNull(id).map(this::toDomain);
+    return repository.findById(id).map(this::toDomain);
   }
 
   public DocumentJpaEntity toEntity(Document domain) {
@@ -36,25 +36,19 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
     }
     return DocumentJpaEntity.builder()
         .id(domain.getId())
-        .originalFileName(domain.getOriginalFileName())
         .title(domain.getTitle())
-        .description(domain.getDescription())
-        .fileType(domain.getFileType())
-        .mimeType(domain.getMimeType())
+        .originalFileName(domain.getOriginalFileName())
+        .contentType(domain.getContentType())
         .fileSizeBytes(domain.getFileSizeBytes())
         .checksumSha256(domain.getChecksumSha256())
-        .storageBucket(domain.getStorageBucket())
         .storageKey(domain.getStorageKey())
-        .isS3Synced(domain.isS3Synced())
-        .processingStatus(domain.getProcessingStatus())
         .currentVersion(domain.getCurrentVersion())
-        .departmentId(domain.getDepartmentId())
+        .status(domain.getStatus())
         .uploadedByUserId(domain.getUploadedByUserId())
+        .departmentId(domain.getDepartmentId())
         .accessLevel(domain.getAccessLevel())
-        .metadata(domain.getMetadata())
         .createdAt(domain.getCreatedAt())
         .updatedAt(domain.getUpdatedAt())
-        .deletedAt(domain.getDeletedAt())
         .build();
   }
 
@@ -64,25 +58,19 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
     }
     return Document.builder()
         .id(entity.getId())
-        .originalFileName(entity.getOriginalFileName())
         .title(entity.getTitle())
-        .description(entity.getDescription())
-        .fileType(entity.getFileType())
-        .mimeType(entity.getMimeType())
+        .originalFileName(entity.getOriginalFileName())
+        .contentType(entity.getContentType())
         .fileSizeBytes(entity.getFileSizeBytes())
         .checksumSha256(entity.getChecksumSha256())
-        .storageBucket(entity.getStorageBucket())
         .storageKey(entity.getStorageKey())
-        .isS3Synced(entity.isS3Synced())
-        .processingStatus(entity.getProcessingStatus())
         .currentVersion(entity.getCurrentVersion())
-        .departmentId(entity.getDepartmentId())
+        .status(entity.getStatus())
         .uploadedByUserId(entity.getUploadedByUserId())
+        .departmentId(entity.getDepartmentId())
         .accessLevel(entity.getAccessLevel())
-        .metadata(entity.getMetadata())
         .createdAt(entity.getCreatedAt())
         .updatedAt(entity.getUpdatedAt())
-        .deletedAt(entity.getDeletedAt())
         .build();
   }
 }

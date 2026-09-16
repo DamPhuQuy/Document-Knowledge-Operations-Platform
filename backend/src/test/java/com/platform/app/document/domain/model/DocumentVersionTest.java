@@ -3,7 +3,6 @@ package com.platform.app.document.domain.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
 
@@ -25,22 +24,19 @@ class DocumentVersionTest {
     DocumentVersion version = DocumentVersion.builder()
         .documentId(docId)
         .versionNumber(1)
-        .storageBucket("doc-knowledge-storage")
         .storageKey("documents/" + docId + "/v1/file.pdf")
         .fileSizeBytes(2048L)
         .checksumSha256(VALID_SHA256)
         .changeSummary("Initial upload")
         .uploadedByUserId(userId)
-        .isS3Synced(true)
         .build();
 
     assertNotNull(version.getId());
     assertEquals(docId, version.getDocumentId());
     assertEquals(1, version.getVersionNumber());
-    assertEquals("doc-knowledge-storage", version.getStorageBucket());
+    assertEquals("documents/" + docId + "/v1/file.pdf", version.getStorageKey());
     assertEquals(2048L, version.getFileSizeBytes());
     assertEquals(VALID_SHA256, version.getChecksumSha256());
-    assertTrue(version.isS3Synced());
     assertEquals("Initial upload", version.getChangeSummary());
     assertEquals(userId, version.getUploadedByUserId());
     assertNotNull(version.getCreatedAt());
@@ -56,7 +52,6 @@ class DocumentVersionTest {
         DocumentVersion.builder()
             .documentId(docId)
             .versionNumber(0)
-            .storageBucket("bucket")
             .storageKey("key")
             .fileSizeBytes(100L)
             .checksumSha256(VALID_SHA256)
@@ -75,7 +70,6 @@ class DocumentVersionTest {
         DocumentVersion.builder()
             .documentId(docId)
             .versionNumber(1)
-            .storageBucket("bucket")
             .storageKey("key")
             .fileSizeBytes(100L)
             .checksumSha256("short")

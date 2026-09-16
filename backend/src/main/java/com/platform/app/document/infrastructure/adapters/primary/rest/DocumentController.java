@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,8 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.platform.app.document.application.dto.DocumentResponseDto;
+import com.platform.app.document.application.dto.DocumentVersionResponseDto;
 import com.platform.app.document.application.dto.UploadDocumentCommand;
+import com.platform.app.document.application.dto.UploadDocumentVersionCommand;
 import com.platform.app.document.application.ports.inbound.UploadDocumentUseCase;
+import com.platform.app.document.application.ports.inbound.UploadDocumentVersionUseCase;
 import com.platform.app.document.domain.exception.DocumentValidationException;
 import com.platform.app.document.domain.model.AccessLevel;
 
@@ -35,6 +39,48 @@ import lombok.extern.slf4j.Slf4j;
 public class DocumentController {
 
   private final UploadDocumentUseCase uploadDocumentUseCase;
+  private final UploadDocumentVersionUseCase uploadDocumentVersionUseCase;
+
+  @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("hasAuthority('write:documents') or hasAuthority('WRITE:DOCUMENTS') or hasRole('ADMIN')")
+  @Operation(summary = "Upload replacement revision for an existing document (UC-DOC-02)")
+  public ResponseEntity<DocumentVersionResponseDto> uploadVersion(
+      @PathVariable("id") UUID id,
+      @RequestPart("file") MultipartFile file,
+      @RequestParam(value = "changeSummary", required = false) String changeSummary,
+      Authentication authentication) throws IOException {
+
+    if (file == null || file.isEmpty()) {
+      throw new DocumentValidationException("Uploaded file must not be empty");
+    }
+
+    UUID userId = extractUserId(authentication);
+    if (userId == null) {
+      log.warn("Unauthenticated attempt to upload document version for id={}", id);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+    String originalFilename = file.getOriginalFilename();
+    log.info("REST POST /api/v1/documents/{}/versions received: fileName={}, size={}, user={}, isAdmin={}",
+        id, originalFilename, file.getSize(), userId, isAdmin);
+
+    UploadDocumentVersionCommand command = UploadDocumentVersionCommand.builder()
+        .documentId(id)
+        .userId(userId)
+        .inputStream(file.getInputStream())
+        .originalFileName(originalFilename)
+        .contentType(file.getContentType())
+        .fileSize(file.getSize())
+        .changeSummary(changeSummary)
+        .isAdmin(isAdmin)
+        .build();
+
+    DocumentVersionResponseDto response = uploadDocumentVersionUseCase.uploadVersion(command);
+    return ResponseEntity.ok(response);
+  }
 
   @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasAuthority('write:documents') or hasAuthority('WRITE:DOCUMENTS') or hasRole('ADMIN')")

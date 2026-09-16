@@ -3,7 +3,6 @@ package com.platform.app.document.domain.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
 
@@ -26,13 +25,10 @@ class DocumentTest {
     Document doc = Document.builder()
         .originalFileName("report.pdf")
         .title("Annual Report")
-        .description("2026 Financial Report")
-        .fileType("PDF")
-        .mimeType("application/pdf")
+        .contentType("application/pdf")
         .fileSizeBytes(1024L)
         .checksumSha256(VALID_SHA256)
-        .storageBucket("doc-knowledge-storage")
-        .storageKey("documents/123/v1/report.pdf")
+        .storageKey("documents/123/report.pdf")
         .departmentId(deptId)
         .uploadedByUserId(userId)
         .build();
@@ -40,29 +36,66 @@ class DocumentTest {
     assertNotNull(doc.getId());
     assertEquals("Annual Report", doc.getTitle());
     assertEquals("report.pdf", doc.getOriginalFileName());
-    assertEquals("PDF", doc.getFileType());
+    assertEquals("application/pdf", doc.getContentType());
     assertEquals(1024L, doc.getFileSizeBytes());
     assertEquals(VALID_SHA256, doc.getChecksumSha256());
+    assertEquals("documents/123/report.pdf", doc.getStorageKey());
     assertEquals(AccessLevel.INTERNAL, doc.getAccessLevel()); // Invariant B2
-    assertEquals(ProcessingStatus.UPLOADED, doc.getProcessingStatus());
-    assertEquals(1, doc.getCurrentVersion());
-    assertTrue(doc.isS3Synced());
+    assertEquals(DocumentStatus.UPLOADED, doc.getStatus());
+    assertEquals(userId, doc.getUploadedByUserId());
+    assertEquals(deptId, doc.getDepartmentId());
     assertNotNull(doc.getCreatedAt());
+    assertNotNull(doc.getUpdatedAt());
   }
 
   @Test
-  @DisplayName("Should reject blank or null title")
-  void shouldRejectBlankTitle() {
+  @DisplayName("Should fallback to originalFileName if title is null or blank")
+  void shouldFallbackTitleToOriginalFileName() {
+    UUID userId = UUID.randomUUID();
+
+    Document doc = Document.builder()
+        .originalFileName("test.pdf")
+        .title("   ")
+        .contentType("application/pdf")
+        .fileSizeBytes(500L)
+        .checksumSha256(VALID_SHA256)
+        .storageKey("key")
+        .uploadedByUserId(userId)
+        .build();
+
+    assertEquals("test.pdf", doc.getTitle());
+  }
+
+  @Test
+  @DisplayName("Should reject blank or null originalFileName")
+  void shouldRejectBlankOriginalFileName() {
+    UUID userId = UUID.randomUUID();
+
+    assertThrows(DocumentValidationException.class, () ->
+        Document.builder()
+            .originalFileName("   ")
+            .title("Test Document")
+            .contentType("application/pdf")
+            .fileSizeBytes(500L)
+            .checksumSha256(VALID_SHA256)
+            .storageKey("key")
+            .uploadedByUserId(userId)
+            .build()
+    );
+  }
+
+  @Test
+  @DisplayName("Should reject blank or null contentType")
+  void shouldRejectBlankContentType() {
     UUID userId = UUID.randomUUID();
 
     assertThrows(DocumentValidationException.class, () ->
         Document.builder()
             .originalFileName("test.pdf")
-            .title("   ")
-            .fileType("PDF")
+            .title("Test Document")
+            .contentType("   ")
             .fileSizeBytes(500L)
             .checksumSha256(VALID_SHA256)
-            .storageBucket("bucket")
             .storageKey("key")
             .uploadedByUserId(userId)
             .build()
@@ -78,10 +111,9 @@ class DocumentTest {
         Document.builder()
             .originalFileName("test.pdf")
             .title("Test Document")
-            .fileType("PDF")
+            .contentType("application/pdf")
             .fileSizeBytes(0L)
             .checksumSha256(VALID_SHA256)
-            .storageBucket("bucket")
             .storageKey("key")
             .uploadedByUserId(userId)
             .build()
@@ -98,10 +130,9 @@ class DocumentTest {
         Document.builder()
             .originalFileName("test.pdf")
             .title("Big Document")
-            .fileType("PDF")
+            .contentType("application/pdf")
             .fileSizeBytes(oversized)
             .checksumSha256(VALID_SHA256)
-            .storageBucket("bucket")
             .storageKey("key")
             .uploadedByUserId(userId)
             .build()
@@ -117,10 +148,9 @@ class DocumentTest {
         Document.builder()
             .originalFileName("test.pdf")
             .title("Test Document")
-            .fileType("PDF")
+            .contentType("application/pdf")
             .fileSizeBytes(100L)
             .checksumSha256("short_hash")
-            .storageBucket("bucket")
             .storageKey("key")
             .uploadedByUserId(userId)
             .build()
@@ -128,22 +158,77 @@ class DocumentTest {
   }
 
   @Test
-  @DisplayName("Should update processing status correctly")
-  void shouldUpdateProcessingStatus() {
+  @DisplayName("Should update status correctly via state-transition methods")
+  void shouldUpdateStatusCorrectly() {
     UUID userId = UUID.randomUUID();
 
     Document doc = Document.builder()
         .originalFileName("report.pdf")
-        .title("Annual Report")
-        .fileType("PDF")
+        .contentType("application/pdf")
         .fileSizeBytes(1024L)
         .checksumSha256(VALID_SHA256)
-        .storageBucket("bucket")
         .storageKey("key")
         .uploadedByUserId(userId)
         .build();
 
-    doc.updateProcessingStatus(ProcessingStatus.PARSING);
-    assertEquals(ProcessingStatus.PARSING, doc.getProcessingStatus());
+    assertEquals(DocumentStatus.UPLOADED, doc.getStatus());
+
+    doc.markProcessing();
+    assertEquals(DocumentStatus.PROCESSING, doc.getStatus());
+
+    doc.markReady();
+    assertEquals(DocumentStatus.READY, doc.getStatus());
+
+    doc.markFailed();
+    assertEquals(DocumentStatus.FAILED, doc.getStatus());
+
+    doc.updateStatus(DocumentStatus.PROCESSING);
+    assertEquals(DocumentStatus.PROCESSING, doc.getStatus());
+  }
+
+  @Test
+  @DisplayName("Should initialize currentVersion to 1 by default and allow valid revision application")
+  void shouldApplyNewVersionSuccessfully() {
+    UUID userId = UUID.randomUUID();
+
+    Document doc = Document.builder()
+        .originalFileName("report_v1.pdf")
+        .contentType("application/pdf")
+        .fileSizeBytes(1024L)
+        .checksumSha256(VALID_SHA256)
+        .storageKey("documents/123/v1/report.pdf")
+        .uploadedByUserId(userId)
+        .build();
+
+    assertEquals(1, doc.getCurrentVersion());
+
+    String newSha256 = "a" + VALID_SHA256.substring(1);
+    doc.applyNewVersion(2, "documents/123/v2/report_v2.pdf", newSha256, 2048L, "application/pdf", "report_v2.pdf");
+
+    assertEquals(2, doc.getCurrentVersion());
+    assertEquals("documents/123/v2/report_v2.pdf", doc.getStorageKey());
+    assertEquals(newSha256, doc.getChecksumSha256());
+    assertEquals(2048L, doc.getFileSizeBytes());
+    assertEquals("report_v2.pdf", doc.getOriginalFileName());
+    assertEquals(DocumentStatus.UPLOADED, doc.getStatus());
+  }
+
+  @Test
+  @DisplayName("Should reject applying new version with number not greater than current version")
+  void shouldRejectLesserOrEqualVersionNumber() {
+    UUID userId = UUID.randomUUID();
+
+    Document doc = Document.builder()
+        .originalFileName("report_v1.pdf")
+        .contentType("application/pdf")
+        .fileSizeBytes(1024L)
+        .checksumSha256(VALID_SHA256)
+        .storageKey("documents/123/v1/report.pdf")
+        .uploadedByUserId(userId)
+        .build();
+
+    assertThrows(DocumentValidationException.class, () ->
+        doc.applyNewVersion(1, "key", VALID_SHA256, 100L, "application/pdf", "name.pdf")
+    );
   }
 }

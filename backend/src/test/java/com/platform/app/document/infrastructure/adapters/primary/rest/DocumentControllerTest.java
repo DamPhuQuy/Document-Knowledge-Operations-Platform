@@ -31,6 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.platform.app.document.application.ports.outbound.ObjectStoragePort;
 import com.platform.app.document.domain.exception.StorageException;
+import com.platform.app.document.domain.model.AccessLevel;
+import com.platform.app.document.domain.model.DocumentStatus;
+import com.platform.app.document.infrastructure.adapters.secondary.persistence.entity.DocumentJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
 
 import jakarta.persistence.EntityManager;
@@ -41,6 +44,8 @@ import jakarta.persistence.EntityManager;
 class DocumentControllerTest {
 
   private static final String USER_ID = "11111111-1111-1111-1111-111111111111";
+  private static final String OTHER_USER_ID = "22222222-2222-2222-2222-222222222222";
+  private static final String ADMIN_USER_ID = "33333333-3333-3333-3333-333333333333";
 
   @Autowired
   private MockMvc mockMvc;
@@ -53,23 +58,9 @@ class DocumentControllerTest {
 
   @BeforeEach
   void setUp() {
-    // Ensure test user exists in DB to satisfy fk_documents_uploaded_by
-    UUID uid = UUID.fromString(USER_ID);
-    UserJpaEntity user = entityManager.find(UserJpaEntity.class, uid);
-    if (user == null) {
-      user = UserJpaEntity.builder()
-          .id(uid)
-          .email("staff@platform.com")
-          .passwordHash("hashed")
-          .fullName("Staff Member")
-          .enabled(true)
-          .isInternal(true)
-          .createdAt(java.time.Instant.now())
-          .updatedAt(java.time.Instant.now())
-          .build();
-      entityManager.persist(user);
-      entityManager.flush();
-    }
+    ensureUserExists(UUID.fromString(USER_ID), "staff@platform.com", "Staff Member");
+    ensureUserExists(UUID.fromString(OTHER_USER_ID), "other@platform.com", "Other Staff");
+    ensureUserExists(UUID.fromString(ADMIN_USER_ID), "admin@platform.com", "Admin User");
 
     // Default mock behavior: drain input stream to simulate complete upload
     doAnswer(invocation -> {
@@ -80,6 +71,24 @@ class DocumentControllerTest {
       }
       return null;
     }).when(objectStoragePort).upload(anyString(), any(InputStream.class), anyLong(), anyString());
+  }
+
+  private void ensureUserExists(UUID uid, String email, String name) {
+    UserJpaEntity user = entityManager.find(UserJpaEntity.class, uid);
+    if (user == null) {
+      user = UserJpaEntity.builder()
+          .id(uid)
+          .email(email)
+          .passwordHash("hashed")
+          .fullName(name)
+          .enabled(true)
+          .isInternal(true)
+          .createdAt(java.time.Instant.now())
+          .updatedAt(java.time.Instant.now())
+          .build();
+      entityManager.persist(user);
+      entityManager.flush();
+    }
   }
 
   @Test
@@ -102,10 +111,9 @@ class DocumentControllerTest {
         .andExpect(jsonPath("$.id", notNullValue()))
         .andExpect(jsonPath("$.title", is("Annual Report 2026")))
         .andExpect(jsonPath("$.originalFileName", is("annual_report.pdf")))
-        .andExpect(jsonPath("$.fileType", is("PDF")))
+        .andExpect(jsonPath("$.contentType", is("application/pdf")))
         .andExpect(jsonPath("$.checksumSha256", notNullValue()))
-        .andExpect(jsonPath("$.currentVersion", is(1)))
-        .andExpect(jsonPath("$.processingStatus", is("UPLOADED")))
+        .andExpect(jsonPath("$.status", is("UPLOADED")))
         .andExpect(jsonPath("$.accessLevel", is("INTERNAL")));
   }
 
@@ -193,5 +201,151 @@ class DocumentControllerTest {
     mockMvc.perform(multipart("/api/v1/documents").file(emptyFile))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status", is(400)));
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("POST /api/v1/documents/{id}/versions - Should return 200 OK and version metadata on valid upload (UC-DOC-02)")
+  void shouldUploadNewVersionSuccessfully() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    MockMultipartFile v2File = new MockMultipartFile(
+        "file",
+        "annual_report_v2.pdf",
+        "application/pdf",
+        "Updated Content for Version 2".getBytes(StandardCharsets.UTF_8)
+    );
+
+    mockMvc.perform(multipart("/api/v1/documents/{id}/versions", docId)
+            .file(v2File)
+            .param("changeSummary", "Updated financial statements"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id", notNullValue()))
+        .andExpect(jsonPath("$.documentId", is(docId.toString())))
+        .andExpect(jsonPath("$.versionNumber", is(2)))
+        .andExpect(jsonPath("$.changeSummary", is("Updated financial statements")))
+        .andExpect(jsonPath("$.storageKey", is("documents/" + docId + "/v2/annual_report_v2.pdf")))
+        .andExpect(jsonPath("$.checksumSha256", notNullValue()))
+        .andExpect(jsonPath("$.uploadedByUserId", is(USER_ID)))
+        .andExpect(jsonPath("$.createdAt", notNullValue()));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_USER_ID, authorities = {"write:documents"})
+  @DisplayName("POST /api/v1/documents/{id}/versions - Should return 403 Forbidden when user is not owner and not admin")
+  void shouldRejectVersionUploadWhenNotOwnerAndNotAdmin() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    MockMultipartFile v2File = new MockMultipartFile(
+        "file",
+        "annual_report_v2.pdf",
+        "application/pdf",
+        "Unauthorized Update".getBytes(StandardCharsets.UTF_8)
+    );
+
+    mockMvc.perform(multipart("/api/v1/documents/{id}/versions", docId)
+            .file(v2File)
+            .param("changeSummary", "Unauthorized edit"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.status", is(403)));
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_USER_ID, authorities = {"write:documents", "ROLE_ADMIN"})
+  @DisplayName("POST /api/v1/documents/{id}/versions - Should allow admin to upload revision for any document")
+  void shouldAllowAdminToUploadVersionForOtherUserDocument() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    MockMultipartFile v2File = new MockMultipartFile(
+        "file",
+        "annual_report_v2.pdf",
+        "application/pdf",
+        "Admin Approved Revision".getBytes(StandardCharsets.UTF_8)
+    );
+
+    mockMvc.perform(multipart("/api/v1/documents/{id}/versions", docId)
+            .file(v2File)
+            .param("changeSummary", "Admin hotfix revision"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.versionNumber", is(2)))
+        .andExpect(jsonPath("$.uploadedByUserId", is(ADMIN_USER_ID)));
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("POST /api/v1/documents/{id}/versions - Should return 404 Not Found when document does not exist")
+  void shouldReturn404WhenDocumentNotFound() throws Exception {
+    UUID missingDocId = UUID.randomUUID();
+
+    MockMultipartFile file = new MockMultipartFile(
+        "file", "report.pdf", "application/pdf", "Content".getBytes()
+    );
+
+    mockMvc.perform(multipart("/api/v1/documents/{id}/versions", missingDocId)
+            .file(file))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status", is(404)));
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("POST /api/v1/documents/{id}/versions - Should return 415 Unsupported Media Type for disallowed extensions")
+  void shouldRejectInvalidExtensionOnVersionUpload() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    MockMultipartFile invalidFile = new MockMultipartFile(
+        "file", "script.sh", "application/x-sh", "echo 'bad'".getBytes()
+    );
+
+    mockMvc.perform(multipart("/api/v1/documents/{id}/versions", docId)
+            .file(invalidFile))
+        .andExpect(status().isUnsupportedMediaType())
+        .andExpect(jsonPath("$.status", is(415)));
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("POST /api/v1/documents/{id}/versions - Should return 413 Payload Too Large when version file > 50MB")
+  void shouldRejectOversizedVersionFile() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    MockMultipartFile oversizedFile = new MockMultipartFile(
+        "file", "large.pdf", "application/pdf", new byte[10]
+    ) {
+      @Override
+      public long getSize() {
+        return 51L * 1024 * 1024;
+      }
+    };
+
+    mockMvc.perform(multipart("/api/v1/documents/{id}/versions", docId)
+            .file(oversizedFile))
+        .andExpect(status().isPayloadTooLarge())
+        .andExpect(jsonPath("$.status", is(413)));
+  }
+
+  private void createAndPersistDocument(UUID docId, UUID ownerId) {
+    DocumentJpaEntity doc = DocumentJpaEntity.builder()
+        .id(docId)
+        .title("Annual Report")
+        .originalFileName("annual_report.pdf")
+        .contentType("application/pdf")
+        .fileSizeBytes(1024L)
+        .checksumSha256("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+        .storageKey("documents/" + docId + "/v1/annual_report.pdf")
+        .currentVersion(1)
+        .status(DocumentStatus.UPLOADED)
+        .uploadedByUserId(ownerId)
+        .accessLevel(AccessLevel.INTERNAL)
+        .createdAt(java.time.Instant.now())
+        .updatedAt(java.time.Instant.now())
+        .build();
+    entityManager.persist(doc);
+    entityManager.flush();
   }
 }

@@ -126,9 +126,20 @@ public class RestExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 
-  @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+  @ExceptionHandler(com.platform.app.document.domain.exception.DocumentNotFoundException.class)
+  public ResponseEntity<ErrorResponse> handleDocumentNotFound(
+      com.platform.app.document.domain.exception.DocumentNotFoundException ex, HttpServletRequest request) {
+    log.warn("Document not found on {}: {}", request.getRequestURI(), ex.getMessage());
+    ErrorResponse error = buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+  }
+
+  @ExceptionHandler({
+      org.springframework.security.access.AccessDeniedException.class,
+      com.platform.app.document.domain.exception.DocumentAccessDeniedException.class
+  })
   public ResponseEntity<ErrorResponse> handleAccessDenied(
-      org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+      RuntimeException ex, HttpServletRequest request) {
     log.warn("Access denied on {}: {}", request.getRequestURI(), ex.getMessage());
     ErrorResponse error =
         buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), request);

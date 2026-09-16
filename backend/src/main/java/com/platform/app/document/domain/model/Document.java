@@ -25,84 +25,70 @@ public class Document {
   private final UUID id;
 
   @ToString.Include
-  private final String originalFileName;
-
-  @ToString.Include
   private String title;
 
-  private String description;
+  @ToString.Include
+  private String originalFileName;
 
   @ToString.Include
-  private final String fileType;
+  private String contentType;
 
-  private final String mimeType;
+  private long fileSizeBytes;
 
-  private final long fileSizeBytes;
+  private String checksumSha256; // avoid duplicating the file content, used for integrity check
 
-  private final String checksumSha256;
-
-  private final String storageBucket;
-
-  private final String storageKey;
-
-  @Builder.Default
-  private boolean isS3Synced = true;
-
-  @Builder.Default
-  private ProcessingStatus processingStatus = ProcessingStatus.UPLOADED;
+  private String storageKey;
 
   @Builder.Default
   private int currentVersion = 1;
 
-  private UUID departmentId;
+  @Builder.Default
+  private DocumentStatus status = DocumentStatus.UPLOADED;
 
   private final UUID uploadedByUserId;
 
-  @Builder.Default
-  private AccessLevel accessLevel = AccessLevel.INTERNAL;
+  private UUID departmentId;
 
   @Builder.Default
-  private String metadata = "{}";
+  private AccessLevel accessLevel = AccessLevel.INTERNAL;
 
   private final Instant createdAt;
 
   private Instant updatedAt;
 
-  private Instant deletedAt;
-
   public Document(
       UUID id,
-      String originalFileName,
       String title,
-      String description,
-      String fileType,
-      String mimeType,
+      String originalFileName,
+      String contentType,
       long fileSizeBytes,
       String checksumSha256,
-      String storageBucket,
       String storageKey,
-      boolean isS3Synced,
-      ProcessingStatus processingStatus,
       int currentVersion,
-      UUID departmentId,
+      DocumentStatus status,
       UUID uploadedByUserId,
+      UUID departmentId,
       AccessLevel accessLevel,
-      String metadata,
       Instant createdAt,
-      Instant updatedAt,
-      Instant deletedAt) {
+      Instant updatedAt) {
 
     this.id = id != null ? id : UUID.randomUUID();
-
-    if (title == null || title.trim().isEmpty()) {
-      throw new DocumentValidationException("Document title must not be blank");
-    }
-    this.title = title.trim();
 
     if (originalFileName == null || originalFileName.trim().isEmpty()) {
       throw new DocumentValidationException("Original file name must not be blank");
     }
     this.originalFileName = originalFileName.trim();
+
+    if (title != null && !title.trim().isEmpty()) {
+      this.title = title.trim();
+    } else {
+      this.title = this.originalFileName;
+    }
+
+    if (contentType == null || contentType.trim().isEmpty()) {
+      throw new DocumentValidationException("Content type must not be blank");
+    }
+    this.contentType = contentType.trim().toLowerCase();
 
     if (fileSizeBytes <= 0) {
       throw new DocumentValidationException("File size must be strictly positive");
@@ -117,39 +103,79 @@ public class Document {
     }
     this.checksumSha256 = checksumSha256.trim().toLowerCase();
 
-    if (storageBucket == null || storageBucket.trim().isEmpty()) {
-      throw new DocumentValidationException("Storage bucket must not be blank");
-    }
-    this.storageBucket = storageBucket.trim();
-
     if (storageKey == null || storageKey.trim().isEmpty()) {
       throw new DocumentValidationException("Storage key must not be blank");
     }
     this.storageKey = storageKey.trim();
 
-    this.uploadedByUserId = Objects.requireNonNull(uploadedByUserId, "Uploaded by user ID must not be null");
+    if (currentVersion < 1) {
+      throw new DocumentValidationException("Current version must be at least 1");
+    }
+    this.currentVersion = currentVersion;
 
-    this.description = description;
-    this.fileType = fileType != null ? fileType.trim().toUpperCase() : "UNKNOWN";
-    this.mimeType = mimeType != null ? mimeType.trim() : "application/octet-stream";
-    this.isS3Synced = isS3Synced;
-    this.processingStatus = processingStatus != null ? processingStatus : ProcessingStatus.UPLOADED;
-    this.currentVersion = currentVersion > 0 ? currentVersion : 1;
+    this.uploadedByUserId = Objects.requireNonNull(uploadedByUserId, "Uploaded by user ID must not be null");
     this.departmentId = departmentId;
     this.accessLevel = accessLevel != null ? accessLevel : AccessLevel.INTERNAL;
-    this.metadata = (metadata != null && !metadata.trim().isEmpty()) ? metadata.trim() : "{}";
+    this.status = status != null ? status : DocumentStatus.UPLOADED;
     this.createdAt = createdAt != null ? createdAt : Instant.now();
     this.updatedAt = updatedAt != null ? updatedAt : this.createdAt;
-    this.deletedAt = deletedAt;
   }
 
-  public void updateProcessingStatus(ProcessingStatus status) {
-    this.processingStatus = Objects.requireNonNull(status, "Processing status must not be null");
+  public void applyNewVersion(
+      int newVersion,
+      String storageKey,
+      String checksumSha256,
+      long fileSizeBytes,
+      String contentType,
+      String originalFileName) {
+
+    if (newVersion <= this.currentVersion) {
+      throw new DocumentValidationException("New version number must be strictly greater than current version " + this.currentVersion);
+    }
+    if (storageKey == null || storageKey.trim().isEmpty()) {
+      throw new DocumentValidationException("Storage key must not be blank");
+    }
+    if (checksumSha256 == null || checksumSha256.trim().length() != 64) {
+      throw new DocumentValidationException("Checksum SHA-256 must be a 64-character hex string");
+    }
+    if (fileSizeBytes <= 0) {
+      throw new DocumentValidationException("File size must be strictly positive");
+    }
+    if (fileSizeBytes > MAX_FILE_SIZE_BYTES) {
+      throw new PayloadTooLargeException("File size exceeds maximum allowed 50MB limit");
+    }
+
+    this.currentVersion = newVersion;
+    this.storageKey = storageKey.trim();
+    this.checksumSha256 = checksumSha256.trim().toLowerCase();
+    this.fileSizeBytes = fileSizeBytes;
+    if (contentType != null && !contentType.trim().isEmpty()) {
+      this.contentType = contentType.trim().toLowerCase();
+    }
+    if (originalFileName != null && !originalFileName.trim().isEmpty()) {
+      this.originalFileName = originalFileName.trim();
+    }
+    this.status = DocumentStatus.UPLOADED;
     this.updatedAt = Instant.now();
   }
 
-  public void markDeleted() {
-    this.deletedAt = Instant.now();
-    this.updatedAt = this.deletedAt;
+  public void markProcessing() {
+    this.status = DocumentStatus.PROCESSING;
+    this.updatedAt = Instant.now();
+  }
+
+  public void markReady() {
+    this.status = DocumentStatus.READY;
+    this.updatedAt = Instant.now();
+  }
+
+  public void markFailed() {
+    this.status = DocumentStatus.FAILED;
+    this.updatedAt = Instant.now();
+  }
+
+  public void updateStatus(DocumentStatus newStatus) {
+    this.status = Objects.requireNonNull(newStatus, "Document status must not be null");
+    this.updatedAt = Instant.now();
   }
 }

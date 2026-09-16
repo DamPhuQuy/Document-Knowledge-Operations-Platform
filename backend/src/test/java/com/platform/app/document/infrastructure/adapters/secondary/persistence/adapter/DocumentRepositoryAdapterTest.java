@@ -20,8 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.platform.app.document.domain.model.AccessLevel;
 import com.platform.app.document.domain.model.Document;
+import com.platform.app.document.domain.model.DocumentStatus;
 import com.platform.app.document.domain.model.DocumentVersion;
-import com.platform.app.document.domain.model.ProcessingStatus;
 import com.platform.app.document.infrastructure.adapters.secondary.persistence.entity.DocumentJpaEntity;
 import com.platform.app.document.infrastructure.adapters.secondary.persistence.entity.DocumentVersionJpaEntity;
 import com.platform.app.document.infrastructure.adapters.secondary.persistence.repository.SpringDataDocumentRepository;
@@ -57,22 +57,16 @@ class DocumentRepositoryAdapterTest {
 
     Document domain = Document.builder()
         .id(docId)
-        .originalFileName("report.pdf")
         .title("Annual Report")
-        .description("Description")
-        .fileType("PDF")
-        .mimeType("application/pdf")
+        .originalFileName("report.pdf")
+        .contentType("application/pdf")
         .fileSizeBytes(2048L)
         .checksumSha256(SHA256)
-        .storageBucket("doc-knowledge-storage")
-        .storageKey("documents/" + docId + "/v1/report.pdf")
+        .storageKey("documents/" + docId + "/report.pdf")
         .departmentId(deptId)
         .uploadedByUserId(userId)
         .accessLevel(AccessLevel.INTERNAL)
-        .processingStatus(ProcessingStatus.UPLOADED)
-        .currentVersion(1)
-        .isS3Synced(true)
-        .metadata("{}")
+        .status(DocumentStatus.UPLOADED)
         .createdAt(now)
         .updatedAt(now)
         .build();
@@ -86,11 +80,13 @@ class DocumentRepositoryAdapterTest {
     assertEquals(docId, saved.getId());
     assertEquals("Annual Report", saved.getTitle());
     assertEquals("report.pdf", saved.getOriginalFileName());
-    assertEquals("PDF", saved.getFileType());
-    assertEquals("doc-knowledge-storage", saved.getStorageBucket());
-    assertEquals("documents/" + docId + "/v1/report.pdf", saved.getStorageKey());
+    assertEquals("application/pdf", saved.getContentType());
+    assertEquals("documents/" + docId + "/report.pdf", saved.getStorageKey());
     assertEquals(AccessLevel.INTERNAL, saved.getAccessLevel());
-    assertEquals(ProcessingStatus.UPLOADED, saved.getProcessingStatus());
+    assertEquals(DocumentStatus.UPLOADED, saved.getStatus());
+    assertEquals(1, saved.getCurrentVersion());
+    assertEquals(userId, saved.getUploadedByUserId());
+    assertEquals(deptId, saved.getDepartmentId());
     verify(documentRepository).save(any(DocumentJpaEntity.class));
   }
 
@@ -102,29 +98,28 @@ class DocumentRepositoryAdapterTest {
 
     DocumentJpaEntity entity = DocumentJpaEntity.builder()
         .id(docId)
-        .originalFileName("report.pdf")
         .title("Report")
-        .fileType("PDF")
-        .mimeType("application/pdf")
+        .originalFileName("report.pdf")
+        .contentType("application/pdf")
         .fileSizeBytes(100L)
         .checksumSha256(SHA256)
-        .storageBucket("bucket")
         .storageKey("key")
-        .isS3Synced(true)
-        .processingStatus(ProcessingStatus.UPLOADED)
-        .currentVersion(1)
+        .status(DocumentStatus.UPLOADED)
         .uploadedByUserId(userId)
         .accessLevel(AccessLevel.INTERNAL)
-        .metadata("{}")
         .createdAt(Instant.now())
         .updatedAt(Instant.now())
         .build();
 
-    when(documentRepository.findByIdAndDeletedAtIsNull(docId)).thenReturn(Optional.of(entity));
+    when(documentRepository.findById(docId)).thenReturn(Optional.of(entity));
 
     Optional<Document> result = documentAdapter.findById(docId);
     assertTrue(result.isPresent());
     assertEquals(docId, result.get().getId());
+    assertEquals("Report", result.get().getTitle());
+    assertEquals("report.pdf", result.get().getOriginalFileName());
+    assertEquals("application/pdf", result.get().getContentType());
+    assertEquals(DocumentStatus.UPLOADED, result.get().getStatus());
   }
 
   @Test
@@ -139,11 +134,9 @@ class DocumentRepositoryAdapterTest {
         .id(versionId)
         .documentId(docId)
         .versionNumber(1)
-        .storageBucket("bucket")
         .storageKey("documents/" + docId + "/v1/report.pdf")
         .fileSizeBytes(1000L)
         .checksumSha256(SHA256)
-        .isS3Synced(true)
         .changeSummary("Initial version")
         .uploadedByUserId(userId)
         .createdAt(now)
@@ -158,6 +151,7 @@ class DocumentRepositoryAdapterTest {
     assertEquals(versionId, saved.getId());
     assertEquals(docId, saved.getDocumentId());
     assertEquals(1, saved.getVersionNumber());
+    assertEquals("documents/" + docId + "/v1/report.pdf", saved.getStorageKey());
     assertEquals("Initial version", saved.getChangeSummary());
     assertEquals(SHA256, saved.getChecksumSha256());
     verify(versionRepository).save(any(DocumentVersionJpaEntity.class));

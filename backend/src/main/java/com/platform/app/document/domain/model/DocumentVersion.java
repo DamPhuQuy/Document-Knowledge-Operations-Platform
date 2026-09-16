@@ -27,16 +27,11 @@ public class DocumentVersion {
   @ToString.Include
   private final int versionNumber;
 
-  private final String storageBucket;
-
   private final String storageKey;
 
   private final long fileSizeBytes;
 
   private final String checksumSha256;
-
-  @Builder.Default
-  private final boolean isS3Synced = true;
 
   private final String changeSummary;
 
@@ -48,11 +43,9 @@ public class DocumentVersion {
       UUID id,
       UUID documentId,
       int versionNumber,
-      String storageBucket,
       String storageKey,
       long fileSizeBytes,
       String checksumSha256,
-      boolean isS3Synced,
       String changeSummary,
       UUID uploadedByUserId,
       Instant createdAt) {
@@ -64,11 +57,6 @@ public class DocumentVersion {
       throw new DocumentValidationException("Version number must be at least 1");
     }
     this.versionNumber = versionNumber;
-
-    if (storageBucket == null || storageBucket.trim().isEmpty()) {
-      throw new DocumentValidationException("Storage bucket must not be blank");
-    }
-    this.storageBucket = storageBucket.trim();
 
     if (storageKey == null || storageKey.trim().isEmpty()) {
       throw new DocumentValidationException("Storage key must not be blank");
@@ -86,8 +74,6 @@ public class DocumentVersion {
     this.checksumSha256 = checksumSha256.trim().toLowerCase();
 
     this.uploadedByUserId = Objects.requireNonNull(uploadedByUserId, "Uploaded by user ID must not be null");
-
-    this.isS3Synced = isS3Synced;
     this.changeSummary = changeSummary;
     this.createdAt = createdAt != null ? createdAt : Instant.now();
   }

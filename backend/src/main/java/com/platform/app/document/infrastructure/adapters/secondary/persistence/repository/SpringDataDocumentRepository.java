@@ -1,6 +1,5 @@
 package com.platform.app.document.infrastructure.adapters.secondary.persistence.repository;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +9,4 @@ import com.platform.app.document.infrastructure.adapters.secondary.persistence.e
 
 @Repository
 public interface SpringDataDocumentRepository extends JpaRepository<DocumentJpaEntity, UUID> {
-
-  Optional<DocumentJpaEntity> findByIdAndDeletedAtIsNull(UUID id);
 }
