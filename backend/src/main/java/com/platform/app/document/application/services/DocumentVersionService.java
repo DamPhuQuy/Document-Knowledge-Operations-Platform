@@ -26,6 +26,7 @@ import com.platform.app.document.domain.exception.PayloadTooLargeException;
 import com.platform.app.document.domain.exception.UnsupportedMediaTypeException;
 import com.platform.app.document.domain.model.Document;
 import com.platform.app.document.domain.model.DocumentVersion;
+import com.platform.app.shared.util.IdGenerator;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -98,7 +99,7 @@ public class DocumentVersionService implements UploadDocumentVersionUseCase {
     String checksumSha256 = HexFormat.of().formatHex(digest.digest());
     log.info("Computed SHA-256 for documentId={}, version={}: {}", document.getId(), nextVersion, checksumSha256);
 
-    UUID versionId = UUID.randomUUID();
+    UUID versionId = IdGenerator.nextId();
     DocumentVersion version = DocumentVersion.builder()
         .id(versionId)
         .documentId(document.getId())

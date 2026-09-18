@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.platform.app.document.domain.exception.DocumentValidationException;
 import com.platform.app.document.domain.exception.PayloadTooLargeException;
+import com.platform.app.shared.util.IdGenerator;
 
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -72,7 +73,7 @@ public class Document {
       Instant createdAt,
       Instant updatedAt) {
 
-    this.id = id != null ? id : UUID.randomUUID();
+    this.id = id != null ? id : IdGenerator.nextId();
 
     if (originalFileName == null || originalFileName.trim().isEmpty()) {
       throw new DocumentValidationException("Original file name must not be blank");
@@ -176,6 +177,11 @@ public class Document {
 
   public void updateStatus(DocumentStatus newStatus) {
     this.status = Objects.requireNonNull(newStatus, "Document status must not be null");
+    this.updatedAt = Instant.now();
+  }
+
+  public void updateAccessLevel(AccessLevel newAccessLevel) {
+    this.accessLevel = Objects.requireNonNull(newAccessLevel, "Access level must not be null");
     this.updatedAt = Instant.now();
   }
 }

@@ -1,0 +1,48 @@
+package com.platform.app.document.domain.model;
+
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+import com.platform.app.shared.util.IdGenerator;
+
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
+@Getter
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
+@Builder
+public class DocumentUserAccess {
+
+  @ToString.Include
+  @EqualsAndHashCode.Include
+  private final UUID id;
+
+  @ToString.Include
+  private final UUID documentId;
+
+  @ToString.Include
+  private final UUID userId;
+
+  @ToString.Include
+  private final PermissionLevel permissionLevel;
+
+  private final Instant createdAt;
+
+  public DocumentUserAccess(
+      UUID id,
+      UUID documentId,
+      UUID userId,
+      PermissionLevel permissionLevel,
+      Instant createdAt) {
+
+    this.id = id != null ? id : IdGenerator.nextId();
+    this.documentId = Objects.requireNonNull(documentId, "Document ID must not be null");
+    this.userId = Objects.requireNonNull(userId, "User ID must not be null");
+    this.permissionLevel = Objects.requireNonNull(permissionLevel, "Permission level must not be null");
+    this.createdAt = createdAt != null ? createdAt : Instant.now();
+  }
+}

@@ -5,6 +5,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import com.platform.app.document.domain.exception.DocumentValidationException;
+import com.platform.app.shared.util.IdGenerator;
 
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -50,7 +51,7 @@ public class DocumentVersion {
       UUID uploadedByUserId,
       Instant createdAt) {
 
-    this.id = id != null ? id : UUID.randomUUID();
+    this.id = id != null ? id : IdGenerator.nextId();
     this.documentId = Objects.requireNonNull(documentId, "Document ID must not be null");
 
     if (versionNumber < 1) {

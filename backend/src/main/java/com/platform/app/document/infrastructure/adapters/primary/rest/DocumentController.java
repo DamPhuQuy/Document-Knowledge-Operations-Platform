@@ -9,18 +9,26 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.platform.app.document.application.dto.ConfigureDocumentAclCommand;
+import com.platform.app.document.application.dto.DocumentPermissionsResponseDto;
 import com.platform.app.document.application.dto.DocumentResponseDto;
 import com.platform.app.document.application.dto.DocumentVersionResponseDto;
+import com.platform.app.document.application.dto.UpdateDocumentPermissionsRequest;
 import com.platform.app.document.application.dto.UploadDocumentCommand;
 import com.platform.app.document.application.dto.UploadDocumentVersionCommand;
+import com.platform.app.document.application.ports.inbound.ConfigureDocumentAclUseCase;
+import com.platform.app.document.application.ports.inbound.GetDocumentPermissionsUseCase;
 import com.platform.app.document.application.ports.inbound.UploadDocumentUseCase;
 import com.platform.app.document.application.ports.inbound.UploadDocumentVersionUseCase;
 import com.platform.app.document.domain.exception.DocumentValidationException;
@@ -28,6 +36,7 @@ import com.platform.app.document.domain.model.AccessLevel;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,6 +49,8 @@ public class DocumentController {
 
   private final UploadDocumentUseCase uploadDocumentUseCase;
   private final UploadDocumentVersionUseCase uploadDocumentVersionUseCase;
+  private final ConfigureDocumentAclUseCase configureDocumentAclUseCase;
+  private final GetDocumentPermissionsUseCase getDocumentPermissionsUseCase;
 
   @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasAuthority('write:documents') or hasAuthority('WRITE:DOCUMENTS') or hasRole('ADMIN')")
@@ -123,6 +134,70 @@ public class DocumentController {
 
     URI location = URI.create("/api/v1/documents/" + response.getId());
     return ResponseEntity.created(location).body(response);
+  }
+
+  @PutMapping(value = "/{id}/permissions", consumes = MediaType.APPLICATION_JSON_VALUE)
+  @PreAuthorize("isAuthenticated()")
+  @Operation(summary = "Configure document access control matrix (UC-DOC-03)")
+  public ResponseEntity<DocumentPermissionsResponseDto> updatePermissions(
+      @PathVariable("id") UUID id,
+      @Valid @RequestBody UpdateDocumentPermissionsRequest request,
+      Authentication authentication) {
+
+    UUID userId = extractUserId(authentication);
+    if (userId == null) {
+      log.warn("Unauthenticated attempt to configure permissions for document {}", id);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    boolean hasManagePermissions = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(a -> a.getAuthority().equalsIgnoreCase("manage:permissions") ||
+                       a.getAuthority().equalsIgnoreCase("MANAGE:PERMISSIONS"));
+
+    log.info("REST PUT /api/v1/documents/{}/permissions received: accessLevel={}, user={}, isAdmin={}, hasManage={}",
+        id, request.getAccessLevel(), userId, isAdmin, hasManagePermissions);
+
+    ConfigureDocumentAclCommand command = ConfigureDocumentAclCommand.builder()
+        .documentId(id)
+        .currentUserId(userId)
+        .isAdmin(isAdmin)
+        .hasManagePermissions(hasManagePermissions)
+        .accessLevel(request.getAccessLevel())
+        .userGrants(request.getUserGrants())
+        .departmentGrants(request.getDepartmentGrants())
+        .roleGrants(request.getRoleGrants())
+        .build();
+
+    DocumentPermissionsResponseDto response = configureDocumentAclUseCase.configureAcl(command);
+    return ResponseEntity.ok(response);
+  }
+
+  @GetMapping("/{id}/permissions")
+  @PreAuthorize("isAuthenticated()")
+  @Operation(summary = "Get document access control matrix (UC-DOC-03)")
+  public ResponseEntity<DocumentPermissionsResponseDto> getPermissions(
+      @PathVariable("id") UUID id,
+      Authentication authentication) {
+
+    UUID userId = extractUserId(authentication);
+    if (userId == null) {
+      log.warn("Unauthenticated attempt to get permissions for document {}", id);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    boolean hasManagePermissions = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(a -> a.getAuthority().equalsIgnoreCase("manage:permissions") ||
+                       a.getAuthority().equalsIgnoreCase("MANAGE:PERMISSIONS"));
+
+    log.info("REST GET /api/v1/documents/{}/permissions received: user={}, isAdmin={}, hasManage={}",
+        id, userId, isAdmin, hasManagePermissions);
+
+    DocumentPermissionsResponseDto response = getDocumentPermissionsUseCase.getPermissions(id, userId, isAdmin, hasManagePermissions);
+    return ResponseEntity.ok(response);
   }
 
   private UUID extractUserId(Authentication authentication) {

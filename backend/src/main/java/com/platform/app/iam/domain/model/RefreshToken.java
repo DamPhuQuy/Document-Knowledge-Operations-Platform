@@ -3,6 +3,7 @@ package com.platform.app.iam.domain.model;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import com.platform.app.shared.util.IdGenerator;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -36,7 +37,7 @@ public class RefreshToken {
 
   public static RefreshToken create(UUID userId, String token, Instant expiryDate) {
     return new RefreshToken(
-        UUID.randomUUID(), userId, token, expiryDate, false, Instant.now());
+        IdGenerator.nextId(), userId, token, expiryDate, false, Instant.now());
   }
 
   public boolean isExpired(Instant now) {

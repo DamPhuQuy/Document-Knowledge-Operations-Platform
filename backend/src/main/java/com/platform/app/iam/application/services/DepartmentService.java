@@ -23,6 +23,7 @@ import com.platform.app.iam.application.ports.inbound.UpdateDepartmentCommand;
 import com.platform.app.iam.application.ports.inbound.UpdateDepartmentUseCase;
 import com.platform.app.iam.application.ports.outbound.DepartmentRepositoryPort;
 import com.platform.app.iam.application.ports.outbound.UserRepositoryPort;
+import com.platform.app.shared.util.IdGenerator;
 import com.platform.app.iam.domain.exception.DepartmentCodeConflictException;
 import com.platform.app.iam.domain.exception.DepartmentNotFoundException;
 import com.platform.app.iam.domain.model.Department;
@@ -57,7 +58,7 @@ public class DepartmentService
 
     Department department =
         Department.builder()
-            .id(UUID.randomUUID())
+            .id(IdGenerator.nextId())
             .code(validatedCode)
             .name(command.name())
             .description(command.description())

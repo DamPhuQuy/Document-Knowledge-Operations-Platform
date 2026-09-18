@@ -8,13 +8,17 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,16 +27,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.platform.app.document.application.dto.UpdateDocumentPermissionsRequest;
+import com.platform.app.document.application.dto.UserGrantDto;
 import com.platform.app.document.application.ports.outbound.ObjectStoragePort;
 import com.platform.app.document.domain.exception.StorageException;
 import com.platform.app.document.domain.model.AccessLevel;
 import com.platform.app.document.domain.model.DocumentStatus;
+import com.platform.app.document.domain.model.PermissionLevel;
 import com.platform.app.document.infrastructure.adapters.secondary.persistence.entity.DocumentJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
 
@@ -52,6 +61,8 @@ class DocumentControllerTest {
 
   @Autowired
   private EntityManager entityManager;
+
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @MockitoBean
   private ObjectStoragePort objectStoragePort;
@@ -327,6 +338,123 @@ class DocumentControllerTest {
             .file(oversizedFile))
         .andExpect(status().isPayloadTooLarge())
         .andExpect(jsonPath("$.status", is(413)));
+  }
+
+  // ============================================================================
+  // UC-DOC-03: Configure Document Access Control Matrix
+  // ============================================================================
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("PUT /api/v1/documents/{id}/permissions - Document owner should configure permissions successfully")
+  void shouldConfigurePermissionsByOwnerSuccessfully() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    UpdateDocumentPermissionsRequest request = UpdateDocumentPermissionsRequest.builder()
+        .accessLevel(AccessLevel.CONFIDENTIAL)
+        .userGrants(List.of(
+            UserGrantDto.builder().userId(UUID.fromString(OTHER_USER_ID)).permissionLevel(PermissionLevel.EDIT).build()
+        ))
+        .departmentGrants(Collections.emptyList())
+        .roleGrants(Collections.emptyList())
+        .build();
+
+    mockMvc.perform(put("/api/v1/documents/{id}/permissions", docId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.documentId", is(docId.toString())))
+        .andExpect(jsonPath("$.accessLevel", is("CONFIDENTIAL")))
+        .andExpect(jsonPath("$.userGrants[0].userId", is(OTHER_USER_ID)))
+        .andExpect(jsonPath("$.userGrants[0].permissionLevel", is("EDIT")));
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_USER_ID, authorities = {"ROLE_ADMIN"})
+  @DisplayName("PUT /api/v1/documents/{id}/permissions - Admin should configure permissions successfully")
+  void shouldConfigurePermissionsByAdminSuccessfully() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    UpdateDocumentPermissionsRequest request = UpdateDocumentPermissionsRequest.builder()
+        .accessLevel(AccessLevel.PUBLIC)
+        .userGrants(Collections.emptyList())
+        .departmentGrants(Collections.emptyList())
+        .roleGrants(Collections.emptyList())
+        .build();
+
+    mockMvc.perform(put("/api/v1/documents/{id}/permissions", docId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.documentId", is(docId.toString())))
+        .andExpect(jsonPath("$.accessLevel", is("PUBLIC")));
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_USER_ID, authorities = {"write:documents"})
+  @DisplayName("PUT /api/v1/documents/{id}/permissions - Non-owner without manage:permissions should receive 403 Forbidden")
+  void shouldRejectNonOwnerFromConfiguringPermissions() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    UpdateDocumentPermissionsRequest request = UpdateDocumentPermissionsRequest.builder()
+        .accessLevel(AccessLevel.CONFIDENTIAL)
+        .userGrants(Collections.emptyList())
+        .departmentGrants(Collections.emptyList())
+        .roleGrants(Collections.emptyList())
+        .build();
+
+    mockMvc.perform(put("/api/v1/documents/{id}/permissions", docId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.status", is(403)));
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("PUT /api/v1/documents/{id}/permissions - Non-existent document should return 404 Not Found")
+  void shouldReturnNotFoundWhenConfiguringPermissionsForNonExistentDocument() throws Exception {
+    UUID nonExistentId = UUID.randomUUID();
+
+    UpdateDocumentPermissionsRequest request = UpdateDocumentPermissionsRequest.builder()
+        .accessLevel(AccessLevel.PUBLIC)
+        .userGrants(Collections.emptyList())
+        .departmentGrants(Collections.emptyList())
+        .roleGrants(Collections.emptyList())
+        .build();
+
+    mockMvc.perform(put("/api/v1/documents/{id}/permissions", nonExistentId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status", is(404)));
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("GET /api/v1/documents/{id}/permissions - Document owner should retrieve current permissions successfully")
+  void shouldGetPermissionsSuccessfully() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    mockMvc.perform(get("/api/v1/documents/{id}/permissions", docId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.documentId", is(docId.toString())))
+        .andExpect(jsonPath("$.accessLevel", is("INTERNAL")));
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("GET /api/v1/documents/{id}/permissions - Non-existent document should return 404 Not Found")
+  void shouldReturnNotFoundWhenGettingPermissionsForNonExistentDocument() throws Exception {
+    UUID nonExistentId = UUID.randomUUID();
+
+    mockMvc.perform(get("/api/v1/documents/{id}/permissions", nonExistentId))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.status", is(404)));
   }
 
   private void createAndPersistDocument(UUID docId, UUID ownerId) {

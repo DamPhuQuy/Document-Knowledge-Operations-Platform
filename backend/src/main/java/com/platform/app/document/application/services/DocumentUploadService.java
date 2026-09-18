@@ -22,6 +22,7 @@ import com.platform.app.document.domain.exception.DocumentValidationException;
 import com.platform.app.document.domain.exception.PayloadTooLargeException;
 import com.platform.app.document.domain.exception.UnsupportedMediaTypeException;
 import com.platform.app.document.domain.model.Document;
+import com.platform.app.shared.util.IdGenerator;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,7 +61,7 @@ public class DocumentUploadService implements UploadDocumentUseCase {
       throw new PayloadTooLargeException("File size exceeds maximum allowed 50MB limit");
     }
 
-    UUID docId = UUID.randomUUID();
+    UUID docId = IdGenerator.nextId();
     String sanitizedFileName = sanitizeFileName(originalFileName);
     String storageKey = "documents/" + docId + "/" + sanitizedFileName;
     String contentType = command.getContentType() != null ? command.getContentType() : "application/octet-stream";
