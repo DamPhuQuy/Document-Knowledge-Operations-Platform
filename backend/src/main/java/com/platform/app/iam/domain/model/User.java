@@ -31,7 +31,7 @@ public class User {
   private final String passwordHash;
   private final String fullName;
   private UUID departmentId;
-  private final boolean enabled;
+  private boolean enabled;
   private boolean internal;
 
   @Getter(AccessLevel.NONE)
@@ -112,6 +112,11 @@ public class User {
   public void assignDepartment(UUID departmentId, boolean internal) {
     this.departmentId = departmentId;
     this.internal = internal;
+    this.updatedAt = Instant.now();
+  }
+
+  public void enable() {
+    this.enabled = true;
     this.updatedAt = Instant.now();
   }
 }

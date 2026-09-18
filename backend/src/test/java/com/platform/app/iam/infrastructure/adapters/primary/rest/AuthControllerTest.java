@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -26,8 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.platform.app.iam.application.ports.outbound.AccountLockoutPort;
+import com.platform.app.iam.application.ports.outbound.OtpRepositoryPort;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.LoginRequest;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.RegisterRequest;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.VerifyOtpRequest;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
@@ -45,7 +49,8 @@ class AuthControllerTest {
   @Autowired private EntityManager entityManager;
   @Autowired private SpringDataUserRepository springDataUserRepository;
   @Autowired private PasswordEncoder passwordEncoder;
-  @Autowired private com.platform.app.iam.application.ports.outbound.AccountLockoutPort accountLockoutPort;
+  @Autowired private AccountLockoutPort accountLockoutPort;
+  @Autowired private OtpRepositoryPort otpRepositoryPort;
 
   private UUID activeUserId;
   private UUID disabledUserId;
@@ -345,5 +350,109 @@ class AuthControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.status", is(400)))
         .andExpect(jsonPath("$.message", containsString("First name must not be blank")));
+  }
+
+  @Test
+  @DisplayName("Full Flow: Register -> Cannot login yet -> Verify OTP -> Login successfully")
+  void shouldRegisterThenVerifyOtpAndLoginSuccessfully() throws Exception {
+    String testEmail = "flowuser@platform.com";
+    String password = "ValidPassword123#";
+
+    // 1. Register user
+    RegisterRequest registerRequest =
+        RegisterRequest.builder()
+            .email(testEmail)
+            .password(password)
+            .firstName("Flow")
+            .lastName("User")
+            .build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(registerRequest)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.email", is(testEmail)));
+
+    // 2. Attempt login before OTP verification -> 403 Forbidden (Account is deactivated)
+    LoginRequest loginRequest =
+        LoginRequest.builder().email(testEmail).password(password).build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.status", is(403)))
+        .andExpect(jsonPath("$.message", is("Account is deactivated")));
+
+    // 3. Retrieve OTP from OtpRepositoryPort
+    String otp =
+        otpRepositoryPort
+            .getOtp(testEmail)
+            .orElseThrow(() -> new AssertionError("OTP should be present in repository"));
+
+    // 4. Verify OTP -> 200 OK
+    VerifyOtpRequest verifyOtpRequest =
+        VerifyOtpRequest.builder().email(testEmail).otp(otp).build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(verifyOtpRequest)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.activated", is(true)))
+        .andExpect(jsonPath("$.message", containsString("Account verified and activated")));
+
+    // 5. OTP must be deleted after use (prevent replay)
+    assertTrue(otpRepositoryPort.getOtp(testEmail).isEmpty(), "OTP should be cleared after verification");
+
+    // 6. Login now succeeds -> 200 OK with tokens
+    mockMvc
+        .perform(
+            post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(loginRequest)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.accessToken", notNullValue()))
+        .andExpect(jsonPath("$.user.email", is(testEmail)));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/auth/verify-otp - 400 Bad Request on invalid OTP")
+  void shouldReturn400OnInvalidOtp() throws Exception {
+    String testEmail = "mismatch@platform.com";
+    otpRepositoryPort.saveOtp(testEmail, "123456", java.time.Duration.ofMinutes(5));
+
+    VerifyOtpRequest request =
+        VerifyOtpRequest.builder().email(testEmail).otp("000000").build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status", is(400)))
+        .andExpect(jsonPath("$.message", is("Invalid OTP provided.")));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/auth/verify-otp - 400 Bad Request on non-existent or expired OTP")
+  void shouldReturn400OnExpiredOtp() throws Exception {
+    VerifyOtpRequest request =
+        VerifyOtpRequest.builder().email("nonexistent@platform.com").otp("123456").build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status", is(400)))
+        .andExpect(jsonPath("$.message", containsString("OTP has expired or does not exist")));
   }
 }

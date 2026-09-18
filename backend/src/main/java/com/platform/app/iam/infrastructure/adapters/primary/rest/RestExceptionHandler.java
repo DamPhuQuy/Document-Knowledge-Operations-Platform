@@ -8,6 +8,8 @@ import com.platform.app.iam.domain.exception.EmailAlreadyExistsException;
 import com.platform.app.iam.domain.exception.EmptyRolesException;
 import com.platform.app.iam.domain.exception.InvalidCredentialsException;
 import com.platform.app.iam.domain.exception.InvalidDepartmentCodeException;
+import com.platform.app.iam.domain.exception.InvalidOtpException;
+import com.platform.app.iam.domain.exception.OtpExpiredException;
 import com.platform.app.iam.domain.exception.SelfRoleRevocationException;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response.ErrorResponse;
 
@@ -92,6 +94,15 @@ public class RestExceptionHandler {
     ErrorResponse error =
         buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
     return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+  }
+
+  @ExceptionHandler({InvalidOtpException.class, OtpExpiredException.class})
+  public ResponseEntity<ErrorResponse> handleOtpException(
+      RuntimeException ex, HttpServletRequest request) {
+    log.warn("OTP verification error on {}: {}", request.getRequestURI(), ex.getMessage());
+    ErrorResponse error =
+        buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 
   @ExceptionHandler(com.platform.app.document.domain.exception.UnsupportedMediaTypeException.class)

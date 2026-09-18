@@ -13,11 +13,15 @@ import com.platform.app.iam.application.ports.inbound.LoginCommand;
 import com.platform.app.iam.application.ports.inbound.LoginUseCase;
 import com.platform.app.iam.application.ports.inbound.RegisterCommand;
 import com.platform.app.iam.application.ports.inbound.RegisterUseCase;
+import com.platform.app.iam.application.ports.inbound.VerifyOtpCommand;
+import com.platform.app.iam.application.ports.inbound.VerifyOtpUseCase;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.LoginRequest;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.RegisterRequest;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.VerifyOtpRequest;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response.ErrorResponse;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response.LoginResponse;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response.RegisterResponse;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.response.VerifyOtpResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -38,6 +42,7 @@ public class AuthController {
 
   private final LoginUseCase loginUseCase;
   private final RegisterUseCase registerUseCase;
+  private final VerifyOtpUseCase verifyOtpUseCase;
 
   @PostMapping("/login")
   @Operation(
@@ -114,6 +119,30 @@ public class AuthController {
     log.debug("REST POST /api/v1/auth/register succeeded for user [{}]", profile.id());
 
     return ResponseEntity.status(HttpStatus.CREATED).body(RegisterResponse.from(profile));
+  }
+
+  @PostMapping("/verify-otp")
+  @Operation(
+      summary = "Verify Registration OTP",
+      description = "Verifies the 6-digit OTP sent to user email and activates account")
+  @ApiResponse(
+      responseCode = "200",
+      description = "Account verified and activated successfully",
+      content = @Content(schema = @Schema(implementation = VerifyOtpResponse.class)))
+  @ApiResponse(
+      responseCode = "400",
+      description = "Invalid OTP or OTP expired",
+      content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  public ResponseEntity<VerifyOtpResponse> verifyOtp(
+      @Valid @RequestBody VerifyOtpRequest request) {
+    log.info("REST POST /api/v1/auth/verify-otp received for email [{}]", request.email());
+
+    VerifyOtpCommand command =
+        VerifyOtpCommand.builder().email(request.email()).otp(request.otp()).build();
+    verifyOtpUseCase.execute(command);
+    log.debug("REST POST /api/v1/auth/verify-otp succeeded for email [{}]", request.email());
+
+    return ResponseEntity.ok(VerifyOtpResponse.success());
   }
 
   private String extractClientIp(HttpServletRequest request) {

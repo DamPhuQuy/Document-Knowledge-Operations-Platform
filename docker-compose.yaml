@@ -37,6 +37,20 @@ services:
     networks:
       - app_network
 
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-doc_knowledge_example}_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app_network
+
   backend:
     build:
       context: ./backend
@@ -69,6 +83,8 @@ services:
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
       LIQUIBASE_ENABLED: ${LIQUIBASE_ENABLED:-true}
       JPA_SHOW_SQL: ${JPA_SHOW_SQL:-true}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: 6379
     volumes:
       - ./backend/src:/app/src
       - backend_gradle_cache:/root/.gradle
@@ -83,6 +99,8 @@ services:
           path: ./backend/settings.gradle
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
