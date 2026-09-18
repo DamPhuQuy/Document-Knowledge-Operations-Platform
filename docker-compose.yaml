@@ -66,6 +66,9 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-example_secret_key}
       AWS_S3_PATH_STYLE_ACCESS: ${AWS_S3_PATH_STYLE_ACCESS:-true}
       SPRING_THREADS_VIRTUAL_ENABLED: ${SPRING_THREADS_VIRTUAL_ENABLED:-false}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      LIQUIBASE_ENABLED: ${LIQUIBASE_ENABLED:-true}
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL:-true}
     volumes:
       - ./backend/src:/app/src
       - backend_gradle_cache:/root/.gradle

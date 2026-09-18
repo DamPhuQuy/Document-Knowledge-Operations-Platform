@@ -73,7 +73,7 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   swagger:
-    enabled: ${SWAGGER_ENABLED:false}
+    enabled: ${SWAGGER_ENABLED:true}
     title: ${SWAGGER_TITLE:Document and Knowledge Operations Platform API}
     description: ${SWAGGER_DESCRIPTION:RESTful API documentation for Document and Knowledge Operations Platform}
     version: ${SWAGGER_VERSION:1.0.0}
@@ -96,6 +96,6 @@ logging:
     root: INFO
     "[com.platform.app]": DEBUG
     "[org.springframework.web]": INFO
-    "[org.hibernate.SQL]": ${JPA_SHOW_SQL:INFO}
+    "[org.hibernate.SQL]": ${HIBERNATE_SQL_LOG_LEVEL:DEBUG}
   pattern:
     console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr([%X{traceId:-}]){yellow} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"

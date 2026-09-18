@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.LoginRequest;
+import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.RegisterRequest;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.PermissionJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
@@ -258,5 +259,91 @@ class AuthControllerTest {
                 "$.message",
                 is(
                     "Account is temporarily locked due to 5 consecutive failed login attempts. Please try again after 15 minutes.")));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/auth/register - 201 Created on valid registration")
+  void shouldRegisterSuccessfully() throws Exception {
+    RegisterRequest request =
+        RegisterRequest.builder()
+            .email("newuser@platform.com")
+            .password("SecurePassword123#")
+            .firstName("Jane")
+            .lastName("Doe")
+            .build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id", notNullValue()))
+        .andExpect(jsonPath("$.email", is("newuser@platform.com")))
+        .andExpect(jsonPath("$.fullName", is("Jane Doe")))
+        .andExpect(jsonPath("$.roles", hasItem("STAFF")));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/auth/register - 409 Conflict when email already exists")
+  void shouldReturn409WhenEmailAlreadyExists() throws Exception {
+    RegisterRequest request =
+        RegisterRequest.builder()
+            .email("active@platform.com")
+            .password("SecurePassword123#")
+            .firstName("Duplicate")
+            .lastName("User")
+            .build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.status", is(409)))
+        .andExpect(jsonPath("$.message", containsString("already registered")));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/auth/register - 400 Bad Request on invalid email")
+  void shouldReturn400OnRegisterWithInvalidEmail() throws Exception {
+    RegisterRequest request =
+        RegisterRequest.builder()
+            .email("not-an-email")
+            .password("SecurePassword123#")
+            .firstName("Jane")
+            .lastName("Doe")
+            .build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status", is(400)))
+        .andExpect(jsonPath("$.message", containsString("Invalid email format")));
+  }
+
+  @Test
+  @DisplayName("POST /api/v1/auth/register - 400 Bad Request on blank first name")
+  void shouldReturn400OnRegisterWithBlankFirstName() throws Exception {
+    RegisterRequest request =
+        RegisterRequest.builder()
+            .email("valid@platform.com")
+            .password("SecurePassword123#")
+            .firstName("")
+            .lastName("Doe")
+            .build();
+
+    mockMvc
+        .perform(
+            post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status", is(400)))
+        .andExpect(jsonPath("$.message", containsString("First name must not be blank")));
   }
 }

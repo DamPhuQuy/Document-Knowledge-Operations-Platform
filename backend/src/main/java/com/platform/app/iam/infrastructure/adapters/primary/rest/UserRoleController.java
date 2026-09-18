@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/v1/users/{userId}/roles")
 @RequiredArgsConstructor
 @Slf4j
 public class UserRoleController {
@@ -31,7 +31,7 @@ public class UserRoleController {
   private final GetUserRolesUseCase getUserRolesUseCase;
   private final AssignRolesUseCase assignRolesUseCase;
 
-  @GetMapping("/{userId}/roles")
+  @GetMapping()
   @PreAuthorize("hasAuthority('manage:users') or hasAuthority('MANAGE:USERS') or hasRole('ADMIN')")
   public ResponseEntity<UserRolesResponseDto> getUserRoles(@PathVariable("userId") UUID userId) {
     log.debug("REST GET /api/v1/users/{}/roles requested", userId);
@@ -39,7 +39,7 @@ public class UserRoleController {
     return ResponseEntity.ok(response);
   }
 
-  @PutMapping("/{userId}/roles")
+  @PutMapping()
   @PreAuthorize("hasAuthority('manage:users') or hasAuthority('MANAGE:USERS') or hasRole('ADMIN')")
   public ResponseEntity<UserRolesResponseDto> assignRoles(
       @PathVariable("userId") UUID userId,

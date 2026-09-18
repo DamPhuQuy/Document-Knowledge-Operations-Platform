@@ -4,6 +4,7 @@ import com.platform.app.iam.domain.exception.AccountDisabledException;
 import com.platform.app.iam.domain.exception.AccountLockedException;
 import com.platform.app.iam.domain.exception.DepartmentCodeConflictException;
 import com.platform.app.iam.domain.exception.DepartmentNotFoundException;
+import com.platform.app.iam.domain.exception.EmailAlreadyExistsException;
 import com.platform.app.iam.domain.exception.EmptyRolesException;
 import com.platform.app.iam.domain.exception.InvalidCredentialsException;
 import com.platform.app.iam.domain.exception.InvalidDepartmentCodeException;
@@ -84,6 +85,15 @@ public class RestExceptionHandler {
     return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
   }
 
+  @ExceptionHandler(EmailAlreadyExistsException.class)
+  public ResponseEntity<ErrorResponse> handleEmailAlreadyExists(
+      EmailAlreadyExistsException ex, HttpServletRequest request) {
+    log.warn("Email conflict on {}: {}", request.getRequestURI(), ex.getMessage());
+    ErrorResponse error =
+        buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+  }
+
   @ExceptionHandler(com.platform.app.document.domain.exception.UnsupportedMediaTypeException.class)
   public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(
       com.platform.app.document.domain.exception.UnsupportedMediaTypeException ex, HttpServletRequest request) {
@@ -99,8 +109,8 @@ public class RestExceptionHandler {
   public ResponseEntity<ErrorResponse> handlePayloadTooLarge(
       Exception ex, HttpServletRequest request) {
     log.warn("Payload too large on {}: {}", request.getRequestURI(), ex.getMessage());
-    ErrorResponse error = buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), request);
-    return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+    ErrorResponse error = buildErrorResponse(HttpStatus.CONTENT_TOO_LARGE, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(error);
   }
 
   @ExceptionHandler(com.platform.app.document.domain.exception.StorageException.class)
@@ -130,6 +140,14 @@ public class RestExceptionHandler {
   public ResponseEntity<ErrorResponse> handleDocumentNotFound(
       com.platform.app.document.domain.exception.DocumentNotFoundException ex, HttpServletRequest request) {
     log.warn("Document not found on {}: {}", request.getRequestURI(), ex.getMessage());
+    ErrorResponse error = buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+  }
+
+  @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+  public ResponseEntity<ErrorResponse> handleNoResourceFound(
+      org.springframework.web.servlet.resource.NoResourceFoundException ex, HttpServletRequest request) {
+    log.warn("Resource not found on {}: {}", request.getRequestURI(), ex.getMessage());
     ErrorResponse error = buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
   }
