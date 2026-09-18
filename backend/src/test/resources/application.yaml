@@ -22,3 +22,12 @@ app:
     refresh-expiration-ms: 604800000
   cors:
     allowed-origins: "http://localhost:3000,http://localhost:5173"
+
+aws:
+  s3:
+    endpoint: http://localhost:4566
+    region: us-east-1
+    bucket-name: test-bucket
+    access-key-id: test
+    secret-access-key: test
+    path-style-access: true

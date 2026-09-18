@@ -4,14 +4,19 @@ server:
 spring:
   application:
     name: doc-knowledge-platform
+  threads:
+    virtual:
+      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:false}
   config:
-    import: optional:file:.env[.properties]
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
 
   # Database DataSource Configuration
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:doc_knowledge_db}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    url: jdbc:postgresql://${DB_HOST:${POSTGRES_HOST:localhost}}:${DB_PORT:${POSTGRES_PORT:5432}}/${DB_NAME:${POSTGRES_DB:doc_knowledge_example_db}}
+    username: ${DB_USERNAME:${POSTGRES_USER:example_user}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:example_password}}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: ${DB_POOL_MIN_IDLE:5}
@@ -24,11 +29,11 @@ spring:
   # JPA & Hibernate Configuration
   jpa:
     open-in-view: false
-    show-sql: ${JPA_SHOW_SQL:true}
+    show-sql: ${JPA_SHOW_SQL:false}
     hibernate:
       ddl-auto: ${JPA_HIBERNATE_DDL_AUTO:validate}
     properties:
-      "[hibernate.format_sql]": ${JPA_FORMAT_SQL:true}
+      "[hibernate.format_sql]": ${JPA_FORMAT_SQL:false}
       "[hibernate.jdbc.time_zone]": UTC
 
   # Liquibase Database Migrations
@@ -42,26 +47,38 @@ spring:
     time-zone: UTC
     default-property-inclusion: non_null
 
+  # Servlet Multipart Configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${SPRING_MULTIPART_MAX_FILE_SIZE:50MB}
+      max-request-size: ${SPRING_MULTIPART_MAX_REQUEST_SIZE:55MB}
+
+# AWS S3 / Floci Object Storage Configuration
+aws:
+  s3:
+    endpoint: ${AWS_S3_ENDPOINT:http://localhost:4566}
+    region: ${AWS_REGION:us-east-1}
+    bucket-name: ${AWS_S3_BUCKET:example-bucket}
+    access-key-id: ${AWS_ACCESS_KEY_ID:example_access_key}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:example_secret_key}
+    path-style-access: ${AWS_S3_PATH_STYLE_ACCESS:true}
+
 # Application Custom Properties
 app:
   jwt:
-    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 hours
-    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000} # 7 days
+    secret: ${JWT_SECRET:example_secret_key_change_me_to_at_least_64_characters_long_12345}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:86400000}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:4200}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   swagger:
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: ${SWAGGER_ENABLED:false}
     title: ${SWAGGER_TITLE:Document and Knowledge Operations Platform API}
     description: ${SWAGGER_DESCRIPTION:RESTful API documentation for Document and Knowledge Operations Platform}
     version: ${SWAGGER_VERSION:1.0.0}
-  ai:
-    llm:
-      url: ${AI_SERVICE_URL:http://localhost:8000}
-      generate-path: ${AI_GENERATE_PATH:/api/v1/ai/generate}
-      timeout: ${LLM_TIMEOUT:10s}
 
-# SpringDoc OpenAPI Documentation
+# SpringDoc OpenAPI Configuration
 springdoc:
   api-docs:
     path: /v3/api-docs

@@ -16,12 +16,14 @@
   - Specify clear `scope` so agents know exactly when to load this context group without
     unnecessary full-directory scanning.
 -->
+
 <context_groups>
-  <group id="planning">
-    <title>Planning Standards & Calibration</title>
-    <path>[`planning/all-planning.md`](planning/all-planning.md)</path>
-    <scope>INVEST criteria, vertical slicing rules, Story Point capacity calibration</scope>
-  </group>
+<group id="planning">
+
+<title>Planning Standards & Calibration</title>
+<path>[`planning/all-planning.md`](planning/all-planning.md)</path>
+<scope>INVEST criteria, vertical slicing rules, Story Point capacity calibration</scope>
+</group>
 
   <group id="seeds">
     <title>Seeds & Archetypes Guide</title>
@@ -41,6 +43,11 @@
     <scope>Engineering harness, subagent orchestration, and code standards</scope>
   </group>
 
+  <group id="design-style">
+    <title>Frontend design style</title>
+    <path>[`../design/DESIGN.md`](../design/DESIGN.md)</path>
+  </group>
+
   <!-- Example: Register custom domain context below
   <group id="domain-billing">
     <title>Billing & Invoicing Architecture</title>
@@ -48,6 +55,7 @@
     <scope>Payment gateway integrations, invoice calculation invariants, tax handling</scope>
   </group>
   -->
+
 </context_groups>
 
 </context_router>

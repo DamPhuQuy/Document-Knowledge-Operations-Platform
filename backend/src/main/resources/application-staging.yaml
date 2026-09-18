@@ -2,6 +2,9 @@ server:
   port: ${SERVER_PORT:8080}
 
 spring:
+  threads:
+    virtual:
+      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:true}
   datasource:
     hikari:
       minimum-idle: ${DB_POOL_MIN_IDLE:5}
@@ -15,6 +18,15 @@ spring:
   liquibase:
     enabled: ${LIQUIBASE_ENABLED:true}
     drop-first: false
+
+aws:
+  s3:
+    endpoint: ${AWS_S3_ENDPOINT:}
+    region: ${AWS_REGION:us-east-1}
+    bucket-name: ${AWS_S3_BUCKET:doc-knowledge-storage-staging}
+    access-key-id: ${AWS_ACCESS_KEY_ID:}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+    path-style-access: ${AWS_S3_PATH_STYLE_ACCESS:false}
 
 app:
   jwt:
