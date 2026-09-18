@@ -18,17 +18,53 @@
 // - Real-time Push Notifications (notifications)
 // ============================================================================
 
+// ============================================================================
+// ENTERPRISE DOCUMENT KNOWLEDGE & OPERATIONS PLATFORM
+// ULTRA-LEAN MVP DATABASE SCHEMA (POSTGRESQL 16)
+// ============================================================================
+// Source of Truth: docs/specs/business/ (MVP.md, 01_problem_and_business_scope.md,
+//                  03_use_case_architecture.md, 05_requirements_traceability_matrix.md)
+//
+// Core Bounded Contexts in Ultra-Lean MVP Scope:
+// 1. Identity & Access Management (BC 1: IAM_Organization) - UC-IAM-01..03
+// 2. Document Management & S3 Storage (BC 2: Document_Management) - UC-DOC-01..04
+// 3. Audit Subsystem (BC 3: Audit_System) - UC-AUDIT-01
+//
+// Deferred Components (Moved to docs/specs/business/deferred/ for Phase 2):
+// - AI Knowledge & Hybrid RAG (document_chunks, pgvector, HNSW)
+// - Conversational AI (conversations, conversation_messages, message_citations)
+// - Workflow Automation (workflows, workflow_executions)
+// - Operations & HITL Approvals (action_approvals, operation_tasks)
+// - Real-time Push Notifications (notifications)
+// ============================================================================
+
 Project document_knowledge_operations_platform {
   database_type: 'PostgreSQL 16'
   Note: '''
     # Enterprise Document Knowledge & Operations Platform - Ultra-Lean MVP Database Schema
-    
+
     ## Architectural Context & MVP Scope
     This database schema models the 3 Core Bounded Contexts of the Ultra-Lean MVP:
     1. **IAM & Organization (BC 1)**: Multi-tenant organizational scoping, multi-role RBAC, and session management (UC-IAM-01..03).
     2. **Document Management & Storage (BC 2)**: AWS S3-integrated document catalog, immutable version snapshots, and 4-tier ACL matrix (UC-DOC-01..04).
     3. **Audit Subsystem (BC 3)**: Append-only, tamper-evident compliance audit trail (UC-AUDIT-01).
-    
+
+    All non-essential and heavy application components (AI/RAG, Conversational Chat, Workflow Automation Engines,
+    2-Phase HITL Approvals, and Real-Time Push Notifications) have been deferred to Phase 2 to ensure the fastest
+    path to production on AWS Cloud infrastructure.
+  '''
+}
+
+// ============================================================================
+  Note: '''
+    # Enterprise Document Knowledge & Operations Platform - Ultra-Lean MVP Database Schema
+
+    ## Architectural Context & MVP Scope
+    This database schema models the 3 Core Bounded Contexts of the Ultra-Lean MVP:
+    1. **IAM & Organization (BC 1)**: Multi-tenant organizational scoping, multi-role RBAC, and session management (UC-IAM-01..03).
+    2. **Document Management & Storage (BC 2)**: AWS S3-integrated document catalog, immutable version snapshots, and 4-tier ACL matrix (UC-DOC-01..04).
+    3. **Audit Subsystem (BC 3)**: Append-only, tamper-evident compliance audit trail (UC-AUDIT-01).
+
     All non-essential and heavy application components (AI/RAG, Conversational Chat, Workflow Automation Engines,
     2-Phase HITL Approvals, and Real-Time Push Notifications) have been deferred to Phase 2 to ensure the fastest
     path to production on AWS Cloud infrastructure.
@@ -68,6 +104,10 @@ enum audit_status {
 // BOUNDED CONTEXT 1: IDENTITY & ACCESS MANAGEMENT (IAM) & ORGANIZATION
 // ============================================================================
 
+// ============================================================================
+// BOUNDED CONTEXT 1: IDENTITY & ACCESS MANAGEMENT (IAM) & ORGANIZATION
+// ============================================================================
+
 Table departments {
   id uuid [pk, note: 'UUIDv7 primary key']
   code varchar(50) [unique, not null, note: 'Unique business identifier: e.g. FIN, HR, IT, LEGAL']
@@ -81,11 +121,13 @@ Table departments {
   }
 
   Note: 'BC 1 Core Table: Defines organizational departments for tenancy and access isolation (UC-IAM-03).'
+  Note: 'BC 1 Core Table: Defines organizational departments for tenancy and access isolation (UC-IAM-03).'
 }
 
 Table users {
   id uuid [pk, note: 'UUIDv7 primary key']
   email varchar(255) [unique, not null, note: 'Corporate email address used for login']
+  password_hash varchar(255) [not null, note: 'BCrypt encrypted password hash (work factor >= 12)']
   password_hash varchar(255) [not null, note: 'BCrypt encrypted password hash (work factor >= 12)']
   full_name varchar(255) [not null, note: 'Full display name of employee/contractor']
   department_id uuid [ref: > departments.id, note: 'Primary assigned department']
@@ -100,10 +142,12 @@ Table users {
   }
 
   Note: 'BC 1 Core Table: Authenticated user accounts and organizational association (UC-IAM-01, UC-IAM-03).'
+  Note: 'BC 1 Core Table: Authenticated user accounts and organizational association (UC-IAM-01, UC-IAM-03).'
 }
 
 Table roles {
   id uuid [pk, note: 'UUIDv7 primary key']
+  code varchar(50) [unique, not null, note: 'Standard role identifier: ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF, ROLE_LEGAL_AUDITOR, ROLE_CUSTOMER']
   code varchar(50) [unique, not null, note: 'Standard role identifier: ROLE_ADMIN, ROLE_MANAGER, ROLE_STAFF, ROLE_LEGAL_AUDITOR, ROLE_CUSTOMER']
   name varchar(100) [not null, note: 'Human-readable role name']
   description text [note: 'Summary of privileges granted by this role']
@@ -114,12 +158,15 @@ Table roles {
   }
 
   Note: 'BC 1 Core Table: System and domain roles defining permission boundaries (UC-IAM-02).'
+  Note: 'BC 1 Core Table: System and domain roles defining permission boundaries (UC-IAM-02).'
 }
 
 Table permissions {
   id uuid [pk, note: 'UUIDv7 primary key']
   code varchar(100) [unique, not null, note: 'Granular authority code: read:documents, write:documents, delete:documents, manage:permissions, manage:users, read:audit_logs']
+  code varchar(100) [unique, not null, note: 'Granular authority code: read:documents, write:documents, delete:documents, manage:permissions, manage:users, read:audit_logs']
   name varchar(150) [not null, note: 'Human-readable permission title']
+  module varchar(50) [not null, note: 'Functional bounded context: IAM, DMS, AUDIT']
   module varchar(50) [not null, note: 'Functional bounded context: IAM, DMS, AUDIT']
   description text [note: 'Functional specification of the authority']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
@@ -129,6 +176,7 @@ Table permissions {
     module
   }
 
+  Note: 'BC 1 Core Table: Granular functional authorities mapped into Spring Security (UC-IAM-02).'
   Note: 'BC 1 Core Table: Granular functional authorities mapped into Spring Security (UC-IAM-02).'
 }
 
@@ -143,6 +191,7 @@ Table user_roles {
   }
 
   Note: 'BC 1 Core Junction: Many-to-many assignment of roles to user accounts (UC-IAM-02).'
+  Note: 'BC 1 Core Junction: Many-to-many assignment of roles to user accounts (UC-IAM-02).'
 }
 
 Table role_permissions {
@@ -156,12 +205,14 @@ Table role_permissions {
   }
 
   Note: 'BC 1 Core Junction: Many-to-many mapping of permissions to roles (UC-IAM-02).'
+  Note: 'BC 1 Core Junction: Many-to-many mapping of permissions to roles (UC-IAM-02).'
 }
 
 Table refresh_tokens {
   id uuid [pk, note: 'UUIDv7 primary key']
   user_id uuid [ref: > users.id, not null, note: 'Owning user account']
   token varchar(512) [unique, not null, note: 'Opaque cryptographically secure refresh token string']
+  expiry_date timestamptz [not null, note: 'Token expiration instant (e.g. 7-30 days from issue)']
   expiry_date timestamptz [not null, note: 'Token expiration instant (e.g. 7-30 days from issue)']
   revoked boolean [not null, default: false, note: 'Explicit revocation flag for logout or security breach']
   created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
@@ -172,8 +223,12 @@ Table refresh_tokens {
   }
 
   Note: 'BC 1 Core Table: Long-lived session management for secure JWT renewal (UC-IAM-01).'
+  Note: 'BC 1 Core Table: Long-lived session management for secure JWT renewal (UC-IAM-01).'
 }
 
+// ============================================================================
+// BOUNDED CONTEXT 2: DOCUMENT MANAGEMENT SYSTEM (DMS) & AWS S3 STORAGE
+// ============================================================================
 // ============================================================================
 // BOUNDED CONTEXT 2: DOCUMENT MANAGEMENT SYSTEM (DMS) & AWS S3 STORAGE
 // ============================================================================
@@ -203,6 +258,7 @@ Table documents {
   }
 
   Note: 'BC 2 Core Table: Master catalog for enterprise documents persisted durably in AWS S3 (UC-DOC-01, UC-DOC-03, UC-DOC-04).'
+  Note: 'BC 2 Core Table: Master catalog for enterprise documents persisted durably in AWS S3 (UC-DOC-01, UC-DOC-03, UC-DOC-04).'
 }
 
 Table document_versions {
@@ -222,6 +278,7 @@ Table document_versions {
   }
 
   Note: 'BC 2 Core Table: Immutable historical snapshots of document binaries stored on AWS S3 (UC-DOC-02).'
+  Note: 'BC 2 Core Table: Immutable historical snapshots of document binaries stored on AWS S3 (UC-DOC-02).'
 }
 
 Table document_user_access {
@@ -236,6 +293,7 @@ Table document_user_access {
     user_id
   }
 
+  Note: 'BC 2 Core Table: Explicit user-level Access Control List (ACL) (UC-DOC-03).'
   Note: 'BC 2 Core Table: Explicit user-level Access Control List (ACL) (UC-DOC-03).'
 }
 
@@ -252,6 +310,7 @@ Table document_department_access {
   }
 
   Note: 'BC 2 Core Table: Cross-departmental sharing Access Control List (ACL) (UC-DOC-03).'
+  Note: 'BC 2 Core Table: Cross-departmental sharing Access Control List (ACL) (UC-DOC-03).'
 }
 
 Table document_role_access {
@@ -267,15 +326,19 @@ Table document_role_access {
   }
 
   Note: 'BC 2 Core Table: Role-based document Access Control List (ACL) (UC-DOC-03).'
+  Note: 'BC 2 Core Table: Role-based document Access Control List (ACL) (UC-DOC-03).'
 }
 
 // ============================================================================
+// BOUNDED CONTEXT 3: AUDIT SUBSYSTEM (APPEND-ONLY AUDIT TRAIL)
 // BOUNDED CONTEXT 3: AUDIT SUBSYSTEM (APPEND-ONLY AUDIT TRAIL)
 // ============================================================================
 
 Table audit_logs {
   id uuid [pk, note: 'UUIDv7 primary key']
   user_id uuid [ref: > users.id, note: 'Acting user ID (NULL for unauthenticated or system daemon events)']
+  action varchar(100) [not null, note: 'Action verb: LOGIN, LOGIN_FAILED, LOGOUT, REFRESH_TOKEN, UPLOAD_DOC, UPDATE_DOC, UPDATE_ACL, DELETE_DOC, ASSIGN_ROLES, etc.']
+  resource_type varchar(100) [not null, note: 'Target resource domain: DOCUMENT, USER, DEPARTMENT, ROLE, S3_OBJECT, AUTH']
   action varchar(100) [not null, note: 'Action verb: LOGIN, LOGIN_FAILED, LOGOUT, REFRESH_TOKEN, UPLOAD_DOC, UPDATE_DOC, UPDATE_ACL, DELETE_DOC, ASSIGN_ROLES, etc.']
   resource_type varchar(100) [not null, note: 'Target resource domain: DOCUMENT, USER, DEPARTMENT, ROLE, S3_OBJECT, AUTH']
   resource_id varchar(64) [note: 'Target resource primary key or S3 key']
@@ -293,12 +356,15 @@ Table audit_logs {
   }
 
   Note: 'BC 3 Core Table: Append-only tamper-evident compliance audit log (UC-AUDIT-01).'
+  Note: 'BC 3 Core Table: Append-only tamper-evident compliance audit log (UC-AUDIT-01).'
 }
 
 // ============================================================================
 // BOUNDED CONTEXT TABLE GROUPS
+// BOUNDED CONTEXT TABLE GROUPS
 // ============================================================================
 
+TableGroup MVP_IAM_Organization {
 TableGroup MVP_IAM_Organization {
   departments
   users
@@ -310,6 +376,7 @@ TableGroup MVP_IAM_Organization {
 }
 
 TableGroup MVP_Document_Management {
+TableGroup MVP_Document_Management {
   documents
   document_versions
   document_user_access
@@ -317,6 +384,7 @@ TableGroup MVP_Document_Management {
   document_role_access
 }
 
+TableGroup MVP_Audit_System {
 TableGroup MVP_Audit_System {
   audit_logs
 }
