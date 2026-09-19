@@ -10,5 +10,5 @@ public record LoginRequest(
     @Email(message = "Invalid email format")
     String email,
 
-    @NotBlank(message = "Password must not be blank")
-    String password) {}
+    @NotBlank(message = "Password must not be blank") String password
+) {}

@@ -5,10 +5,20 @@ public record AuthTokensDto(
     String refreshToken,
     String tokenType,
     long expiresIn,
-    UserProfileDto userProfile) {
-
-  public static AuthTokensDto ofBearer(
-      String accessToken, String refreshToken, long expiresIn, UserProfileDto userProfile) {
-    return new AuthTokensDto(accessToken, refreshToken, "Bearer", expiresIn, userProfile);
-  }
+    UserProfileDto userProfile
+) {
+    public static AuthTokensDto ofBearer(
+        String accessToken,
+        String refreshToken,
+        long expiresIn,
+        UserProfileDto userProfile
+    ) {
+        return new AuthTokensDto(
+            accessToken,
+            refreshToken,
+            "Bearer",
+            expiresIn,
+            userProfile
+        );
+    }
 }

@@ -12,4 +12,5 @@ public record UserProfileDto(
     UUID departmentId,
     boolean isInternal,
     Set<String> roles,
-    Set<String> permissions) {}
+    Set<String> permissions
+) {}

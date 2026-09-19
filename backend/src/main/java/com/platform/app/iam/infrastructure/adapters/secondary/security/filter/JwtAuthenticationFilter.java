@@ -1,9 +1,16 @@
 package com.platform.app.iam.infrastructure.adapters.secondary.security.filter;
 
+import com.platform.app.iam.infrastructure.adapters.secondary.security.adapter.JwtTokenProviderAdapter;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -11,80 +18,94 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.platform.app.iam.infrastructure.adapters.secondary.security.adapter.JwtTokenProviderAdapter;
-
-import io.jsonwebtoken.Claims;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-  private final JwtTokenProviderAdapter jwtTokenProvider;
+    private final JwtTokenProviderAdapter jwtTokenProvider;
 
-  @Override
-  protected void doFilterInternal(
-      HttpServletRequest request,
-      HttpServletResponse response,
-      FilterChain filterChain)
-      throws ServletException, IOException {
+    @Override
+    protected void doFilterInternal(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain filterChain
+    ) throws ServletException, IOException {
+        String jwt = extractJwt(request);
 
-    String jwt = extractJwt(request);
+        if (StringUtils.hasText(jwt)) {
+            if (jwtTokenProvider.validateToken(jwt)) {
+                Claims claims = jwtTokenProvider.parseClaims(jwt);
+                String userId = claims.getSubject();
+                log.debug(
+                    "JWT authentication successful for subject [{}] on {}",
+                    userId,
+                    request.getRequestURI()
+                );
 
-    if (StringUtils.hasText(jwt)) {
-      if (jwtTokenProvider.validateToken(jwt)) {
-        Claims claims = jwtTokenProvider.parseClaims(jwt);
-        String userId = claims.getSubject();
-        log.debug("JWT authentication successful for subject [{}] on {}", userId, request.getRequestURI());
+                List<SimpleGrantedAuthority> authorities = new ArrayList<>();
 
-      List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                @SuppressWarnings("unchecked")
+                List<String> permissions = claims.get(
+                    "permissions",
+                    List.class
+                );
+                if (permissions != null) {
+                    for (String perm : permissions) {
+                        authorities.add(new SimpleGrantedAuthority(perm));
+                        authorities.add(
+                            new SimpleGrantedAuthority(perm.toLowerCase())
+                        );
+                    }
+                }
 
-      @SuppressWarnings("unchecked")
-      List<String> permissions = claims.get("permissions", List.class);
-      if (permissions != null) {
-        for (String perm : permissions) {
-          authorities.add(new SimpleGrantedAuthority(perm));
-          authorities.add(new SimpleGrantedAuthority(perm.toLowerCase()));
+                @SuppressWarnings("unchecked")
+                List<String> roles = claims.get("roles", List.class);
+                if (roles != null) {
+                    for (String role : roles) {
+                        if (role.startsWith("ROLE_")) {
+                            authorities.add(new SimpleGrantedAuthority(role));
+                            authorities.add(
+                                new SimpleGrantedAuthority(role.substring(5))
+                            );
+                        } else {
+                            authorities.add(
+                                new SimpleGrantedAuthority("ROLE_" + role)
+                            );
+                            authorities.add(new SimpleGrantedAuthority(role));
+                        }
+                    }
+                }
+
+                UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                        userId,
+                        null,
+                        authorities
+                    );
+
+                SecurityContextHolder.getContext().setAuthentication(
+                    authentication
+                );
+            } else {
+                log.warn(
+                    "JWT validation failed for request on {}",
+                    request.getRequestURI()
+                );
+            }
         }
-      }
 
-      @SuppressWarnings("unchecked")
-      List<String> roles = claims.get("roles", List.class);
-      if (roles != null) {
-        for (String role : roles) {
-          if (role.startsWith("ROLE_")) {
-            authorities.add(new SimpleGrantedAuthority(role));
-            authorities.add(new SimpleGrantedAuthority(role.substring(5)));
-          } else {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
-            authorities.add(new SimpleGrantedAuthority(role));
-          }
-        }
-      }
-
-      UsernamePasswordAuthenticationToken authentication =
-          new UsernamePasswordAuthenticationToken(userId, null, authorities);
-
-      SecurityContextHolder.getContext().setAuthentication(authentication);
-      } else {
-        log.warn("JWT validation failed for request on {}", request.getRequestURI());
-      }
+        filterChain.doFilter(request, response);
     }
 
-    filterChain.doFilter(request, response);
-  }
-
-  private String extractJwt(HttpServletRequest request) {
-    String bearerToken = request.getHeader("Authorization");
-    if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-      return bearerToken.substring(7);
+    private String extractJwt(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (
+            StringUtils.hasText(bearerToken) &&
+            bearerToken.startsWith("Bearer ")
+        ) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
-    return null;
-  }
 }

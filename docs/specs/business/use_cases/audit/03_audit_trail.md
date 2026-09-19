@@ -12,6 +12,7 @@
 - **Use Case Name:** Immutable Audit Trail Logging
 - **Stereotype:** Base / Included Use Case
 - **Actor(s):** Audit Subsystem (`SYS-04`) (primary), System Admin / Compliance Auditor (secondary)
+- **Sequence Diagram:** [`uc-audit-01.md`](./uc-audit-01.md)
 - **Includes:** None
 - **Extends / Extended By:** None (Included by `UC-IAM-01`, `UC-DOC-01`, `UC-DOC-03`, `UC-DOC-04`)
 - **Summary Description:** Automatically records every security-sensitive action, authentication attempt, document upload, ACL change, and soft deletion into an append-only, immutable database audit table with client IP, user agent, timestamps, and before/after details.
@@ -35,3 +36,34 @@
   - B2: Database roles assigned to application backends must not have `DROP` or `TRUNCATE` permissions on `audit_logs`.
 - **Non-Functional Requirements:**
   - NF1: Audit logging must execute asynchronously with zero latency penalty on main user request threads.
+- **Sequence Flow Diagram:**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Người dùng / Service
+    participant App as Backend (IAM / Document)
+    participant Bus as Transactional Event Listener
+    participant DB as Database (PostgreSQL)
+    actor Auditor as Quản trị viên / Auditor
+
+    %% LUỒNG 1: GHI LOG KIỂM TOÁN TỰ ĐỘNG
+    rect rgb(245, 247, 250)
+        Note over Client,DB: Luồng 1: Ghi log tự động (Append-Only, Bất đồng bộ)
+        Client->>App: Thực thi tác vụ nghiệp vụ (Login, Upload, ACL, Delete)
+        App->>DB: Commit giao dịch nghiệp vụ
+        App-->>Bus: Phát Domain Event (@Async / AFTER_COMMIT)
+        Bus->>DB: INSERT INTO audit_logs (action, resource, user_id, ip, status, details)
+        Note over DB: Invariant B1: Bảng audit_logs là APPEND-ONLY (cấm sửa/xóa)
+    end
+
+    %% LUỒNG 2: TRUY VẤN TRA CỨU NHẬT KÝ
+    rect rgb(245, 247, 250)
+        Note over Auditor,DB: Luồng 2: Tra cứu nhật ký kiểm toán
+        Auditor->>App: GET /api/v1/audit-logs (filters: userId, action, date range)
+        Note over App: Xác thực quyền ROLE_ADMIN / ROLE_LEGAL_AUDITOR
+        App->>DB: Truy vấn động với JPA Specification & Phân trang
+        DB-->>App: Kết quả nhật ký kiểm toán
+        App-->>Auditor: HTTP 200 OK (Paginated Audit Logs)
+    end
+```

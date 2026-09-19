@@ -1,34 +1,25 @@
 ```mermaid
 sequenceDiagram
-        autonumber
-        actor User as Knowledge Worker / Admin
-        participant Ctrl as DocumentController
-        participant Svc as DocumentVersionService
-        participant S3 as ObjectStoragePort (S3)
-        participant Meta as DocumentMetadataService
-        participant DB as PostgreSQL (documents, document_versions)
-        participant Bus as ApplicationEventPublisher
+    autonumber
+    actor User as Document Owner / Manager
+    participant API as Backend (Document Version Service)
+    participant S3 as AWS S3 Storage
+    participant DB as Database (PostgreSQL)
+    participant Bus as Event Bus / Audit (UC-AUDIT-01)
 
-        User->>Ctrl: POST /api/v1/documents/{id}/versions (multipart file, changeSummary)
-        Ctrl->>Svc: uploadVersion(UploadDocumentVersionCommand)
-        Svc->>DB: findById(documentId)
-        alt Missing document
-            Svc-->>Ctrl: throw DocumentNotFoundException (404)
-        end
-        alt Not Owner & Not Admin
-            Svc-->>Ctrl: throw DocumentAccessDeniedException (403)
-        end
-        Note over Svc,S3: Streaming DigestInputStream (SHA-256)
-        Svc->>S3: upload("documents/{id}/v{nextVersion}/{file}")
-        alt Database Commit Failed
-            Svc->>Meta: persistVersionMetadata(...)
-            Meta-->>Svc: Exception
-            Svc->>S3: Compensation deleteObject(key)
-        else Transaction Committed
-            Svc->>Meta: persistVersionMetadata(...)
-            Meta->>DB: INSERT into document_versions & UPDATE documents.current_version
-            Svc->>Bus: publishEvent(DocumentVersionCreatedEvent)
-            Svc-->>Ctrl: DocumentVersionResponseDto
-            Ctrl-->>User: HTTP 200 OK (Version details)
-        end
+    User->>API: POST /api/v1/documents/{id}/versions (file, changeSummary)
+    API->>DB: Tra cứu tài liệu & Kiểm tra quyền chỉnh sửa (Owner / EDIT ACL)
+
+    alt Không tìm thấy tài liệu hoặc đã bị xóa
+        API-->>User: HTTP 404 Not Found
+    else Người dùng không có quyền chỉnh sửa
+        API-->>User: HTTP 403 Forbidden
+    else Hợp lệ
+        API->>S3: Upload phiên bản mới (documents/{id}/v{nextVersion}/{file})
+        S3-->>API: Lưu file thành công
+        API->>DB: Thêm bản ghi document_versions & Cập nhật documents.current_version
+        DB-->>API: Giao dịch thành công
+        API-->>Bus: Phát DocumentVersionCreatedEvent (Ghi audit_logs & re-indexing)
+        API-->>User: HTTP 200 OK (Thông tin phiên bản mới)
+    end
 ```

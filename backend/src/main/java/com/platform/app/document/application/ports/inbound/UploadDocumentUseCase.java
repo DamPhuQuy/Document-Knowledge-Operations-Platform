@@ -4,6 +4,5 @@ import com.platform.app.document.application.dto.DocumentResponseDto;
 import com.platform.app.document.application.dto.UploadDocumentCommand;
 
 public interface UploadDocumentUseCase {
-
-  DocumentResponseDto uploadDocument(UploadDocumentCommand command);
+    DocumentResponseDto uploadDocument(UploadDocumentCommand command);
 }
