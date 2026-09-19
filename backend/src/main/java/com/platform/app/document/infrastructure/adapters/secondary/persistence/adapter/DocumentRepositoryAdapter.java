@@ -27,7 +27,12 @@ public class DocumentRepositoryAdapter implements DocumentRepositoryPort {
 
   @Override
   public Optional<Document> findById(UUID id) {
-    return repository.findById(id).map(this::toDomain);
+    return repository.findByIdAndDeletedAtIsNull(id).map(this::toDomain);
+  }
+
+  @Override
+  public boolean softDelete(UUID id, java.time.Instant deletedAt) {
+    return repository.softDeleteById(id, deletedAt) > 0;
   }
 
   public DocumentJpaEntity toEntity(Document domain) {

@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,11 +25,13 @@ import com.platform.app.document.application.dto.ConfigureDocumentAclCommand;
 import com.platform.app.document.application.dto.DocumentPermissionsResponseDto;
 import com.platform.app.document.application.dto.DocumentResponseDto;
 import com.platform.app.document.application.dto.DocumentVersionResponseDto;
+import com.platform.app.document.application.dto.SoftDeleteDocumentCommand;
 import com.platform.app.document.application.dto.UpdateDocumentPermissionsRequest;
 import com.platform.app.document.application.dto.UploadDocumentCommand;
 import com.platform.app.document.application.dto.UploadDocumentVersionCommand;
 import com.platform.app.document.application.ports.inbound.ConfigureDocumentAclUseCase;
 import com.platform.app.document.application.ports.inbound.GetDocumentPermissionsUseCase;
+import com.platform.app.document.application.ports.inbound.SoftDeleteDocumentUseCase;
 import com.platform.app.document.application.ports.inbound.UploadDocumentUseCase;
 import com.platform.app.document.application.ports.inbound.UploadDocumentVersionUseCase;
 import com.platform.app.document.domain.exception.DocumentValidationException;
@@ -51,6 +54,7 @@ public class DocumentController {
   private final UploadDocumentVersionUseCase uploadDocumentVersionUseCase;
   private final ConfigureDocumentAclUseCase configureDocumentAclUseCase;
   private final GetDocumentPermissionsUseCase getDocumentPermissionsUseCase;
+  private final SoftDeleteDocumentUseCase softDeleteDocumentUseCase;
 
   @PostMapping(value = "/{id}/versions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @PreAuthorize("hasAuthority('write:documents') or hasAuthority('WRITE:DOCUMENTS') or hasRole('ADMIN')")
@@ -198,6 +202,39 @@ public class DocumentController {
 
     DocumentPermissionsResponseDto response = getDocumentPermissionsUseCase.getPermissions(id, userId, isAdmin, hasManagePermissions);
     return ResponseEntity.ok(response);
+  }
+
+  @DeleteMapping("/{id}")
+  @PreAuthorize("isAuthenticated()")
+  @Operation(summary = "Soft-delete document (UC-DOC-04)")
+  public ResponseEntity<Void> deleteDocument(
+      @PathVariable("id") UUID id,
+      Authentication authentication) {
+
+    UUID userId = extractUserId(authentication);
+    if (userId == null) {
+      log.warn("Unauthenticated attempt to delete document {}", id);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    boolean hasDeletePermission = authentication != null && authentication.getAuthorities().stream()
+        .anyMatch(a -> a.getAuthority().equalsIgnoreCase("delete:documents") ||
+                       a.getAuthority().equalsIgnoreCase("DELETE:DOCUMENTS"));
+
+    log.info("REST DELETE /api/v1/documents/{} received: user={}, isAdmin={}, hasDeletePermission={}",
+        id, userId, isAdmin, hasDeletePermission);
+
+    SoftDeleteDocumentCommand command = SoftDeleteDocumentCommand.builder()
+        .documentId(id)
+        .currentUserId(userId)
+        .isAdmin(isAdmin)
+        .hasDeletePermission(hasDeletePermission)
+        .build();
+
+    softDeleteDocumentUseCase.softDeleteDocument(command);
+    return ResponseEntity.noContent().build();
   }
 
   private UUID extractUserId(Authentication authentication) {

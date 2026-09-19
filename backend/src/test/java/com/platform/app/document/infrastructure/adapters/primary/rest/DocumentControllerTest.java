@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -457,7 +458,104 @@ class DocumentControllerTest {
         .andExpect(jsonPath("$.status", is(404)));
   }
 
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("DELETE /api/v1/documents/{id} - Owner should successfully soft-delete document returning 204")
+  void shouldReturnNoContentWhenOwnerDeletesDocument() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    mockMvc.perform(delete("/api/v1/documents/{id}", docId))
+        .andExpect(status().isNoContent());
+
+    entityManager.clear();
+    DocumentJpaEntity entity = entityManager.find(DocumentJpaEntity.class, docId);
+    org.junit.jupiter.api.Assertions.assertNotNull(entity);
+    org.junit.jupiter.api.Assertions.assertNotNull(entity.getDeletedAt());
+
+    // Subsequent retrieval must return 404
+    mockMvc.perform(get("/api/v1/documents/{id}/permissions", docId))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @WithMockUser(username = ADMIN_USER_ID, authorities = {"ROLE_ADMIN"})
+  @DisplayName("DELETE /api/v1/documents/{id} - Admin should successfully soft-delete non-owned document returning 204")
+  void shouldReturnNoContentWhenAdminDeletesDocument() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    mockMvc.perform(delete("/api/v1/documents/{id}", docId))
+        .andExpect(status().isNoContent());
+
+    entityManager.clear();
+    DocumentJpaEntity entity = entityManager.find(DocumentJpaEntity.class, docId);
+    org.junit.jupiter.api.Assertions.assertNotNull(entity);
+    org.junit.jupiter.api.Assertions.assertNotNull(entity.getDeletedAt());
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_USER_ID, authorities = {"delete:documents"})
+  @DisplayName("DELETE /api/v1/documents/{id} - User with delete:documents should soft-delete document returning 204")
+  void shouldReturnNoContentWhenUserHasDeletePermission() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    mockMvc.perform(delete("/api/v1/documents/{id}", docId))
+        .andExpect(status().isNoContent());
+
+    entityManager.clear();
+    DocumentJpaEntity entity = entityManager.find(DocumentJpaEntity.class, docId);
+    org.junit.jupiter.api.Assertions.assertNotNull(entity);
+    org.junit.jupiter.api.Assertions.assertNotNull(entity.getDeletedAt());
+  }
+
+  @Test
+  @WithMockUser(username = OTHER_USER_ID, authorities = {"write:documents"})
+  @DisplayName("DELETE /api/v1/documents/{id} - Unauthorized user should receive 403 Forbidden")
+  void shouldReturnForbiddenWhenUnauthorizedUserDeletesDocument() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID));
+
+    mockMvc.perform(delete("/api/v1/documents/{id}", docId))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("DELETE /api/v1/documents/{id} - Non-existent document should return 404 Not Found")
+  void shouldReturnNotFoundWhenDeletingNonExistentDocument() throws Exception {
+    UUID nonExistentId = UUID.randomUUID();
+
+    mockMvc.perform(delete("/api/v1/documents/{id}", nonExistentId))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @WithMockUser(username = USER_ID, authorities = {"write:documents"})
+  @DisplayName("DELETE /api/v1/documents/{id} - Already soft-deleted document should return 404 Not Found")
+  void shouldReturnNotFoundWhenDeletingAlreadySoftDeletedDocument() throws Exception {
+    UUID docId = UUID.randomUUID();
+    createAndPersistDocument(docId, UUID.fromString(USER_ID), java.time.Instant.now());
+
+    mockMvc.perform(delete("/api/v1/documents/{id}", docId))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("DELETE /api/v1/documents/{id} - Unauthenticated call should be rejected with 401/403")
+  void shouldRejectUnauthenticatedDeleteRequest() throws Exception {
+    UUID docId = UUID.randomUUID();
+
+    mockMvc.perform(delete("/api/v1/documents/{id}", docId))
+        .andExpect(status().isForbidden());
+  }
+
   private void createAndPersistDocument(UUID docId, UUID ownerId) {
+    createAndPersistDocument(docId, ownerId, null);
+  }
+
+  private void createAndPersistDocument(UUID docId, UUID ownerId, java.time.Instant deletedAt) {
     DocumentJpaEntity doc = DocumentJpaEntity.builder()
         .id(docId)
         .title("Annual Report")
@@ -472,6 +570,7 @@ class DocumentControllerTest {
         .accessLevel(AccessLevel.INTERNAL)
         .createdAt(java.time.Instant.now())
         .updatedAt(java.time.Instant.now())
+        .deletedAt(deletedAt)
         .build();
     entityManager.persist(doc);
     entityManager.flush();

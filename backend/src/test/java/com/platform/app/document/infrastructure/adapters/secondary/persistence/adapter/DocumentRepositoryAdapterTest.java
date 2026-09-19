@@ -111,7 +111,7 @@ class DocumentRepositoryAdapterTest {
         .updatedAt(Instant.now())
         .build();
 
-    when(documentRepository.findById(docId)).thenReturn(Optional.of(entity));
+    when(documentRepository.findByIdAndDeletedAtIsNull(docId)).thenReturn(Optional.of(entity));
 
     Optional<Document> result = documentAdapter.findById(docId);
     assertTrue(result.isPresent());
@@ -120,6 +120,28 @@ class DocumentRepositoryAdapterTest {
     assertEquals("report.pdf", result.get().getOriginalFileName());
     assertEquals("application/pdf", result.get().getContentType());
     assertEquals(DocumentStatus.UPLOADED, result.get().getStatus());
+  }
+
+  @Test
+  @DisplayName("Should return empty when document is soft-deleted or not found")
+  void shouldReturnEmptyWhenDocumentIsSoftDeletedOrNotFound() {
+    UUID docId = UUID.randomUUID();
+    when(documentRepository.findByIdAndDeletedAtIsNull(docId)).thenReturn(Optional.empty());
+
+    Optional<Document> result = documentAdapter.findById(docId);
+    assertTrue(result.isEmpty());
+  }
+
+  @Test
+  @DisplayName("Should soft delete document by updating deleted_at timestamp")
+  void shouldSoftDeleteDocumentCorrectly() {
+    UUID docId = UUID.randomUUID();
+    Instant now = Instant.now();
+    when(documentRepository.softDeleteById(docId, now)).thenReturn(1);
+
+    boolean deleted = documentAdapter.softDelete(docId, now);
+    assertTrue(deleted);
+    verify(documentRepository).softDeleteById(docId, now);
   }
 
   @Test

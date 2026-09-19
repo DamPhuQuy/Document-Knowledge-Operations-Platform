@@ -87,6 +87,9 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
+              - column:
+                  name: deleted_at
+                  type: TIMESTAMPTZ
         - createIndex:
             indexName: idx_documents_status
             tableName: documents
@@ -119,6 +122,12 @@ databaseChangeLog:
                   name: department_id
               - column:
                   name: status
+        - createIndex:
+            indexName: idx_documents_deleted_at
+            tableName: documents
+            columns:
+              - column:
+                  name: deleted_at
 
   - changeSet:
       id: 003-create-document-versions-table
