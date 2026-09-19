@@ -10,6 +10,7 @@
 - **Use Case Name:** Document Upload & S3 Object Storage
 - **Stereotype:** Base Use Case
 - **Actor(s):** Knowledge Worker / Staff (`ROLE_STAFF`) (primary), S3 Storage (`EXT-01`) (secondary)
+- **Sequence Diagram:** [`uc-doc-01.md`](./uc-doc-01.md)
 - **Includes:** `UC-AUDIT-01` (Immutable Audit Trail Logging)
 - **Extended By:** `UC-DOC-02` (Manage Document Versioning) at Extension Point `Existing Document Revision`
 - **Summary Description:** Uploads raw document files (PDF, DOCX, TXT, XLSX), stores binaries on AWS S3, computes SHA-256 integrity checksums, creates Version 1 metadata in PostgreSQL, and records an immutable audit log.
@@ -44,6 +45,33 @@
 - **Non-Functional Requirements:**
   - NF1: Upload processing overhead (excluding network transfer) $< 500\text{ ms}$.
   - NF2: SHA-256 hash must be computed in a streaming fashion without loading entire large files into JVM heap.
+- **Sequence Flow Diagram:**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Knowledge Worker / Admin
+    participant API as Backend (Document Service)
+    participant S3 as AWS S3 Storage
+    participant DB as Database (PostgreSQL)
+    participant Bus as Event Bus / Audit (UC-AUDIT-01)
+
+    User->>API: POST /api/v1/documents (file, title, accessLevel, departmentId)
+    Note over API: Kiểm tra định dạng (.pdf, .docx,...) & Dung lượng (<= 50MB)
+
+    alt File không hợp lệ hoặc vượt quá 50MB
+        API-->>User: HTTP 400 Bad Request / 413 Payload Too Large / 415 Unsupported
+    else Thiếu quyền tải lên (Yêu cầu write:documents / ROLE_ADMIN)
+        API-->>User: HTTP 403 Forbidden
+    else Hợp lệ
+        API->>S3: Upload file (Single-pass Streaming SHA-256)
+        S3-->>API: Lưu file thành công (storageKey)
+        API->>DB: Giao dịch lưu metadata (status: UPLOADED, currentVersion: 1)
+        DB-->>API: Lưu CSDL thành công
+        API-->>Bus: Phát DocumentUploadedEvent (Ghi audit_logs & trigger AI indexing)
+        API-->>User: HTTP 201 Created (docId, storageKey, metadata)
+    end
+```
 
 ---
 
@@ -51,6 +79,7 @@
 - **Use Case Name:** Manage Document Versioning
 - **Stereotype:** Extension Use Case
 - **Actor(s):** Document Owner / Manager (primary), S3 Storage (`EXT-01`) (secondary)
+- **Sequence Diagram:** [`uc-doc-02.md`](./uc-doc-02.md)
 - **Extends:** `UC-DOC-01` (Document Upload & S3 Object Storage)
 - **Extension Point:** `Existing Document Revision Upload`
 - **Condition:** Executed when the user uploads a replacement revision for an existing document record rather than creating a new document.
@@ -82,6 +111,33 @@
   - B2: Chunks and embeddings are bound to specific `document_version_id` to prevent version mismatch.
 - **Non-Functional Requirements:**
   - NF1: Version transition must be ACID-compliant with zero downtime for readers.
+- **Sequence Flow Diagram:**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Document Owner / Manager
+    participant API as Backend (Document Version Service)
+    participant S3 as AWS S3 Storage
+    participant DB as Database (PostgreSQL)
+    participant Bus as Event Bus / Audit (UC-AUDIT-01)
+
+    User->>API: POST /api/v1/documents/{id}/versions (file, changeSummary)
+    API->>DB: Tra cứu tài liệu & Kiểm tra quyền chỉnh sửa (Owner / EDIT ACL)
+
+    alt Không tìm thấy tài liệu hoặc đã bị xóa
+        API-->>User: HTTP 404 Not Found
+    else Người dùng không có quyền chỉnh sửa
+        API-->>User: HTTP 403 Forbidden
+    else Hợp lệ
+        API->>S3: Upload phiên bản mới (documents/{id}/v{nextVersion}/{file})
+        S3-->>API: Lưu file thành công
+        API->>DB: Thêm bản ghi document_versions & Cập nhật documents.current_version
+        DB-->>API: Giao dịch thành công
+        API-->>Bus: Phát DocumentVersionCreatedEvent (Ghi audit_logs & re-indexing)
+        API-->>User: HTTP 200 OK (Thông tin phiên bản mới)
+    end
+```
 
 ---
 
@@ -89,6 +145,7 @@
 - **Use Case Name:** Configure Document Access Control Matrix
 - **Stereotype:** Base Use Case
 - **Actor(s):** Document Owner / Manager (primary), IAM Subsystem (secondary)
+- **Sequence Diagram:** [`uc-doc-03.md`](./uc-doc-03.md)
 - **Includes:** `UC-AUDIT-01` (Immutable Audit Trail Logging)
 - **Extends / Extended By:** None
 - **Summary Description:** Configures the 4-tier security classification (`PUBLIC`, `INTERNAL`, `RESTRICTED`, `CONFIDENTIAL`) and explicit ACL entries for users, departments, and roles.
@@ -118,6 +175,31 @@
   - B4: `CONFIDENTIAL` requires explicit ACL in `document_user_access`, `document_department_access`, or `document_role_access`, or uploader ownership.
 - **Non-Functional Requirements:**
   - NF1: ACL updates must take immediate effect across all AI search queries without cache delay.
+- **Sequence Flow Diagram:**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Document Owner / Manager
+    participant API as Backend (Document ACL Service)
+    participant DB as Database (PostgreSQL)
+    participant Audit as Audit Subsystem (UC-AUDIT-01)
+
+    User->>API: PUT /api/v1/documents/{id}/permissions (accessLevel, grants[])
+    API->>DB: Tra cứu tài liệu còn hiệu lực (WHERE deleted_at IS NULL)
+
+    alt Tài liệu không tồn tại hoặc đã bị xóa mềm
+        API-->>User: HTTP 404 Not Found
+    else Người dùng không phải Owner và thiếu quyền quản trị ACL
+        API-->>User: HTTP 403 Forbidden
+    else Hợp lệ
+        API->>DB: Cập nhật access_level & Đồng bộ ma trận quyền document_*_access (ACID)
+        DB-->>API: Giao dịch thành công
+        API-->>Audit: Ghi log UPDATE_ACL (Bất đồng bộ)
+        Note over API: Ma trận quyền mới có hiệu lực tức thì trên tìm kiếm RAG
+        API-->>User: HTTP 200 OK (Permissions Response)
+    end
+```
 
 ---
 
@@ -125,6 +207,7 @@
 - **Use Case Name:** Document Soft Deletion
 - **Stereotype:** Base Use Case
 - **Actor(s):** Document Owner / Admin (primary)
+- **Sequence Diagram:** [`uc-doc-04.md`](./uc-doc-04.md)
 - **Includes:** `UC-AUDIT-01` (Immutable Audit Trail Logging)
 - **Extends / Extended By:** None
 - **Summary Description:** Soft-deletes a document by populating `deleted_at`, instantly removing it from search results and RAG retrieval pipelines while preserving audit integrity.
@@ -147,3 +230,29 @@
   - B2: All SQL queries and RAG retrieval queries must enforce `WHERE deleted_at IS NULL`.
 - **Non-Functional Requirements:**
   - NF1: Deletion exclusion in queries must use index filter `WHERE deleted_at IS NULL` to ensure zero performance degradation.
+- **Sequence Flow Diagram:**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Document Owner / Admin
+    participant API as Backend (Document Service)
+    participant DB as Database (PostgreSQL)
+    participant Audit as Audit Subsystem (UC-AUDIT-01)
+
+    User->>API: DELETE /api/v1/documents/{id}
+    API->>DB: Tra cứu tài liệu còn hiệu lực (WHERE deleted_at IS NULL)
+
+    alt Tài liệu không tồn tại hoặc đã bị xóa mềm trước đó
+        API-->>User: HTTP 404 Not Found
+    else Người dùng không phải Owner và thiếu quyền xóa
+        API-->>User: HTTP 403 Forbidden
+    else Hợp lệ
+        API->>DB: Cập nhật deleted_at = NOW() (Xóa mềm)
+        Note over DB: File trên S3 và dữ liệu CSDL được bảo lưu (Compliance Retention)
+        DB-->>API: Cập nhật thành công
+        API-->>Audit: Ghi log DELETE_DOC (Bất đồng bộ)
+        Note over API: Tài liệu lập tức bị ẩn khỏi kết quả tìm kiếm và RAG retrieval
+        API-->>User: HTTP 204 No Content
+    end
+```
