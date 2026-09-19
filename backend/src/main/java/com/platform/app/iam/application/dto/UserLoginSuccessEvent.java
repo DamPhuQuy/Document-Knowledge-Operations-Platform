@@ -10,4 +10,5 @@ public record UserLoginSuccessEvent(
     String email,
     String clientIp,
     String userAgent,
-    Instant timestamp) {}
+    Instant timestamp
+) {}

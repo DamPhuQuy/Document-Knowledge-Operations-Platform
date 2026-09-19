@@ -8,14 +8,15 @@ public record LoginResponse(
     String refreshToken,
     String tokenType,
     long expiresIn,
-    UserProfileDto user) {
-
-  public static LoginResponse from(AuthTokensDto dto) {
-    return new LoginResponse(
-        dto.accessToken(),
-        dto.refreshToken(),
-        dto.tokenType(),
-        dto.expiresIn(),
-        dto.userProfile());
-  }
+    UserProfileDto user
+) {
+    public static LoginResponse from(AuthTokensDto dto) {
+        return new LoginResponse(
+            dto.accessToken(),
+            dto.refreshToken(),
+            dto.tokenType(),
+            dto.expiresIn(),
+            dto.userProfile()
+        );
+    }
 }

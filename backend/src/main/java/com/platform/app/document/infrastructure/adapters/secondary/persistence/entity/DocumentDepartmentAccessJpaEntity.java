@@ -1,16 +1,14 @@
 package com.platform.app.document.infrastructure.adapters.secondary.persistence.entity;
 
-import java.time.Instant;
-import java.util.UUID;
-
 import com.platform.app.document.domain.model.PermissionLevel;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -28,20 +26,20 @@ import lombok.Setter;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class DocumentDepartmentAccessJpaEntity {
 
-  @Id
-  @EqualsAndHashCode.Include
-  private UUID id;
+    @Id
+    @EqualsAndHashCode.Include
+    private UUID id;
 
-  @Column(name = "document_id", nullable = false)
-  private UUID documentId;
+    @Column(name = "document_id", nullable = false)
+    private UUID documentId;
 
-  @Column(name = "department_id", nullable = false)
-  private UUID departmentId;
+    @Column(name = "department_id", nullable = false)
+    private UUID departmentId;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "permission_level", nullable = false, length = 50)
-  private PermissionLevel permissionLevel;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "permission_level", nullable = false, length = 50)
+    private PermissionLevel permissionLevel;
 
-  @Column(name = "created_at", nullable = false, updatable = false)
-  private Instant createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 }

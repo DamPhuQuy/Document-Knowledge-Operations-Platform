@@ -1,12 +1,11 @@
 package com.platform.app.iam.application.ports.inbound;
 
+import com.platform.app.iam.application.dto.DepartmentResponseDto;
 import java.util.List;
 import java.util.UUID;
 
-import com.platform.app.iam.application.dto.DepartmentResponseDto;
-
 public interface GetDepartmentUseCase {
-  DepartmentResponseDto getDepartmentById(UUID departmentId);
+    DepartmentResponseDto getDepartmentById(UUID departmentId);
 
-  List<DepartmentResponseDto> listDepartments();
+    List<DepartmentResponseDto> listDepartments();
 }

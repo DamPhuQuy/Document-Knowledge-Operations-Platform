@@ -10,11 +10,9 @@ public record RegisterRequest(
     @Email(message = "Invalid email format")
     String email,
 
-    @NotBlank(message = "Password must not be blank")
-    String password,
+    @NotBlank(message = "Password must not be blank") String password,
 
-    @NotBlank(message = "First name must not be blank")
-    String firstName,
+    @NotBlank(message = "First name must not be blank") String firstName,
 
     String lastName
 ) {}

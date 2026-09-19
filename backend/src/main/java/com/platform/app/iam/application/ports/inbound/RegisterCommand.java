@@ -10,16 +10,16 @@ public record RegisterCommand(
     String firstName,
     String lastName
 ) {
-  public RegisterCommand {
-    Objects.requireNonNull(email, "Email must not be null");
-    Objects.requireNonNull(password, "Password must not be null");
-    Objects.requireNonNull(firstName, "First name must not be null");
-  }
-
-  public String getFullName() {
-    if (lastName == null || lastName.isBlank()) {
-      return firstName.trim();
+    public RegisterCommand {
+        Objects.requireNonNull(email, "Email must not be null");
+        Objects.requireNonNull(password, "Password must not be null");
+        Objects.requireNonNull(firstName, "First name must not be null");
     }
-    return firstName.trim() + " " + lastName.trim();
-  }
+
+    public String getFullName() {
+        if (lastName == null || lastName.isBlank()) {
+            return firstName.trim();
+        }
+        return firstName.trim() + " " + lastName.trim();
+    }
 }

@@ -9,4 +9,5 @@ public record UserLoginFailedEvent(
     String clientIp,
     String userAgent,
     String reason,
-    Instant timestamp) {}
+    Instant timestamp
+) {}

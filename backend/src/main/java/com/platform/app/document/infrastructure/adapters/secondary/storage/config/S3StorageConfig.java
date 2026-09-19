@@ -1,10 +1,8 @@
 package com.platform.app.document.infrastructure.adapters.secondary.storage.config;
 
 import java.net.URI;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -15,21 +13,33 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 @Configuration
 public class S3StorageConfig {
 
-  @Bean
-  public S3Client s3Client(S3StorageProperties properties) {
-    S3ClientBuilder builder = S3Client.builder()
-        .region(Region.of(properties.getRegion()))
-        .credentialsProvider(StaticCredentialsProvider.create(
-            AwsBasicCredentials.create(properties.getAccessKeyId(), properties.getSecretAccessKey())
-        ))
-        .serviceConfiguration(S3Configuration.builder()
-            .pathStyleAccessEnabled(properties.isPathStyleAccess())
-            .build());
+    @Bean
+    public S3Client s3Client(S3StorageProperties properties) {
+        S3ClientBuilder builder = S3Client.builder()
+            .region(Region.of(properties.getRegion()))
+            .credentialsProvider(
+                StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(
+                        properties.getAccessKeyId(),
+                        properties.getSecretAccessKey()
+                    )
+                )
+            )
+            .serviceConfiguration(
+                S3Configuration.builder()
+                    .pathStyleAccessEnabled(properties.isPathStyleAccess())
+                    .build()
+            );
 
-    if (properties.getEndpoint() != null && !properties.getEndpoint().trim().isEmpty()) {
-      builder.endpointOverride(URI.create(properties.getEndpoint().trim()));
+        if (
+            properties.getEndpoint() != null &&
+            !properties.getEndpoint().trim().isEmpty()
+        ) {
+            builder.endpointOverride(
+                URI.create(properties.getEndpoint().trim())
+            );
+        }
+
+        return builder.build();
     }
-
-    return builder.build();
-  }
 }

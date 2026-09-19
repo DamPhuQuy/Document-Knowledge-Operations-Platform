@@ -10,6 +10,5 @@ public record VerifyOtpRequest(
     @Email(message = "Invalid email format")
     String email,
 
-    @NotBlank(message = "OTP must not be blank")
-    String otp
+    @NotBlank(message = "OTP must not be blank") String otp
 ) {}

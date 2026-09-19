@@ -4,9 +4,9 @@ import java.time.Duration;
 import java.util.Optional;
 
 public interface OtpRepositoryPort {
-  void saveOtp(String email, String otp, Duration ttl);
+    void saveOtp(String email, String otp, Duration ttl);
 
-  Optional<String> getOtp(String email);
+    Optional<String> getOtp(String email);
 
-  void deleteOtp(String email);
+    void deleteOtp(String email);
 }

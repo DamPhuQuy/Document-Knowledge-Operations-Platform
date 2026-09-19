@@ -13,7 +13,7 @@ public class LoggingEmailNotificationAdapter implements EmailNotificationPort {
   @Override
   public void sendOtpEmail(String email, String otp, String fullName) {
     log.info(
-        "📧 [ASYNC EMAIL SENT] To: {} <{}> | Registration OTP: [{}] (Valid for 5 minutes)",
+        "[ASYNC EMAIL SENT] To: {} <{}> | Registration OTP: [{}] (Valid for 5 minutes)",
         fullName,
         email,
         otp);

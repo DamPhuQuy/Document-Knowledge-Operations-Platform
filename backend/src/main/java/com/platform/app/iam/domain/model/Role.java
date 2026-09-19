@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -18,34 +17,48 @@ import lombok.ToString;
 @ToString(onlyExplicitlyIncluded = true)
 @Builder
 public class Role {
-  @ToString.Include
-  @EqualsAndHashCode.Include
-  private final UUID id;
 
-  @ToString.Include
-  private final String code;
+    @ToString.Include
+    @EqualsAndHashCode.Include
+    private final UUID id;
 
-  @ToString.Include
-  private final String name;
+    @ToString.Include
+    private final String code;
 
-  private final String description;
+    @ToString.Include
+    private final String name;
 
-  @Getter(AccessLevel.NONE)
-  private final Set<Permission> permissions;
+    private final String description;
 
-  public Role(UUID id, String code, String name, String description, Set<Permission> permissions) {
-    this.id = Objects.requireNonNull(id, "Role id must not be null");
-    this.code = Objects.requireNonNull(code, "Role code must not be null").toUpperCase();
-    this.name = Objects.requireNonNull(name, "Role name must not be null");
-    this.description = description;
-    this.permissions = permissions != null ? new HashSet<>(permissions) : new HashSet<>();
-  }
+    @Getter(AccessLevel.NONE)
+    private final Set<Permission> permissions;
 
-  public Set<Permission> getPermissions() {
-    return Collections.unmodifiableSet(permissions);
-  }
+    public Role(
+        UUID id,
+        String code,
+        String name,
+        String description,
+        Set<Permission> permissions
+    ) {
+        this.id = Objects.requireNonNull(id, "Role id must not be null");
+        this.code = Objects.requireNonNull(
+            code,
+            "Role code must not be null"
+        ).toUpperCase();
+        this.name = Objects.requireNonNull(name, "Role name must not be null");
+        this.description = description;
+        this.permissions =
+            permissions != null ? new HashSet<>(permissions) : new HashSet<>();
+    }
 
-  public Set<String> getPermissionCodes() {
-    return permissions.stream().map(Permission::getCode).collect(Collectors.toSet());
-  }
+    public Set<Permission> getPermissions() {
+        return Collections.unmodifiableSet(permissions);
+    }
+
+    public Set<String> getPermissionCodes() {
+        return permissions
+            .stream()
+            .map(Permission::getCode)
+            .collect(Collectors.toSet());
+    }
 }
