@@ -180,7 +180,7 @@ class DocumentControllerTest {
     };
 
     mockMvc.perform(multipart("/api/v1/documents").file(oversizedFile))
-        .andExpect(status().isPayloadTooLarge())
+        .andExpect(status().isContentTooLarge())
         .andExpect(jsonPath("$.status", is(413)));
   }
 
@@ -337,7 +337,7 @@ class DocumentControllerTest {
 
     mockMvc.perform(multipart("/api/v1/documents/{id}/versions", docId)
             .file(oversizedFile))
-        .andExpect(status().isPayloadTooLarge())
+        .andExpect(status().isContentTooLarge())
         .andExpect(jsonPath("$.status", is(413)));
   }
 
