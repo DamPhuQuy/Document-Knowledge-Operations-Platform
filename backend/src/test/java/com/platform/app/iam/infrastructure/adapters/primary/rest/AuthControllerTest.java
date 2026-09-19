@@ -10,23 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.Instant;
-import java.util.Set;
-import java.util.UUID;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
 import com.platform.app.iam.application.ports.outbound.AccountLockoutPort;
 import com.platform.app.iam.application.ports.outbound.OtpRepositoryPort;
 import com.platform.app.iam.infrastructure.adapters.primary.rest.dto.request.LoginRequest;
@@ -36,34 +20,57 @@ import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.RoleJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.entity.UserJpaEntity;
 import com.platform.app.iam.infrastructure.adapters.secondary.persistence.repository.SpringDataUserRepository;
-
 import jakarta.persistence.EntityManager;
+import java.time.Instant;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 class AuthControllerTest {
 
-  @Autowired private MockMvc mockMvc;
-  private final ObjectMapper objectMapper = new ObjectMapper();
-  @Autowired private EntityManager entityManager;
-  @Autowired private SpringDataUserRepository springDataUserRepository;
-  @Autowired private PasswordEncoder passwordEncoder;
-  @Autowired private AccountLockoutPort accountLockoutPort;
-  @Autowired private OtpRepositoryPort otpRepositoryPort;
+    @Autowired
+    private MockMvc mockMvc;
 
-  private UUID activeUserId;
-  private UUID disabledUserId;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-  @BeforeEach
-  void setUp() {
-    accountLockoutPort.resetAttempts("active@platform.com");
-    accountLockoutPort.resetAttempts("disabled@platform.com");
-    accountLockoutPort.resetAttempts("unknown@platform.com");
-    springDataUserRepository.deleteAll();
+    @Autowired
+    private EntityManager entityManager;
 
-    PermissionJpaEntity docRead =
-        PermissionJpaEntity.builder()
+    @Autowired
+    private SpringDataUserRepository springDataUserRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private AccountLockoutPort accountLockoutPort;
+
+    @Autowired
+    private OtpRepositoryPort otpRepositoryPort;
+
+    private UUID activeUserId;
+    private UUID disabledUserId;
+
+    @BeforeEach
+    void setUp() {
+        accountLockoutPort.resetAttempts("active@platform.com");
+        accountLockoutPort.resetAttempts("disabled@platform.com");
+        accountLockoutPort.resetAttempts("unknown@platform.com");
+        springDataUserRepository.deleteAll();
+
+        PermissionJpaEntity docRead = PermissionJpaEntity.builder()
             .id(UUID.randomUUID())
             .code("DOC_READ")
             .name("Read Documents")
@@ -71,10 +78,9 @@ class AuthControllerTest {
             .description("Read permission")
             .createdAt(Instant.now())
             .build();
-    entityManager.persist(docRead);
+        entityManager.persist(docRead);
 
-    RoleJpaEntity userRole =
-        RoleJpaEntity.builder()
+        RoleJpaEntity userRole = RoleJpaEntity.builder()
             .id(UUID.randomUUID())
             .code("STAFF")
             .name("Staff User")
@@ -82,11 +88,10 @@ class AuthControllerTest {
             .createdAt(Instant.now())
             .permissions(Set.of(docRead))
             .build();
-    entityManager.persist(userRole);
+        entityManager.persist(userRole);
 
-    activeUserId = UUID.randomUUID();
-    UserJpaEntity activeUser =
-        UserJpaEntity.builder()
+        activeUserId = UUID.randomUUID();
+        UserJpaEntity activeUser = UserJpaEntity.builder()
             .id(activeUserId)
             .email("active@platform.com")
             .passwordHash(passwordEncoder.encode("Password123#"))
@@ -98,11 +103,10 @@ class AuthControllerTest {
             .updatedAt(Instant.now())
             .roles(Set.of(userRole))
             .build();
-    entityManager.persist(activeUser);
+        entityManager.persist(activeUser);
 
-    disabledUserId = UUID.randomUUID();
-    UserJpaEntity disabledUser =
-        UserJpaEntity.builder()
+        disabledUserId = UUID.randomUUID();
+        UserJpaEntity disabledUser = UserJpaEntity.builder()
             .id(disabledUserId)
             .email("disabled@platform.com")
             .passwordHash(passwordEncoder.encode("Password123#"))
@@ -114,345 +118,442 @@ class AuthControllerTest {
             .updatedAt(Instant.now())
             .roles(Set.of(userRole))
             .build();
-    entityManager.persist(disabledUser);
+        entityManager.persist(disabledUser);
 
-    entityManager.flush();
-    entityManager.clear();
-  }
-
-  @Test
-  @DisplayName("POST /api/v1/auth/login - 200 OK with tokens on valid credentials")
-  void shouldLoginSuccessfully() throws Exception {
-    LoginRequest request =
-        LoginRequest.builder().email("active@platform.com").password("Password123#").build();
-
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .header("User-Agent", "JUnit-Test-Agent")
-                .header("X-Forwarded-For", "192.168.1.100"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.accessToken", notNullValue()))
-        .andExpect(jsonPath("$.refreshToken", notNullValue()))
-        .andExpect(jsonPath("$.tokenType", is("Bearer")))
-        .andExpect(jsonPath("$.expiresIn", greaterThan(0)))
-        .andExpect(jsonPath("$.user.id", is(activeUserId.toString())))
-        .andExpect(jsonPath("$.user.email", is("active@platform.com")))
-        .andExpect(jsonPath("$.user.fullName", is("Active User")))
-        .andExpect(jsonPath("$.user.roles", hasItem("STAFF")))
-        .andExpect(jsonPath("$.user.permissions", hasItem("DOC_READ")));
-  }
-
-  @Test
-  @DisplayName("POST /api/v1/auth/login - 400 Bad Request on invalid email format")
-  void shouldReturn400OnInvalidEmail() throws Exception {
-    LoginRequest request =
-        LoginRequest.builder().email("not-an-email").password("Password123#").build();
-
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status", is(400)))
-        .andExpect(jsonPath("$.message", containsString("Invalid email format")));
-  }
-
-  @Test
-  @DisplayName("POST /api/v1/auth/login - 400 Bad Request on blank password")
-  void shouldReturn400OnBlankPassword() throws Exception {
-    LoginRequest request =
-        LoginRequest.builder().email("active@platform.com").password("").build();
-
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status", is(400)))
-        .andExpect(jsonPath("$.message", containsString("Password must not be blank")));
-  }
-
-  @Test
-  @DisplayName("POST /api/v1/auth/login - 401 Unauthorized on wrong password")
-  void shouldReturn401OnWrongPassword() throws Exception {
-    LoginRequest request =
-        LoginRequest.builder().email("active@platform.com").password("WrongPassword999!").build();
-
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.status", is(401)))
-        .andExpect(jsonPath("$.message", is("Invalid email or password")));
-  }
-
-  @Test
-  @DisplayName("POST /api/v1/auth/login - 401 Unauthorized on non-existent user")
-  void shouldReturn401OnUnknownUser() throws Exception {
-    LoginRequest request =
-        LoginRequest.builder().email("unknown@platform.com").password("SomePassword123#").build();
-
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.status", is(401)))
-        .andExpect(jsonPath("$.message", is("Invalid email or password")));
-  }
-
-  @Test
-  @DisplayName("POST /api/v1/auth/login - 403 Forbidden on disabled account")
-  void shouldReturn403OnDisabledAccount() throws Exception {
-    LoginRequest request =
-        LoginRequest.builder().email("disabled@platform.com").password("Password123#").build();
-
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.status", is(403)))
-        .andExpect(jsonPath("$.message", is("Account is deactivated")));
-  }
-
-  @Test
-  @DisplayName("POST /api/v1/auth/login - 423 Locked on 5 consecutive failed attempts")
-  void shouldReturn423AfterFiveFailedAttempts() throws Exception {
-    LoginRequest badRequest =
-        LoginRequest.builder().email("active@platform.com").password("WrongPassword!").build();
-
-    // 4 failed attempts -> 401
-    for (int i = 0; i < 4; i++) {
-      mockMvc
-          .perform(
-              post("/api/v1/auth/login")
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(objectMapper.writeValueAsString(badRequest)))
-          .andExpect(status().isUnauthorized());
+        entityManager.flush();
+        entityManager.clear();
     }
 
-    // 5th failed attempt -> 401 (locks account for next attempt)
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(badRequest)))
-        .andExpect(status().isUnauthorized());
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/login - 200 OK with tokens on valid credentials"
+    )
+    void shouldLoginSuccessfully() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+            .email("active@platform.com")
+            .password("Password123#")
+            .build();
 
-    // 6th attempt (even with correct password) -> 423 LOCKED
-    LoginRequest correctRequest =
-        LoginRequest.builder().email("active@platform.com").password("Password123#").build();
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(correctRequest)))
-        .andExpect(status().is(423))
-        .andExpect(jsonPath("$.status", is(423)))
-        .andExpect(
-            jsonPath(
-                "$.message",
-                is(
-                    "Account is temporarily locked due to 5 consecutive failed login attempts. Please try again after 15 minutes.")));
-  }
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+                    .header("User-Agent", "JUnit-Test-Agent")
+                    .header("X-Forwarded-For", "192.168.1.100")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken", notNullValue()))
+            .andExpect(jsonPath("$.refreshToken", notNullValue()))
+            .andExpect(jsonPath("$.tokenType", is("Bearer")))
+            .andExpect(jsonPath("$.expiresIn", greaterThan(0)))
+            .andExpect(jsonPath("$.user.id", is(activeUserId.toString())))
+            .andExpect(jsonPath("$.user.email", is("active@platform.com")))
+            .andExpect(jsonPath("$.user.fullName", is("Active User")))
+            .andExpect(jsonPath("$.user.roles", hasItem("STAFF")))
+            .andExpect(jsonPath("$.user.permissions", hasItem("DOC_READ")));
+    }
 
-  @Test
-  @DisplayName("POST /api/v1/auth/register - 201 Created on valid registration")
-  void shouldRegisterSuccessfully() throws Exception {
-    RegisterRequest request =
-        RegisterRequest.builder()
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/login - 400 Bad Request on invalid email format"
+    )
+    void shouldReturn400OnInvalidEmail() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+            .email("not-an-email")
+            .password("Password123#")
+            .build();
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status", is(400)))
+            .andExpect(
+                jsonPath("$.message", containsString("Invalid email format"))
+            );
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/auth/login - 400 Bad Request on blank password")
+    void shouldReturn400OnBlankPassword() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+            .email("active@platform.com")
+            .password("")
+            .build();
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status", is(400)))
+            .andExpect(
+                jsonPath(
+                    "$.message",
+                    containsString("Password must not be blank")
+                )
+            );
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/auth/login - 401 Unauthorized on wrong password")
+    void shouldReturn401OnWrongPassword() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+            .email("active@platform.com")
+            .password("WrongPassword999!")
+            .build();
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.status", is(401)))
+            .andExpect(jsonPath("$.message", is("Invalid email or password")));
+    }
+
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/login - 401 Unauthorized on non-existent user"
+    )
+    void shouldReturn401OnUnknownUser() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+            .email("unknown@platform.com")
+            .password("SomePassword123#")
+            .build();
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.status", is(401)))
+            .andExpect(jsonPath("$.message", is("Invalid email or password")));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/auth/login - 403 Forbidden on disabled account")
+    void shouldReturn403OnDisabledAccount() throws Exception {
+        LoginRequest request = LoginRequest.builder()
+            .email("disabled@platform.com")
+            .password("Password123#")
+            .build();
+
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status", is(403)))
+            .andExpect(jsonPath("$.message", is("Account is deactivated")));
+    }
+
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/login - 423 Locked on 5 consecutive failed attempts"
+    )
+    void shouldReturn423AfterFiveFailedAttempts() throws Exception {
+        LoginRequest badRequest = LoginRequest.builder()
+            .email("active@platform.com")
+            .password("WrongPassword!")
+            .build();
+
+        // 4 failed attempts -> 401
+        for (int i = 0; i < 4; i++) {
+            mockMvc
+                .perform(
+                    post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(badRequest))
+                )
+                .andExpect(status().isUnauthorized());
+        }
+
+        // 5th failed attempt -> 401 (locks account for next attempt)
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(badRequest))
+            )
+            .andExpect(status().isUnauthorized());
+
+        // 6th attempt (even with correct password) -> 423 LOCKED
+        LoginRequest correctRequest = LoginRequest.builder()
+            .email("active@platform.com")
+            .password("Password123#")
+            .build();
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(correctRequest))
+            )
+            .andExpect(status().is(423))
+            .andExpect(jsonPath("$.status", is(423)))
+            .andExpect(
+                jsonPath(
+                    "$.message",
+                    is(
+                        "Account is temporarily locked due to 5 consecutive failed login attempts. Please try again after 15 minutes."
+                    )
+                )
+            );
+    }
+
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/register - 201 Created on valid registration"
+    )
+    void shouldRegisterSuccessfully() throws Exception {
+        RegisterRequest request = RegisterRequest.builder()
             .email("newuser@platform.com")
             .password("SecurePassword123#")
             .firstName("Jane")
             .lastName("Doe")
             .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id", notNullValue()))
-        .andExpect(jsonPath("$.email", is("newuser@platform.com")))
-        .andExpect(jsonPath("$.fullName", is("Jane Doe")))
-        .andExpect(jsonPath("$.roles", hasItem("STAFF")));
-  }
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id", notNullValue()))
+            .andExpect(jsonPath("$.email", is("newuser@platform.com")))
+            .andExpect(jsonPath("$.fullName", is("Jane Doe")))
+            .andExpect(jsonPath("$.roles", hasItem("STAFF")));
+    }
 
-  @Test
-  @DisplayName("POST /api/v1/auth/register - 409 Conflict when email already exists")
-  void shouldReturn409WhenEmailAlreadyExists() throws Exception {
-    RegisterRequest request =
-        RegisterRequest.builder()
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/register - 409 Conflict when email already exists"
+    )
+    void shouldReturn409WhenEmailAlreadyExists() throws Exception {
+        RegisterRequest request = RegisterRequest.builder()
             .email("active@platform.com")
             .password("SecurePassword123#")
             .firstName("Duplicate")
             .lastName("User")
             .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.status", is(409)))
-        .andExpect(jsonPath("$.message", containsString("already registered")));
-  }
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.status", is(409)))
+            .andExpect(
+                jsonPath("$.message", containsString("already registered"))
+            );
+    }
 
-  @Test
-  @DisplayName("POST /api/v1/auth/register - 400 Bad Request on invalid email")
-  void shouldReturn400OnRegisterWithInvalidEmail() throws Exception {
-    RegisterRequest request =
-        RegisterRequest.builder()
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/register - 400 Bad Request on invalid email"
+    )
+    void shouldReturn400OnRegisterWithInvalidEmail() throws Exception {
+        RegisterRequest request = RegisterRequest.builder()
             .email("not-an-email")
             .password("SecurePassword123#")
             .firstName("Jane")
             .lastName("Doe")
             .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status", is(400)))
-        .andExpect(jsonPath("$.message", containsString("Invalid email format")));
-  }
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status", is(400)))
+            .andExpect(
+                jsonPath("$.message", containsString("Invalid email format"))
+            );
+    }
 
-  @Test
-  @DisplayName("POST /api/v1/auth/register - 400 Bad Request on blank first name")
-  void shouldReturn400OnRegisterWithBlankFirstName() throws Exception {
-    RegisterRequest request =
-        RegisterRequest.builder()
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/register - 400 Bad Request on blank first name"
+    )
+    void shouldReturn400OnRegisterWithBlankFirstName() throws Exception {
+        RegisterRequest request = RegisterRequest.builder()
             .email("valid@platform.com")
             .password("SecurePassword123#")
             .firstName("")
             .lastName("Doe")
             .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status", is(400)))
-        .andExpect(jsonPath("$.message", containsString("First name must not be blank")));
-  }
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status", is(400)))
+            .andExpect(
+                jsonPath(
+                    "$.message",
+                    containsString("First name must not be blank")
+                )
+            );
+    }
 
-  @Test
-  @DisplayName("Full Flow: Register -> Cannot login yet -> Verify OTP -> Login successfully")
-  void shouldRegisterThenVerifyOtpAndLoginSuccessfully() throws Exception {
-    String testEmail = "flowuser@platform.com";
-    String password = "ValidPassword123#";
+    @Test
+    @DisplayName(
+        "Full Flow: Register -> Cannot login yet -> Verify OTP -> Login successfully"
+    )
+    void shouldRegisterThenVerifyOtpAndLoginSuccessfully() throws Exception {
+        String testEmail = "flowuser@platform.com";
+        String password = "ValidPassword123#";
 
-    // 1. Register user
-    RegisterRequest registerRequest =
-        RegisterRequest.builder()
+        // 1. Register user
+        RegisterRequest registerRequest = RegisterRequest.builder()
             .email(testEmail)
             .password(password)
             .firstName("Flow")
             .lastName("User")
             .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.email", is(testEmail)));
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest))
+            )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.email", is(testEmail)));
 
-    // 2. Attempt login before OTP verification -> 403 Forbidden (Account is deactivated)
-    LoginRequest loginRequest =
-        LoginRequest.builder().email(testEmail).password(password).build();
+        // 2. Attempt login before OTP verification -> 403 Forbidden (Account is deactivated)
+        LoginRequest loginRequest = LoginRequest.builder()
+            .email(testEmail)
+            .password(password)
+            .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
-        .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.status", is(403)))
-        .andExpect(jsonPath("$.message", is("Account is deactivated")));
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest))
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status", is(403)))
+            .andExpect(jsonPath("$.message", is("Account is deactivated")));
 
-    // 3. Retrieve OTP from OtpRepositoryPort
-    String otp =
-        otpRepositoryPort
+        // 3. Retrieve OTP from OtpRepositoryPort
+        String otp = otpRepositoryPort
             .getOtp(testEmail)
-            .orElseThrow(() -> new AssertionError("OTP should be present in repository"));
+            .orElseThrow(() ->
+                new AssertionError("OTP should be present in repository")
+            );
 
-    // 4. Verify OTP -> 200 OK
-    VerifyOtpRequest verifyOtpRequest =
-        VerifyOtpRequest.builder().email(testEmail).otp(otp).build();
+        // 4. Verify OTP -> 200 OK
+        VerifyOtpRequest verifyOtpRequest = VerifyOtpRequest.builder()
+            .email(testEmail)
+            .otp(otp)
+            .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/verify-otp")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(verifyOtpRequest)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.activated", is(true)))
-        .andExpect(jsonPath("$.message", containsString("Account verified and activated")));
+        mockMvc
+            .perform(
+                post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(verifyOtpRequest))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.activated", is(true)))
+            .andExpect(
+                jsonPath(
+                    "$.message",
+                    containsString("Account verified and activated")
+                )
+            );
 
-    // 5. OTP must be deleted after use (prevent replay)
-    assertTrue(otpRepositoryPort.getOtp(testEmail).isEmpty(), "OTP should be cleared after verification");
+        // 5. OTP must be deleted after use (prevent replay)
+        assertTrue(
+            otpRepositoryPort.getOtp(testEmail).isEmpty(),
+            "OTP should be cleared after verification"
+        );
 
-    // 6. Login now succeeds -> 200 OK with tokens
-    mockMvc
-        .perform(
-            post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.accessToken", notNullValue()))
-        .andExpect(jsonPath("$.user.email", is(testEmail)));
-  }
+        // 6. Login now succeeds -> 200 OK with tokens
+        mockMvc
+            .perform(
+                post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken", notNullValue()))
+            .andExpect(jsonPath("$.user.email", is(testEmail)));
+    }
 
-  @Test
-  @DisplayName("POST /api/v1/auth/verify-otp - 400 Bad Request on invalid OTP")
-  void shouldReturn400OnInvalidOtp() throws Exception {
-    String testEmail = "mismatch@platform.com";
-    otpRepositoryPort.saveOtp(testEmail, "123456", java.time.Duration.ofMinutes(5));
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/verify-otp - 400 Bad Request on invalid OTP"
+    )
+    void shouldReturn400OnInvalidOtp() throws Exception {
+        String testEmail = "mismatch@platform.com";
+        otpRepositoryPort.saveOtp(
+            testEmail,
+            "123456",
+            java.time.Duration.ofMinutes(5)
+        );
 
-    VerifyOtpRequest request =
-        VerifyOtpRequest.builder().email(testEmail).otp("000000").build();
+        VerifyOtpRequest request = VerifyOtpRequest.builder()
+            .email(testEmail)
+            .otp("000000")
+            .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/verify-otp")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status", is(400)))
-        .andExpect(jsonPath("$.message", is("Invalid OTP provided.")));
-  }
+        mockMvc
+            .perform(
+                post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status", is(400)))
+            .andExpect(jsonPath("$.message", is("Invalid OTP provided.")));
+    }
 
-  @Test
-  @DisplayName("POST /api/v1/auth/verify-otp - 400 Bad Request on non-existent or expired OTP")
-  void shouldReturn400OnExpiredOtp() throws Exception {
-    VerifyOtpRequest request =
-        VerifyOtpRequest.builder().email("nonexistent@platform.com").otp("123456").build();
+    @Test
+    @DisplayName(
+        "POST /api/v1/auth/verify-otp - 400 Bad Request on non-existent or expired OTP"
+    )
+    void shouldReturn400OnExpiredOtp() throws Exception {
+        VerifyOtpRequest request = VerifyOtpRequest.builder()
+            .email("nonexistent@platform.com")
+            .otp("123456")
+            .build();
 
-    mockMvc
-        .perform(
-            post("/api/v1/auth/verify-otp")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.status", is(400)))
-        .andExpect(jsonPath("$.message", containsString("OTP has expired or does not exist")));
-  }
+        mockMvc
+            .perform(
+                post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request))
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status", is(400)))
+            .andExpect(
+                jsonPath(
+                    "$.message",
+                    containsString("OTP has expired or does not exist")
+                )
+            );
+    }
 }
