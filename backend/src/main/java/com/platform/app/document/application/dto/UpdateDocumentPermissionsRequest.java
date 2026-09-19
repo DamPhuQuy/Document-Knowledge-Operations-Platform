@@ -1,11 +1,9 @@
 package com.platform.app.document.application.dto;
 
-import java.util.List;
-
 import com.platform.app.document.domain.model.AccessLevel;
-
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,15 +17,15 @@ import lombok.Setter;
 @Builder
 public class UpdateDocumentPermissionsRequest {
 
-  @NotNull(message = "Access level must not be null")
-  private AccessLevel accessLevel;
+    @NotNull(message = "Access level must not be null")
+    private AccessLevel accessLevel;
 
-  @Valid
-  private List<UserGrantDto> userGrants;
+    @Valid
+    private List<UserGrantDto> userGrants;
 
-  @Valid
-  private List<DepartmentGrantDto> departmentGrants;
+    @Valid
+    private List<DepartmentGrantDto> departmentGrants;
 
-  @Valid
-  private List<RoleGrantDto> roleGrants;
+    @Valid
+    private List<RoleGrantDto> roleGrants;
 }

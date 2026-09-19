@@ -1,10 +1,8 @@
 package com.platform.app.document.application.dto;
 
-import java.util.UUID;
-
 import com.platform.app.document.domain.model.PermissionLevel;
-
 import jakarta.validation.constraints.NotNull;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,9 +16,9 @@ import lombok.Setter;
 @Builder
 public class DepartmentGrantDto {
 
-  @NotNull(message = "Department ID must not be null")
-  private UUID departmentId;
+    @NotNull(message = "Department ID must not be null")
+    private UUID departmentId;
 
-  @NotNull(message = "Permission level must not be null")
-  private PermissionLevel permissionLevel;
+    @NotNull(message = "Permission level must not be null")
+    private PermissionLevel permissionLevel;
 }
