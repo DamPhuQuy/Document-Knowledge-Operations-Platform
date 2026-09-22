@@ -1,149 +1,98 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import { config, logger } from './config'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import { ConfigProvider, App as AntdApp } from 'antd';
+import { midoneAntdTheme } from '@/theme/themeConfig';
+import {
+  AuthProvider,
+  DepartmentProvider,
+  DocumentProvider,
+  AuditProvider,
+} from '@/context';
+import { MidoneLayout } from '@/components/layout/MidoneLayout';
+import { DocumentsWorkspace } from '@/features/documents/DocumentsWorkspace';
+import { OrganizationWorkspace } from '@/features/organization/OrganizationWorkspace';
+import { AuditTrailWorkspace } from '@/features/audit/AuditTrailWorkspace';
+import { AuthScreen } from '@/features/auth/AuthScreen';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+type ActiveTab = 'documents' | 'organization' | 'audit-logs' | 'auth';
 
-  const handleIncrement = () => {
-    setCount((prev) => {
-      const next = prev + 1
-      logger.debug(`Counter updated: ${next}`)
-      return next
-    })
+const AppContent: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (['documents', 'organization', 'audit-logs', 'auth'].includes(hash)) {
+      return hash as ActiveTab;
+    }
+    return 'documents';
+  });
+
+  useEffect(() => {
+    window.location.hash = activeTab;
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (['documents', 'organization', 'audit-logs', 'auth'].includes(hash)) {
+        setActiveTab(hash as ActiveTab);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab]);
+
+  // If auth tab is selected and rendered as dedicated split-screen
+  if (activeTab === 'auth') {
+    return (
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={() => setActiveTab('documents')}
+          style={{
+            position: 'absolute',
+            top: 20,
+            left: 20,
+            zIndex: 100,
+            background: 'rgba(255, 255, 255, 0.2)',
+            color: '#ffffff',
+            border: '1px solid rgba(255, 255, 255, 0.4)',
+            padding: '8px 16px',
+            borderRadius: 20,
+            cursor: 'pointer',
+            fontSize: 13,
+            fontWeight: 600,
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          ← Return to Workspace
+        </button>
+        <AuthScreen onSuccess={() => setActiveTab('documents')} />
+      </div>
+    );
   }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>{config.appTitle}</h1>
-          <p>
-            Environment:{' '}
-            <span
-              style={{
-                display: 'inline-block',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                textTransform: 'uppercase',
-                backgroundColor: config.isProd ? '#10b981' : '#3b82f6',
-                color: '#ffffff',
-                marginLeft: '6px',
-              }}
-            >
-              {config.appEnv} ({config.mode})
-            </span>
-          </p>
-          <p style={{ fontSize: '13px', opacity: 0.8, marginTop: '4px' }}>
-            API Endpoint: <code>{config.apiBaseUrl}</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={handleIncrement}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <MidoneLayout activeTab={activeTab} setActiveTab={setActiveTab}>
+      {activeTab === 'documents' && <DocumentsWorkspace />}
+      {activeTab === 'organization' && <OrganizationWorkspace />}
+      {activeTab === 'audit-logs' && <AuditTrailWorkspace />}
+    </MidoneLayout>
+  );
+};
 
-      <div className="ticks"></div>
+export const App: React.FC = () => {
+  return (
+    <ConfigProvider theme={midoneAntdTheme}>
+      <AntdApp>
+        <AuthProvider>
+          <DepartmentProvider>
+            <DocumentProvider>
+              <AuditProvider>
+                <div className="docops-app-container">
+                  <AppContent />
+                </div>
+              </AuditProvider>
+            </DocumentProvider>
+          </DepartmentProvider>
+        </AuthProvider>
+      </AntdApp>
+    </ConfigProvider>
+  );
+};
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank" rel="noreferrer">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
-}
-
-export default App
+export default App;
