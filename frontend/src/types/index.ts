@@ -50,6 +50,7 @@ export interface LoginResponse {
 export interface RegisterRequest {
   email: string;
   password: string;
+  confirmPassword: string;
   firstName: string;
   lastName?: string;
 }
@@ -72,9 +73,9 @@ export interface VerifyOtpResponse {
 }
 
 // Document Management
-export type AccessLevel = 'CONFIDENTIAL' | 'INTERNAL' | 'PUBLIC' | 'RESTRICTED';
-export type PermissionLevel = 'VIEW' | 'EDIT' | 'ADMIN';
-export type DocumentStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+export type AccessLevel = "CONFIDENTIAL" | "INTERNAL" | "PUBLIC" | "RESTRICTED";
+export type PermissionLevel = "VIEW" | "EDIT" | "ADMIN";
+export type DocumentStatus = "ACTIVE" | "ARCHIVED" | "DELETED";
 
 export interface UserGrantDto {
   userId: string;
@@ -207,7 +208,7 @@ export interface AssignRolesRequest {
 }
 
 // Audit Logs
-export type AuditStatus = 'SUCCESS' | 'FAILED';
+export type AuditStatus = "SUCCESS" | "FAILED";
 
 export interface AuditLogResponseDto {
   id: string;

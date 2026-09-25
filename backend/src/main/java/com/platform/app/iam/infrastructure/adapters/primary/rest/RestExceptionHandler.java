@@ -266,6 +266,28 @@ public class RestExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatchException(
+        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+        HttpServletRequest request
+    ) {
+        String paramName = ex.getName();
+        String typeName = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "valid format";
+        String message = String.format(
+            "Invalid parameter '%s': value '%s' could not be converted to %s",
+            paramName,
+            ex.getValue(),
+            typeName
+        );
+        log.warn("Type mismatch on {}: {}", request.getRequestURI(), message);
+        ErrorResponse error = buildErrorResponse(
+            HttpStatus.BAD_REQUEST,
+            message,
+            request
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(
         com.platform.app.document.domain.exception.DocumentNotFoundException.class
     )
@@ -325,6 +347,24 @@ public class RestExceptionHandler {
             request
         );
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+        org.springframework.web.HttpRequestMethodNotSupportedException ex,
+        HttpServletRequest request
+    ) {
+        log.warn(
+            "Method not supported on {}: {}",
+            request.getRequestURI(),
+            ex.getMessage()
+        );
+        ErrorResponse error = buildErrorResponse(
+            HttpStatus.METHOD_NOT_ALLOWED,
+            ex.getMessage(),
+            request
+        );
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(error);
     }
 
     @ExceptionHandler(Exception.class)

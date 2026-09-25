@@ -20,6 +20,19 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: 2000ms
 
+  # Mail / SMTP Configuration
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
+
   # Database DataSource Configuration
   datasource:
     url: jdbc:postgresql://${DB_HOST:${POSTGRES_HOST:localhost}}:${DB_PORT:${POSTGRES_PORT:5432}}/${DB_NAME:${POSTGRES_DB:doc_knowledge_example_db}}
@@ -80,6 +93,8 @@ app:
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:86400000}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  mail:
+    from: ${SMTP_FROM:noreply@docops.internal}
   swagger:
     enabled: ${SWAGGER_ENABLED:true}
     title: ${SWAGGER_TITLE:Document and Knowledge Operations Platform API}

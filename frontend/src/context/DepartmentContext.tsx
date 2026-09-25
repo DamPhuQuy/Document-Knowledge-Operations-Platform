@@ -16,31 +16,31 @@ const STORAGE_KEY = 'docops_session_departments';
 
 const DEFAULT_DEPARTMENTS: DepartmentResponseDto[] = [
   {
-    id: 'dept-eng-01',
-    code: 'ENG',
-    name: 'Engineering & Cloud Core',
+    id: '11111111-1111-1111-1111-111111111111',
+    code: 'IT_OPS',
+    name: 'IT Operations & Security',
     description: 'Cloud infrastructure, microservices, and AI platform engineering',
     createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'dept-sec-02',
-    code: 'SEC',
-    name: 'Security & Compliance',
-    description: 'Cryptographic audit, access control, and identity governance',
+    id: '22222222-2222-2222-2222-222222222222',
+    code: 'LEGAL',
+    name: 'Legal & Compliance',
+    description: 'Contract oversight, policy enforcement, and audit compliance',
     createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'dept-leg-03',
-    code: 'LEGAL',
-    name: 'Legal & Risk Operations',
-    description: 'Contract oversight, policy enforcement, and audit compliance',
+    id: '33333333-3333-3333-3333-333333333333',
+    code: 'ENG',
+    name: 'Engineering & Cloud Core',
+    description: 'Core systems architecture and backend development',
     createdAt: new Date(Date.now() - 86400000 * 15).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'dept-ops-04',
+    id: '44444444-4444-4444-4444-444444444444',
     code: 'OPS',
     name: 'Global Operations',
     description: 'Business process coordination, customer delivery, and logistics',
@@ -69,7 +69,15 @@ export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [departments, setDepartments] = useState<DepartmentResponseDto[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? (JSON.parse(saved) as DepartmentResponseDto[]) : DEFAULT_DEPARTMENTS;
+      if (saved) {
+        const parsed = JSON.parse(saved) as DepartmentResponseDto[];
+        const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const valid = parsed.filter((d) => d && d.id && UUID_REGEX.test(d.id));
+        if (valid.length > 0) {
+          return valid;
+        }
+      }
+      return DEFAULT_DEPARTMENTS;
     } catch {
       return DEFAULT_DEPARTMENTS;
     }
@@ -110,6 +118,10 @@ export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [departments]);
 
+  useEffect(() => {
+    fetchDepartments().catch(() => {});
+  }, [fetchDepartments]);
+
   const createDepartment = useCallback(
     async (payload: CreateDepartmentRequest): Promise<DepartmentResponseDto> => {
       setActionLoading(true);
@@ -120,8 +132,11 @@ export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return created;
       } catch (err: unknown) {
         // Fallback for local preview if offline
+        const fallbackId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : '55555555-5555-5555-5555-555555555555';
         const fallbackCreated: DepartmentResponseDto = {
-          id: `dept-${Date.now()}`,
+          id: fallbackId,
           code: payload.code.toUpperCase(),
           name: payload.name,
           description: payload.description || null,

@@ -21,8 +21,9 @@ export const documentsApi = {
     if (params.accessLevel) {
       formData.append('accessLevel', params.accessLevel);
     }
-    if (params.departmentId) {
-      formData.append('departmentId', params.departmentId);
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (params.departmentId && UUID_REGEX.test(params.departmentId.trim())) {
+      formData.append('departmentId', params.departmentId.trim());
     }
 
     return apiClient<DocumentResponseDto>('/documents', {
