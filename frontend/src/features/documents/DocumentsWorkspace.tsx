@@ -189,13 +189,14 @@ export const DocumentsWorkspace: React.FC = () => {
   const handleUploadSubmit = async () => {
     try {
       const values = await uploadForm.validateFields();
-      if (fileList.length === 0 || !fileList[0].originFileObj) {
+      const rawFile = (fileList[0]?.originFileObj || fileList[0]) as unknown as File;
+      if (!fileList.length || !rawFile) {
         message.warning('Please select a file to upload');
         return;
       }
       setSubmitting(true);
       const payload: UploadDocumentParams = {
-        file: fileList[0].originFileObj as File,
+        file: rawFile,
         title: values.title,
         description: values.description,
         accessLevel: values.accessLevel,
@@ -204,8 +205,11 @@ export const DocumentsWorkspace: React.FC = () => {
       await uploadDocument(payload);
       message.success('Document uploaded and encrypted successfully');
       setIsUploadModalOpen(false);
-    } catch {
-      message.error('Failed to upload document');
+    } catch (err: any) {
+      if (err?.errorFields) {
+        return;
+      }
+      message.error(err?.message || 'Failed to upload document');
     } finally {
       setSubmitting(false);
     }
@@ -215,20 +219,24 @@ export const DocumentsWorkspace: React.FC = () => {
     if (!selectedDoc) return;
     try {
       const values = await versionForm.validateFields();
-      if (versionFileList.length === 0 || !versionFileList[0].originFileObj) {
+      const rawVersionFile = (versionFileList[0]?.originFileObj || versionFileList[0]) as unknown as File;
+      if (!versionFileList.length || !rawVersionFile) {
         message.warning('Please select a new version file');
         return;
       }
       setSubmitting(true);
       const payload: UploadVersionParams = {
-        file: versionFileList[0].originFileObj as File,
+        file: rawVersionFile,
         changeSummary: values.changeSummary,
       };
       await uploadVersion(selectedDoc.id, payload);
       message.success('New version committed to platform');
       setIsVersionModalOpen(false);
-    } catch {
-      message.error('Failed to commit version');
+    } catch (err: any) {
+      if (err?.errorFields) {
+        return;
+      }
+      message.error(err?.message || 'Failed to commit version');
     } finally {
       setSubmitting(false);
     }
